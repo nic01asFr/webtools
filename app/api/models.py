@@ -2,7 +2,7 @@
 Modèles de données pour l'API WebExtract.
 """
 
-from typing import Optional, Dict, Any, Literal
+from typing import Optional, Dict, Any, Literal, List
 from pydantic import BaseModel, Field, HttpUrl
 
 
@@ -200,3 +200,191 @@ class HealthResponse(BaseModel):
     status: str = Field(description="Statut du service")
     version: str = Field(description="Version du service")
     playwright_available: bool = Field(description="Playwright est-il disponible?")
+
+
+# ============================================================================
+# Modèles pour l'endpoint de recherche profonde (Deep Research)
+# ============================================================================
+
+
+class ResearchRequest(BaseModel):
+    """Requête de recherche profonde"""
+
+    query: str = Field(
+        ...,
+        description="Requête utilisateur (ex: 'Comment configurer Traefik avec Docker ?')",
+        min_length=5,
+        max_length=500
+    )
+
+    start_urls: Optional[List[HttpUrl]] = Field(
+        default=None,
+        description="URLs de départ (optionnel, sinon recherche via SearXNG)"
+    )
+
+    max_depth: int = Field(
+        default=2,
+        ge=1,
+        le=3,
+        description="Profondeur maximale de navigation (1-3)"
+    )
+
+    max_sources: int = Field(
+        default=5,
+        ge=1,
+        le=20,
+        description="Nombre maximum de sources à analyser"
+    )
+
+    language: str = Field(
+        default="fr",
+        description="Langue pour la recherche et la synthèse"
+    )
+
+    extract_links: bool = Field(
+        default=True,
+        description="Extraire et suivre les liens pertinents"
+    )
+
+
+class SourceInfo(BaseModel):
+    """Informations sur une source utilisée"""
+
+    url: str = Field(..., description="URL de la source")
+    title: str = Field(..., description="Titre de la page")
+    excerpt: str = Field(..., description="Extrait pertinent")
+    relevance_score: float = Field(..., ge=0.0, le=1.0, description="Score de pertinence")
+    depth: int = Field(..., description="Profondeur de navigation")
+    visited_at: str = Field(..., description="Timestamp de visite")
+
+
+class NavigationStep(BaseModel):
+    """Étape de navigation"""
+
+    from_url: str
+    to_url: str
+    reason: str = Field(..., description="Raison de la navigation")
+    links_found: int = 0
+
+
+class ResearchResponse(BaseModel):
+    """Réponse de recherche profonde"""
+
+    success: bool
+    query: str
+
+    answer: Optional[str] = Field(
+        None,
+        description="Réponse synthétisée par le LLM"
+    )
+
+    sources: List[SourceInfo] = Field(
+        default_factory=list,
+        description="Liste des sources utilisées"
+    )
+
+    navigation_path: List[NavigationStep] = Field(
+        default_factory=list,
+        description="Chemin de navigation suivi"
+    )
+
+    total_pages_visited: int = 0
+    total_links_analyzed: int = 0
+
+    processing_time_seconds: float = 0.0
+
+    error: Optional[str] = None
+
+    metadata: dict = Field(
+        default_factory=dict,
+        description="Métadonnées additionnelles"
+    )
+
+    @classmethod
+    def from_error(cls, query: str, error_message: str):
+        """Crée une réponse d'erreur"""
+        return cls(
+            success=False,
+            query=query,
+            error=error_message
+        )
+
+
+# ============================================================================
+# Modèles pour l'endpoint d'analyse d'images (Vision)
+# ============================================================================
+
+
+class VisionRequest(BaseModel):
+    """Requête d'analyse d'image avec Albert Vision"""
+
+    image_url: HttpUrl = Field(
+        ...,
+        description="URL de l'image à analyser"
+    )
+
+    prompt: str = Field(
+        ...,
+        description="Question ou instruction concernant l'image",
+        min_length=5,
+        max_length=1000
+    )
+
+    system_prompt: Optional[str] = Field(
+        default=None,
+        description="Prompt système optionnel pour guider l'analyse"
+    )
+
+    temperature: float = Field(
+        default=0.15,
+        ge=0.0,
+        le=2.0,
+        description="Température pour la génération (0.0 = déterministe)"
+    )
+
+    max_tokens: int = Field(
+        default=500,
+        ge=50,
+        le=4096,
+        description="Nombre maximum de tokens dans la réponse"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "image_url": "https://example.com/image.png",
+                "prompt": "Décris cette image en détail",
+                "system_prompt": "Tu es un assistant spécialisé en analyse d'images.",
+                "temperature": 0.15,
+                "max_tokens": 500
+            }
+        }
+
+
+class VisionResponse(BaseModel):
+    """Réponse d'analyse d'image"""
+
+    success: bool
+    image_url: str
+    prompt: str
+    analysis: Optional[str] = Field(
+        None,
+        description="Analyse de l'image par Albert"
+    )
+    model_used: str = Field(
+        default="albert-large",
+        description="Modèle utilisé pour l'analyse"
+    )
+    processing_time_seconds: float = 0.0
+    error: Optional[str] = None
+
+    @classmethod
+    def from_error(cls, image_url: str, prompt: str, error_message: str):
+        """Crée une réponse d'erreur"""
+        return cls(
+            success=False,
+            image_url=image_url,
+            prompt=prompt,
+            error=error_message,
+            model_used="albert-large"
+        )

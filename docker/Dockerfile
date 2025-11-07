@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libatspi2.0-0 \
     # X virtual framebuffer pour mode headless
     xvfb \
+    xauth \
     # Outils de debug (optionnel)
     curl \
     && rm -rf /var/lib/apt/lists/*
@@ -39,26 +40,33 @@ RUN useradd -m -u 1000 webextract && \
 # Définir le répertoire de travail
 WORKDIR /app
 
-# Copier les fichiers de dépendances
+# Copier les fichiers de dépendances et le code
 COPY --chown=webextract:webextract pyproject.toml ./
+COPY --chown=webextract:webextract app ./app
 
 # Installer les dépendances Python
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -e .
 
-# Installer Playwright et les navigateurs
-RUN python -m playwright install chromium && \
-    python -m playwright install-deps chromium
-
-# Copier le code de l'application
-COPY --chown=webextract:webextract app ./app
+# Installer les dépendances système de Playwright (doit être root)
+RUN python -m playwright install-deps chromium
 
 # Passer à l'utilisateur non-root
 USER webextract
 
+# Installer Playwright en tant qu'utilisateur webextract
+RUN python -m playwright install chromium
+
+# Créer les liens symboliques vers les binaires Playwright (workaround pour le path)
+# Playwright cherche dans /usr/local/lib mais les binaires sont dans ~/.cache
+USER root
+RUN mkdir -p /usr/local/lib/python3.11/site-packages/playwright/driver/package/.local-browsers && \
+    ln -sf /home/webextract/.cache/ms-playwright/chromium-1187 /usr/local/lib/python3.11/site-packages/playwright/driver/package/.local-browsers/ && \
+    ln -sf /home/webextract/.cache/ms-playwright/chromium_headless_shell-1187 /usr/local/lib/python3.11/site-packages/playwright/driver/package/.local-browsers/
+USER webextract
+
 # Variables d'environnement par défaut
-ENV PLAYWRIGHT_HEADLESS=true \
-    PYTHONUNBUFFERED=1 \
+ENV PYTHONUNBUFFERED=1 \
     LOG_LEVEL=INFO
 
 # Exposer le port de l'API
@@ -68,5 +76,6 @@ EXPOSE 8000
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Commande de démarrage avec xvfb pour le mode headless
-CMD ["xvfb-run", "-a", "python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Commande de démarrage
+# On démarre directement uvicorn, Playwright gère le headless tout seul
+CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

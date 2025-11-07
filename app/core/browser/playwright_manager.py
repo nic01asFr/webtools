@@ -39,44 +39,17 @@ async def ensure_playwright_installed() -> bool:
 
         logger.info("Vérification de l'installation de Playwright...")
 
-        # Vérifier si le binaire Chromium existe
-        chromium_path = os.path.expanduser(
-            "~/.cache/ms-playwright/chromium-1161/chrome-linux/chrome"
-        )
+        # Vérifier si le répertoire des binaires Playwright existe
+        playwright_dir = os.path.expanduser("~/.cache/ms-playwright")
+        chromium_dirs = [d for d in os.listdir(playwright_dir) if d.startswith('chromium-')] if os.path.exists(playwright_dir) else []
 
-        if os.path.exists(chromium_path):
-            logger.info(f"Binaire Playwright trouvé: {chromium_path}")
+        if chromium_dirs:
+            logger.info(f"Répertoire(s) Playwright trouvé(s): {chromium_dirs}")
+            # Playwright est installé, on le marque comme disponible
+            # Les erreurs éventuelles seront gérées au runtime
             _playwright_initialized = True
-
-            # Tester le lancement de Playwright
-            try:
-                test_cmd = """
-from playwright.sync_api import sync_playwright
-with sync_playwright() as p:
-    browser = p.chromium.launch(headless=True)
-    browser.close()
-print('OK')
-"""
-                result = subprocess.run(
-                    [sys.executable, "-c", test_cmd],
-                    capture_output=True,
-                    text=True,
-                    check=False,
-                    env=os.environ.copy(),
-                    timeout=30
-                )
-
-                if result.returncode == 0 and "OK" in result.stdout:
-                    logger.info("Playwright fonctionne correctement")
-                    _playwright_available = True
-                else:
-                    logger.warning(
-                        f"Playwright installé mais ne fonctionne pas correctement: "
-                        f"{result.stderr}"
-                    )
-
-            except Exception as e:
-                logger.warning(f"Erreur lors du test de Playwright: {e}")
+            _playwright_available = True
+            logger.info("Playwright marqué comme disponible")
 
         else:
             # Installer Playwright

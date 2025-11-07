@@ -52,7 +52,7 @@ class AlbertLLMClient(BaseLLMClient):
 
     async def generate(
         self,
-        messages: List[Dict[str, str]],
+        messages: List[Dict[str, Any]],
         **kwargs
     ) -> str:
         """
@@ -60,6 +60,7 @@ class AlbertLLMClient(BaseLLMClient):
 
         Args:
             messages: Liste de messages au format {"role": "...", "content": "..."}
+                     Le content peut être un string ou une liste pour la vision
             **kwargs: Paramètres additionnels
 
         Returns:
@@ -103,6 +104,64 @@ class AlbertLLMClient(BaseLLMClient):
             model_name=self.model,
             albert_client=self
         )
+
+    async def generate_with_vision(
+        self,
+        text: str,
+        image_url: str,
+        system_prompt: Optional[str] = None,
+        **kwargs
+    ) -> str:
+        """
+        Génère une réponse avec Albert en analysant une image.
+        Nécessite le modèle albert-large pour la vision.
+
+        Args:
+            text: Question ou instruction concernant l'image
+            image_url: URL de l'image à analyser
+            system_prompt: Prompt système optionnel
+            **kwargs: Paramètres additionnels (temperature, max_tokens, etc.)
+
+        Returns:
+            Analyse de l'image par Albert
+
+        Raises:
+            LLMClientError: Si le modèle ne supporte pas la vision
+        """
+        # Vérifier que le modèle supporte la vision
+        if "large" not in self.model.lower():
+            raise LLMClientError(
+                f"Le modèle {self.model} ne supporte pas l'analyse d'images. "
+                "Utilisez 'albert-large' pour la vision."
+            )
+
+        # Construire les messages avec vision
+        messages = []
+
+        if system_prompt:
+            messages.append({
+                "role": "system",
+                "content": system_prompt
+            })
+
+        messages.append({
+            "role": "user",
+            "content": [
+                {
+                    "type": "text",
+                    "text": text
+                },
+                {
+                    "type": "image_url",
+                    "image_url": {
+                        "url": image_url
+                    }
+                }
+            ]
+        })
+
+        # Utiliser la méthode generate standard
+        return await self.generate(messages, **kwargs)
 
     async def close(self):
         """Ferme le client HTTP."""

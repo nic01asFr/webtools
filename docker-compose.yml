@@ -6,8 +6,15 @@ services:
       context: .
       dockerfile: docker/Dockerfile
     container_name: webextract-service
-    ports:
-      - "8000:8000"
+    networks:
+      - proxy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webtools.rule=Host(`webtools.colaig.fr`)"
+      - "traefik.http.routers.webtools.entrypoints=websecure"
+      - "traefik.http.routers.webtools.tls=true"
+      - "traefik.http.routers.webtools.tls.certresolver=letsencrypt"
+      - "traefik.http.services.webtools.loadbalancer.server.port=8000"
     environment:
       # API Configuration
       - API_HOST=0.0.0.0
@@ -31,6 +38,7 @@ services:
 
       # Playwright
       - PLAYWRIGHT_HEADLESS=true
+      - PLAYWRIGHT_BROWSERS_PATH=0
       - PLAYWRIGHT_TIMEOUT=45000
 
       # Extraction
@@ -43,6 +51,8 @@ services:
     volumes:
       # Optionnel: monter un volume pour les caches
       - webextract-cache:/home/webextract/.cache
+      # Monter le code source pour development (hot reload)
+      - ./app:/app/app
 
     restart: unless-stopped
 
@@ -67,3 +77,7 @@ services:
 volumes:
   webextract-cache:
     driver: local
+
+networks:
+  proxy:
+    external: true

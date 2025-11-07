@@ -1,5 +1,6 @@
 """
 Templates de prompts pour l'extraction de contenu web.
+Optimisés pour albert-code avec 128K tokens de contexte.
 """
 
 from typing import Dict
@@ -8,42 +9,45 @@ from typing import Dict
 class PromptTemplates:
     """Collection de templates de prompts pour différents types de contenu."""
 
-    # Template pour extraction générale
-    GENERAL = """Visite l'URL {url} et extrait le contenu principal du site.
-Ignore les menus, publicités, en-têtes, pieds de page et éléments de navigation.
-Concentre-toi uniquement sur le contenu principal et pertinent.
-Retourne le contenu sous forme de texte brut sans formatage.
-Inclus le titre principal dans ta réponse.
+    # Template pour extraction générale (optimisé albert-code)
+    GENERAL = """Tu es un expert en analyse de contenu web. Analyse le HTML suivant et extrait le contenu principal.
 
-Format de réponse attendu:
-TITRE: [titre de la page]
-CONTENU: [contenu principal extrait]
-"""
+URL: {url}
 
-    # Template pour articles
-    ARTICLE = """Visite l'URL {url} et analyse-la comme un article.
-Extrait les informations suivantes:
+Instructions:
+1. Identifie le contenu principal en ignorant:
+   - Les menus de navigation (<nav>, <header>, <footer>)
+   - Les publicités (<aside>, .ads, .advertisement)
+   - Les éléments secondaires (commentaires, articles recommandés)
 
-1. Le titre de l'article
-2. L'auteur (si disponible)
-3. La date de publication (si disponible)
-4. Le contenu principal de l'article (corps du texte)
-5. Un bref résumé
+2. Extrait:
+   - Le titre principal (généralement dans <h1> ou <title>)
+   - Le contenu textuel principal (articles, sections, paragraphes)
 
-Ignore les éléments suivants:
-- Menus de navigation
-- Publicités
-- Commentaires
-- Articles recommandés
-- En-têtes et pieds de page
+3. Retourne UNIQUEMENT au format suivant (pas de markdown, pas d'explications):
+TITRE: [titre exact de la page]
+CONTENU: [contenu principal en texte brut, préserve les paragraphes]
 
-Format de réponse attendu:
-TITRE: [titre de l'article]
+Ne fournis AUCUNE explication, UNIQUEMENT le format demandé."""
+
+    # Template pour articles (optimisé albert-code)
+    ARTICLE = """Tu es un expert en extraction d'articles web. Analyse le HTML suivant.
+
+URL: {url}
+
+Extrait les métadonnées et le contenu de cet article:
+1. Titre (cherche <h1>, <title>, ou attributs og:title)
+2. Auteur (cherche <meta name="author">, .author, .byline)
+3. Date (cherche <time>, <meta property="article:published_time">)
+4. Corps de l'article (généralement <article>, <main>, .post-content)
+
+Retourne UNIQUEMENT au format suivant:
+TITRE: [titre]
 AUTEUR: [auteur ou "Non disponible"]
 DATE: [date ou "Non disponible"]
-RÉSUMÉ: [résumé en 2-3 phrases]
 CONTENU: [texte complet de l'article]
-"""
+
+Pas d'explication, UNIQUEMENT le format demandé."""
 
     # Template pour produits e-commerce
     PRODUCT = """Visite l'URL {url} et analyse-la comme une page de produit.
@@ -83,26 +87,24 @@ README: [contenu principal du README]
 TECHNOLOGIES: [liste des technologies]
 """
 
-    # Template pour documentation
-    DOCUMENTATION = """Visite l'URL {url} et analyse-la comme une page de documentation technique.
-Extrait les informations suivantes:
+    # Template pour documentation (optimisé albert-code - exploite ses capacités code)
+    DOCUMENTATION = """Tu es albert-code, expert en analyse de documentation technique. Analyse ce HTML de documentation.
 
-1. Titre de la page de documentation
-2. Section / catégorie
-3. Contenu principal de la documentation
-4. Exemples de code (si présents)
-5. Notes importantes ou avertissements
+URL: {url}
 
-Concentre-toi sur le contenu technique et éducatif.
-Ignore les menus de navigation et éléments secondaires.
+Extrait:
+1. Titre de la documentation
+2. Contenu technique (préserve la structure: sections, sous-sections)
+3. Blocs de code (cherche <code>, <pre>, .highlight)
+4. Notes/warnings (cherche .note, .warning, .important)
 
-Format de réponse attendu:
-TITRE: [titre de la documentation]
-SECTION: [section ou catégorie]
-CONTENU: [contenu technique complet]
-EXEMPLES: [exemples de code s'il y en a]
-NOTES: [notes importantes ou avertissements]
-"""
+Retourne au format:
+TITRE: [titre]
+CONTENU: [documentation complète avec structure hiérarchique]
+EXEMPLES: [tous les blocs de code avec leur contexte]
+NOTES: [avertissements et notes importantes]
+
+Format strict, pas d'explication."""
 
     # Template pour Légifrance (spécifique au contexte français)
     LEGIFRANCE = """Visite l'URL {url} qui est un texte juridique sur Légifrance.

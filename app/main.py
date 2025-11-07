@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.api.v1.endpoints import extract
+from app.api.v1.endpoints import extract, research, vision
 from app.api.models import HealthResponse
 from app.core.browser.playwright_manager import ensure_playwright_installed, is_playwright_available
 
@@ -47,22 +47,32 @@ app = FastAPI(
     title=settings.api_title,
     version=settings.api_version,
     description="""
-Service autonome d'extraction de contenu web avec support multi-LLM.
+Service autonome d'extraction de contenu web avec support multi-LLM et vision.
 
 ## Fonctionnalités
 
 - **Extraction Multi-Stratégies** : Direct Playwright, Agent IA, HTTP fallback
 - **Support Multi-LLM** : OpenAI, Anthropic (Claude), Albert
+- **Vision avec Albert** : Analyse d'images avec albert-large (128K contexte)
+- **Deep Research** : Recherche multi-pages avec navigation intelligente
 - **Détection Automatique** : Identifie le type de contenu (article, produit, etc.)
 - **Prompts Optimisés** : Templates spécialisés par type de contenu
 
-## Utilisation
+## Endpoints Disponibles
 
-Envoyez une requête POST à `/api/v1/extract` avec :
-- `url` : URL à extraire
-- `extraction_type` : Type de contenu (optionnel, détection auto)
-- `llm_config` : Configuration du LLM (optionnel, utilise config par défaut)
-- `options` : Options d'extraction (timeout, headless, etc.)
+### `/api/v1/extract` - Extraction de contenu web
+- Extrait le contenu textuel d'une page web
+- Support multi-stratégies (direct, agent, fallback)
+
+### `/api/v1/research` - Recherche profonde
+- Recherche intelligente multi-pages
+- Navigation guidée par LLM
+- Synthèse avec citations de sources
+
+### `/api/v1/vision` - Analyse d'images (NEW!)
+- Analyse d'images avec albert-large
+- Description, OCR, extraction d'information
+- Support formats: PNG, JPG, WebP, GIF
 
 ## Documentation
 
@@ -89,6 +99,18 @@ app.include_router(
     extract.router,
     prefix="/api/v1",
     tags=["extraction"]
+)
+
+app.include_router(
+    research.router,
+    prefix="/api/v1",
+    tags=["research"]
+)
+
+app.include_router(
+    vision.router,
+    prefix="/api/v1",
+    tags=["vision"]
 )
 
 
