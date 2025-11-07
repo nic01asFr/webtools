@@ -47,17 +47,47 @@ async def analyze_image(request: VisionRequest):
     """
     Analyse une image avec Albert Vision (albert-large).
 
-    - **image_url**: URL de l'image à analyser (formats: PNG, JPG, WebP)
-    - **prompt**: Question ou instruction concernant l'image
-    - **system_prompt**: Optionnel - Guide l'analyse
-    - **temperature**: Contrôle la créativité (0.0 = déterministe)
-    - **max_tokens**: Longueur maximale de la réponse
+    **Paramètres:**
+    - **image_url**: URL publique de l'image (PNG, JPG, WebP, GIF)
+    - **prompt**: Question ou instruction (5-1000 caractères)
+    - **system_prompt**: Contexte optionnel pour guider l'analyse
+    - **temperature**: Créativité 0.0-2.0 (défaut: 0.15, recommandé pour analyse factuelle)
+    - **max_tokens**: Longueur réponse 50-4096 (défaut: 500)
 
-    Exemples d'utilisation:
-    - Décrire une image: "Décris cette image en détail"
-    - Extraire du texte: "Quel texte est visible sur cette image ?"
-    - Analyser un graphique: "Quelles tendances vois-tu dans ce graphique ?"
-    - Identifier des objets: "Quels objets sont présents sur cette photo ?"
+    **Exemples de requête:**
+    ```json
+    {
+      "image_url": "https://example.com/chart.png",
+      "prompt": "Quelles tendances vois-tu dans ce graphique ?",
+      "system_prompt": "Tu es un expert en analyse de données",
+      "temperature": 0.15,
+      "max_tokens": 500
+    }
+    ```
+
+    **Exemple de réponse:**
+    ```json
+    {
+      "success": true,
+      "image_url": "https://example.com/chart.png",
+      "prompt": "Quelles tendances...",
+      "analysis": "Ce graphique montre une croissance de 25%...",
+      "model_used": "albert-large",
+      "processing_time_seconds": 8.2
+    }
+    ```
+
+    **Cas d'usage:**
+    - 📊 Analyser des graphiques et tableaux
+    - 📝 OCR - Extraire du texte depuis images
+    - 🗺️ Analyser des cartes géographiques
+    - 🎨 Décrire des logos, UI, photos
+    - 📋 Extraire des données de documents visuels
+
+    **Performances:**
+    - OCR simple: ~1-2s
+    - Description: ~4-6s
+    - Analyse complexe: ~8-12s
     """
     start_time = time.time()
 

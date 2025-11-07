@@ -38,10 +38,23 @@ async def deep_research(request: ResearchRequest):
     }
     ```
 
-    **Réponse:**
-    - answer: Réponse synthétisée
-    - sources: Liste des pages visitées avec extraits
-    - navigation_path: Chemin de navigation suivi
+    **Exemple de réponse:**
+    ```json
+    {
+      "success": true,
+      "query": "Comment configurer Traefik ?",
+      "answer": "Pour configurer Traefik...",
+      "sources": [{
+        "url": "https://doc.traefik.io/",
+        "title": "Traefik Docs",
+        "excerpt": "Traefik is a reverse proxy...",
+        "relevance_score": 0.95,
+        "depth": 0
+      }],
+      "total_pages_visited": 3,
+      "processing_time_seconds": 18.5
+    }
+    ```
     """
     start_time = time.time()
 
