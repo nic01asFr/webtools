@@ -12,6 +12,7 @@ from .base import BaseExtractor, ExtractionError
 from app.api.models import WebResult
 from app.core.llm.base import BaseLLMClient
 from app.core.browser.playwright_manager import ensure_playwright_installed
+from app.core.content_cleaner import AdvancedContentCleaner
 
 logger = logging.getLogger(__name__)
 
@@ -21,6 +22,10 @@ class DirectExtractor(BaseExtractor):
     Extractor utilisant Playwright directement sans agent IA.
     Bon pour les sites statiques ou peu dynamiques.
     """
+
+    def __init__(self):
+        """Initialise l'extracteur avec le nettoyeur de contenu."""
+        self.content_cleaner = AdvancedContentCleaner()
 
     async def extract(
         self,
@@ -80,37 +85,18 @@ class DirectExtractor(BaseExtractor):
                     # Attendre un peu pour le contenu dynamique
                     await page.wait_for_timeout(2000)
 
-                    # Extraire le titre
-                    title = await page.title()
+                    # Extraire le HTML complet de la page
+                    page_html = await page.content()
 
-                    # Extraire le contenu principal
-                    # Essayer plusieurs sélecteurs communs pour le contenu principal
-                    content = ""
+                    # Nettoyer et contextualiser avec le système avancé
+                    logger.info(f"Nettoyage avancé du contenu de {url}")
+                    cleaned_result = self.content_cleaner.clean_and_contextualize(page_html, url)
 
-                    # Sélecteurs à essayer (par priorité)
-                    selectors = [
-                        "article",
-                        "main",
-                        '[role="main"]',
-                        ".main-content",
-                        "#main-content",
-                        ".content",
-                        "#content",
-                        "body"
-                    ]
+                    # Utiliser le contenu structuré (avec marqueurs) pour les agents
+                    content = cleaned_result.structured_content
 
-                    for selector in selectors:
-                        try:
-                            element = await page.query_selector(selector)
-                            if element:
-                                text = await element.inner_text()
-                                if text and len(text) > len(content):
-                                    content = text
-                        except Exception:
-                            continue
-
-                    # Nettoyer le contenu
-                    content = self._clean_content(content)
+                    # Titre: priorité aux métadonnées extraites
+                    title = cleaned_result.metadata.title or await page.title()
 
                     # Vérifier si on a du contenu
                     if not content or len(content) < 100:
@@ -119,17 +105,36 @@ class DirectExtractor(BaseExtractor):
                             error_message="Contenu extrait insuffisant (< 100 caractères)"
                         )
 
-                    logger.info(f"Extraction directe réussie: {len(content)} caractères")
+                    logger.info(
+                        f"Extraction avancée réussie: {cleaned_result.statistics['cleaned_length']} chars, "
+                        f"{cleaned_result.statistics['sections_found']} sections, "
+                        f"{cleaned_result.statistics['elements_removed']} éléments filtrés"
+                    )
+
+                    # Préparer les métadonnées enrichies
+                    metadata = {
+                        "extraction_method": "direct_playwright_advanced",
+                        "content_length": len(content),
+                        "sections_count": len(cleaned_result.sections),
+                        "statistics": cleaned_result.statistics
+                    }
+
+                    # Ajouter les métadonnées extraites
+                    if cleaned_result.metadata.author:
+                        metadata["author"] = cleaned_result.metadata.author
+                    if cleaned_result.metadata.publish_date:
+                        metadata["publish_date"] = cleaned_result.metadata.publish_date
+                    if cleaned_result.metadata.description:
+                        metadata["description"] = cleaned_result.metadata.description
+                    if cleaned_result.metadata.reading_time_minutes:
+                        metadata["reading_time_minutes"] = cleaned_result.metadata.reading_time_minutes
 
                     return WebResult.from_success(
                         url=url,
                         content_type="webpage",
                         title=title,
                         content=content,
-                        metadata={
-                            "extraction_method": "direct_playwright",
-                            "content_length": len(content)
-                        }
+                        metadata=metadata
                     )
 
                 finally:

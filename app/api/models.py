@@ -388,3 +388,116 @@ class VisionResponse(BaseModel):
             error=error_message,
             model_used="albert-large"
         )
+
+
+# ============================================================================
+# Modèles pour l'endpoint de recherche interactive sur site (Site Search)
+# ============================================================================
+
+
+class SearchSiteRequest(BaseModel):
+    """Requête de recherche interactive sur un site web"""
+
+    site_url: HttpUrl = Field(
+        ...,
+        description="URL du site web à explorer (page d'accueil ou page de recherche)"
+    )
+
+    search_query: str = Field(
+        ...,
+        description="Requête de recherche à saisir dans le formulaire du site",
+        min_length=2,
+        max_length=200
+    )
+
+    max_results: int = Field(
+        default=10,
+        ge=1,
+        le=50,
+        description="Nombre maximum de résultats à extraire"
+    )
+
+    timeout: int = Field(
+        default=60,
+        ge=10,
+        le=300,
+        description="Timeout en secondes pour l'opération complète"
+    )
+
+    extract_full_content: bool = Field(
+        default=False,
+        description="Extraire le contenu complet des résultats (plus lent)"
+    )
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "site_url": "https://www.legifrance.gouv.fr/",
+                "search_query": "droit du travail congés payés",
+                "max_results": 10,
+                "timeout": 60,
+                "extract_full_content": False
+            }
+        }
+
+
+class SearchResult(BaseModel):
+    """Un résultat de recherche individuel"""
+
+    title: str = Field(..., description="Titre du résultat")
+    url: str = Field(..., description="URL du résultat")
+    snippet: str = Field(..., description="Extrait/description du résultat")
+    full_content: Optional[str] = Field(
+        None,
+        description="Contenu complet si extract_full_content=True"
+    )
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Métadonnées additionnelles (date, auteur, etc.)"
+    )
+
+
+class SearchSiteResponse(BaseModel):
+    """Réponse de recherche interactive sur site"""
+
+    success: bool
+    site_url: str
+    search_query: str
+
+    results: List[SearchResult] = Field(
+        default_factory=list,
+        description="Liste des résultats de recherche extraits"
+    )
+
+    total_results_found: int = Field(
+        default=0,
+        description="Nombre total de résultats trouvés (peut être > len(results))"
+    )
+
+    search_form_detected: bool = Field(
+        default=False,
+        description="Indique si un formulaire de recherche a été détecté"
+    )
+
+    search_performed: bool = Field(
+        default=False,
+        description="Indique si la recherche a été effectuée avec succès"
+    )
+
+    processing_time_seconds: float = 0.0
+    error: Optional[str] = None
+
+    metadata: Dict[str, Any] = Field(
+        default_factory=dict,
+        description="Métadonnées sur le processus de recherche"
+    )
+
+    @classmethod
+    def from_error(cls, site_url: str, search_query: str, error_message: str):
+        """Crée une réponse d'erreur"""
+        return cls(
+            success=False,
+            site_url=site_url,
+            search_query=search_query,
+            error=error_message
+        )

@@ -10,7 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.api.v1.endpoints import extract, research, vision
+from app.api.v1.endpoints import extract, research, vision, search_site
 from app.api.models import HealthResponse
 from app.core.browser.playwright_manager import ensure_playwright_installed, is_playwright_available
 
@@ -85,6 +85,7 @@ Service autonome pour l'extraction de contenu web, la recherche intelligente mul
 | `/api/v1/extract` | POST | Extraire contenu web | 2-30s |
 | `/api/v1/research` | POST | Recherche profonde multi-pages | 15-45s |
 | `/api/v1/vision` | POST | Analyser une image | 1-12s |
+| `/api/v1/search-site` | POST | Recherche interactive sur site | 10-90s |
 | `/health` | GET | Health check global | <1s |
 
 ## 🎯 Cas d'Usage
@@ -152,6 +153,12 @@ app.include_router(
     vision.router,
     prefix="/api/v1",
     tags=["vision"]
+)
+
+app.include_router(
+    search_site.router,
+    prefix="/api/v1",
+    tags=["search-site"]
 )
 
 

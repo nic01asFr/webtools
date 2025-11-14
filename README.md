@@ -125,6 +125,31 @@ curl -X POST "http://localhost:8000/api/v1/vision" \\
   }'
 \`\`\`
 
+### 4. Recherche Interactive sur Site (Site Search) 🆕
+
+\`\`\`bash
+curl -X POST "http://localhost:8000/api/v1/search-site" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "site_url": "https://www.legifrance.gouv.fr/",
+    "search_query": "droit du travail congés payés",
+    "max_results": 10
+  }'
+\`\`\`
+
+**Fonctionnalités:**
+- Détecte automatiquement les formulaires de recherche (input, textarea)
+- Remplit et soumet le formulaire avec votre requête
+- Extrait les résultats affichés (titres, URLs, extraits)
+- Supporte les sites avec JavaScript (SPA, sites dynamiques)
+- Double stratégie: browser-use + LLM pour sites complexes, Playwright direct pour sites simples
+
+**Cas d'usage:**
+- 🏛️ Recherche juridique (Legifrance, EUR-Lex)
+- 📚 Documentation technique (sans API)
+- 🏥 Bases de données spécialisées
+- 📰 Archives de presse
+
 ## 🏗️ Architecture
 
 \`\`\`
@@ -150,6 +175,7 @@ webtools/
 | \`/api/v1/extract\` | POST | Extraire le contenu d'une URL |
 | \`/api/v1/research\` | POST | Recherche profonde multi-pages |
 | \`/api/v1/vision\` | POST | Analyser une image |
+| \`/api/v1/search-site\` | POST | Recherche interactive sur site |
 | \`/health\` | GET | Health check global |
 | \`/docs\` | GET | Documentation Swagger UI |
 
@@ -162,6 +188,8 @@ webtools/
 | Research (depth=2) | 15-45s | 90% |
 | Vision OCR | 3-5s | 95% |
 | Vision description | 6-10s | 92% |
+| Site search (simple) | 10-25s | 85% |
+| Site search (complexe) | 30-60s | 70% |
 
 ## 🔐 Sécurité
 
