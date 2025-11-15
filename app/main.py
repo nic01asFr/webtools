@@ -1,5 +1,5 @@
 """
-Application principale FastAPI pour WebExtract Service.
+Application principale FastAPI pour Webtools Service.
 """
 
 import logging
@@ -10,7 +10,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.api.v1.endpoints import extract, research, vision, search_site
+from app.api.v1.endpoints import (
+    extract,
+    vision,
+    search_site,
+    api_navigator,
+    smart_api_navigator,
+    adaptive_navigator,
+    adaptive_research,
+    intelligent_research
+)
+# Anciens endpoints avec alias
+from app.api.v1.endpoints import research as research_old
+# Nouveaux endpoints V2
+from app.api.v1.endpoints import search, research_quick, research_deep
+
 from app.api.models import HealthResponse
 from app.core.browser.playwright_manager import ensure_playwright_installed, is_playwright_available
 
@@ -27,7 +41,7 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI):
     """Gestion du cycle de vie de l'application."""
     # Startup
-    logger.info("Démarrage de WebExtract Service...")
+    logger.info("Démarrage de Webtools Service...")
 
     # Initialiser Playwright
     playwright_ok = await ensure_playwright_installed()
@@ -39,7 +53,7 @@ async def lifespan(app: FastAPI):
     yield
 
     # Shutdown
-    logger.info("Arrêt de WebExtract Service...")
+    logger.info("Arrêt de Webtools Service...")
 
 
 # Créer l'application FastAPI
@@ -47,79 +61,222 @@ app = FastAPI(
     title=settings.api_title,
     version=settings.api_version,
     description="""
-# 🚀 WebTools - API d'Extraction et d'Analyse Web avec IA
+# WebTools API
 
-Service autonome pour l'extraction de contenu web, la recherche intelligente multi-pages et l'analyse d'images, propulsé par **Albert API** (LLM gouvernemental français).
+5 endpoints pour extraction et recherche web.
 
-## ✨ Fonctionnalités Principales
+## Ce Que Vous Obtenez
 
-### 🌐 Extraction Web Multi-Stratégies
-- **DirectExtractor**: Playwright pour sites statiques/SPA (2-5s)
-- **AgentExtractor**: Navigation intelligente avec LLM (10-30s)
-- **HTTP Fallback**: Extraction basique de secours
-- Support sites avec JavaScript lourd (GitHub, YouTube, React, Vue)
+### `/api/v1/extract`
+**Input** : URL
+**Output** : Contenu nettoyé (texte, liens, images, métadonnées)
 
-### 🔍 Deep Research (Recherche Profonde)
-- Recherche multi-pages avec navigation intelligente guidée par LLM
-- Intégration **SearXNG** pour découverte automatique de sources
-- Scoring de pertinence et analyse de chaque page
-- **Synthèse avec citations vérifiables** (0% hallucination)
-- Configuration profondeur (1-3) et nombre de sources (1-20)
+Options :
+- `clean_html: true` → Article sans navigation/pub (~87% réduction)
+- `extract_images: true` → Liste URLs images
+- `extract_links: true` → Liens du contenu
 
-### 🎨 Vision AI (Analyse d'Images)
-- **OCR**: Extraction de texte depuis images (1-2s)
-- **Analyse**: Graphiques, cartes, diagrammes (4-10s)
-- **Description**: Logos, UI, photos détaillées
-- Support: PNG, JPG, WebP, GIF
-- Modèle: **albert-large** (128K contexte)
-
-### 🤖 Support Multi-LLM
-- **Albert API** (albert-code, albert-large) - Par défaut
-- **OpenAI** (GPT-4, GPT-3.5)
-- **Anthropic** (Claude 3)
-
-## 📌 Endpoints API
-
-| Endpoint | Méthode | Description | Temps Moyen |
-|----------|---------|-------------|-------------|
-| `/api/v1/extract` | POST | Extraire contenu web | 2-30s |
-| `/api/v1/research` | POST | Recherche profonde multi-pages | 15-45s |
-| `/api/v1/vision` | POST | Analyser une image | 1-12s |
-| `/api/v1/search-site` | POST | Recherche interactive sur site | 10-90s |
-| `/health` | GET | Health check global | <1s |
-
-## 🎯 Cas d'Usage
-
-- **Veille Technologique**: Recherche automatisée avec synthèse
-- **Extraction Documentation**: Récupération contenu technique
-- **Analyse Visuelle**: OCR factures, graphiques, cartes
-- **Research Assistant**: Questions → Réponses avec sources
-- **Data Scraping**: Extraction intelligente avec LLM
-
-## 📊 Garanties Qualité
-
-- ✅ **100% Extraction Réelle** - Pas d'hallucination
-- ✅ **Citations Vérifiables** - Toutes sources avec URLs
-- ✅ **Traçabilité Complète** - Logs détaillés
-- ✅ **Sécurité** - Pas de secrets exposés
-
-## 📚 Documentation
-
-- **Interactive**: Testez directement dans `/docs`
-- **OpenAPI**: Schéma complet dans `/openapi.json`
-- **GitHub**: [github.com/nic01asFr/webtools](https://github.com/nic01asFr/webtools)
-
-## 🚀 Quick Start
-
-```bash
-curl -X POST "http://localhost:8000/api/v1/research" \\
-  -H "Content-Type: application/json" \\
-  -d '{"query": "Comment utiliser FastAPI ?", "max_depth": 2}'
+Exemple :
+```json
+{
+  "url": "https://example.com/article",
+  "title": "Titre de l'article",
+  "content": "Texte principal...",
+  "images": ["https://example.com/img1.jpg"],
+  "word_count": 1500
+}
 ```
 
 ---
 
-**Propulsé par Albert API 🇫🇷 | Fait avec ❤️ en France**
+### `/api/v1/vision`
+**Input** : URL image + question
+**Output** : Analyse textuelle selon la question
+
+Selon votre question :
+- "extraire le texte" → OCR complet
+- "décrire l'image" → Description objets/couleurs/contexte
+- "analyser le graphique" → Données extraites
+- "identifier les logos" → Liste marques détectées
+
+Exemple :
+```json
+{
+  "image_url": "https://example.com/chart.png",
+  "analysis": "Graphique en barres montrant...",
+  "confidence": 0.95
+}
+```
+
+---
+
+### `/api/v1/search`
+**Input** : Requête de recherche
+**Output** : Liste résultats (titre, URL, snippet)
+
+Options :
+- `max_results: 20` → Jusqu'à 20 résultats (défaut: 10)
+- `language: "fr"` → Résultats français uniquement
+- `time_range: "month"` → Résultats du dernier mois
+- `target_url` + `scope: "site"` → Rechercher dans un site spécifique
+
+Exemple :
+```json
+{
+  "query": "Claude AI",
+  "results": [
+    {
+      "title": "What is Claude?",
+      "url": "https://anthropic.com/claude",
+      "snippet": "Claude is an AI assistant..."
+    }
+  ],
+  "total": 10
+}
+```
+
+---
+
+### `/api/v1/research/quick`
+**Input** : Question factuelle
+**Output** : Réponse synthétique + sources citées
+
+Selon la complexité :
+- Question simple → Réponse directe + 3-5 sources
+- Question multi-aspects → Réponse structurée + 5-10 sources
+- `max_sources: 15` → Plus de sources
+
+Options de contrainte :
+- `sources.strategy: "priority"` → Essayer ces URLs d'abord
+- `sources.strategy: "exclusive"` → UNIQUEMENT ces URLs
+- `sources.strategy: "complement"` → Ajouter aux résultats web
+
+Exemple :
+```json
+{
+  "query": "Capitale du Japon?",
+  "answer": "Tokyo est la capitale depuis 1868. [1][2]",
+  "sources": [
+    {"title": "Tokyo - Wikipedia", "url": "https://...", "relevance": 0.95}
+  ],
+  "confidence": "high"
+}
+```
+
+---
+
+### `/api/v1/research/deep`
+**Input** : Sujet de recherche
+**Output** : Rapport structuré en sections + bibliographie
+
+Selon le mode :
+- `stream: false` → JSON complet à la fin (30-90s)
+- `stream: true` → Progression temps réel (SSE)
+
+Selon la profondeur :
+- Sujet simple → 3-5 sections, 10-15 sources
+- Sujet complexe → 7-12 sections, 20-30 sources
+- `max_sources: 50` → Recherche exhaustive
+
+Options de contrainte :
+- `sources.required` → URLs OBLIGATOIRES
+- `sources.suggested` → URLs prioritaires
+- `domains_whitelist` → Limiter à ces domaines
+- `exclusions` → Exclure ces domaines
+
+Exemple :
+```json
+{
+  "query": "Impact IA sur emploi",
+  "report": {
+    "title": "Analyse de l'impact de l'IA...",
+    "sections": [
+      {
+        "title": "1. État actuel",
+        "content": "L'IA transforme... [1][3]",
+        "subsections": [...]
+      }
+    ]
+  },
+  "bibliography": [
+    {"id": 1, "title": "AI Study 2024", "url": "https://..."}
+  ],
+  "metadata": {
+    "sources_analyzed": 25,
+    "research_time": "45s"
+  }
+}
+```
+
+## 🎯 URLs Optionnelles
+
+Tous les endpoints de **recherche** acceptent des URLs pour guider/contraindre:
+
+**`/search`**: `target_url` + `scope` (site/domain/page)
+- Rechercher dans un site spécifique
+- Recherche interactive sur page
+
+**`/research/quick`**: `sources.urls` + `strategy`
+- `priority`: Essayer d'abord ces URLs
+- `exclusive`: UNIQUEMENT ces URLs
+- `complement`: Ajouter aux résultats web
+
+**`/research/deep`**: Contraintes avancées
+- `required`: URLs OBLIGATOIRES
+- `suggested`: URLs prioritaires
+- `domains_whitelist`: Limiter à domaines
+- `exclusions`: Exclure domaines
+
+## 📌 Endpoints
+
+| Endpoint | Usage | Temps | Autonomie |
+|----------|-------|-------|-----------|
+| `/extract` | 1 page web | 2-30s | ⭐ |
+| `/vision` | 1 image | 1-10s | ⭐ |
+| `/search` | Découverte sources | 1-5s | ⭐⭐ |
+| `/research/quick` | Question précise | 15-60s | ⭐⭐⭐ |
+| `/research/deep` | Rapport complet | 60-300s | ⭐⭐⭐⭐⭐ |
+
+## 🚀 Quick Start
+
+```bash
+# Recherche simple avec enrichissement IA
+curl -X POST "http://localhost:8000/api/v1/search" \\
+  -H "Content-Type: application/json" \\
+  -d '{"query": "FastAPI tutorial", "llm_enrichment": true, "dorking": true}'
+
+# Question avec source prioritaire (API)
+curl -X POST "http://localhost:8000/api/v1/research/quick" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "query": "3 plus grandes villes de France",
+    "sources": {
+      "urls": ["https://geo.api.gouv.fr"],
+      "strategy": "priority"
+    }
+  }'
+
+# Rapport approfondi avec contraintes
+curl -X POST "http://localhost:8000/api/v1/research/deep" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "topic": "Démographie Île-de-France",
+    "sources": {
+      "required": ["https://api.insee.fr", "https://geo.api.gouv.fr"]
+    },
+    "output_format": {"structure": "data_analysis", "include_charts": true}
+  }'
+```
+
+## 📚 Documentation Complète
+
+- **Interactive Swagger**: `/docs`
+- **ReDoc**: `/redoc`
+- **Guide complet**: `API_DOCUMENTATION.md`
+
+---
+
+**V2.0.0 | Propulsé par Albert API 🇫🇷**
     """,
     lifespan=lifespan,
     docs_url="/docs",
@@ -136,29 +293,96 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Inclure les routers
+# ====================================================================
+# NOUVEAUX ENDPOINTS V2 - Architecture rationalisée
+# ====================================================================
+
+# BASIQUES (3)
 app.include_router(
     extract.router,
     prefix="/api/v1",
-    tags=["extraction"]
-)
-
-app.include_router(
-    research.router,
-    prefix="/api/v1",
-    tags=["research"]
+    tags=["basic"]
 )
 
 app.include_router(
     vision.router,
     prefix="/api/v1",
-    tags=["vision"]
+    tags=["basic"]
+)
+
+app.include_router(
+    search.router,
+    prefix="/api/v1",
+    tags=["basic"]
+)
+
+# RECHERCHE (2)
+app.include_router(
+    research_quick.router,
+    prefix="/api/v1",
+    tags=["research"]
+)
+
+app.include_router(
+    research_deep.router,
+    prefix="/api/v1",
+    tags=["research"]
+)
+
+# ====================================================================
+# ANCIENS ENDPOINTS - DEPRECATED (retirés de l'OpenAPI, code conservé)
+# ====================================================================
+
+# Les anciens routers sont conservés dans le code mais exclus de la documentation
+# pour simplifier l'API publique. Ils restent fonctionnels en interne si besoin.
+
+app.include_router(
+    research_old.router,
+    prefix="/api/v1",
+    tags=["deprecated"],
+    include_in_schema=False  # Masquer de l'OpenAPI
 )
 
 app.include_router(
     search_site.router,
     prefix="/api/v1",
-    tags=["search-site"]
+    tags=["deprecated"],
+    include_in_schema=False
+)
+
+app.include_router(
+    api_navigator.router,
+    prefix="/api/v1",
+    tags=["deprecated"],
+    include_in_schema=False
+)
+
+app.include_router(
+    smart_api_navigator.router,
+    prefix="/api/v1",
+    tags=["deprecated"],
+    include_in_schema=False
+)
+
+app.include_router(
+    adaptive_navigator.router,
+    prefix="/api/v1",
+    tags=["deprecated"],
+    include_in_schema=False
+)
+
+app.include_router(
+    adaptive_research.router,
+    prefix="/api/v1",
+    tags=["deprecated"],
+    include_in_schema=False
+)
+
+app.include_router(
+    intelligent_research.router,
+    prefix="/api/v1",
+    tags=["deprecated"],
+    include_in_schema=False
 )
 
 
@@ -166,7 +390,7 @@ app.include_router(
 async def root():
     """Endpoint racine."""
     return {
-        "service": "WebExtract Service",
+        "service": "Webtools Service",
         "version": settings.api_version,
         "docs": "/docs",
         "health": "/health"
@@ -205,5 +429,7 @@ if __name__ == "__main__":
         host=settings.api_host,
         port=settings.api_port,
         reload=True,
-        log_level=settings.log_level.lower()
+        log_level=settings.log_level.lower(),
+        timeout_keep_alive=1200,  # 20 minutes pour recherches approfondies
+        timeout_notify=1200
     )

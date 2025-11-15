@@ -10,8 +10,8 @@ class Settings(BaseSettings):
     """Configuration du service WebExtract."""
 
     # API Configuration
-    api_title: str = "WebExtract Service"
-    api_version: str = "1.0.0"
+    api_title: str = "WebTools API"
+    api_version: str = "2.0.0"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
