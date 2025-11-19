@@ -93,6 +93,13 @@ LOG_LEVEL=INFO
 ### Documentation Interactive
 Accédez à `http://localhost:8000/docs` pour la documentation Swagger UI complète.
 
+### 📚 Guide des Cas d'Usage
+**Nouveau !** Consultez [`USE_CASES.md`](./USE_CASES.md) pour :
+- **5 stratégies de sources** (priority, exclusive, complement, whitelist, blacklist)
+- **12+ patterns de chaînage** d'endpoints (Search→Extract→Vision, etc.)
+- **Exemples JSON complets** pour chaque cas d'usage
+- **Guide pour développeurs d'agents IA** (orchestration, cache, parallélisation)
+
 ### 1. Extraction de Contenu
 
 ```bash
@@ -341,11 +348,37 @@ Le fichier `.gitignore` est configuré pour exclure :
 - Question factuelle rapide ? → `/research/quick`
 - Rapport approfondi structuré ? → `/research/deep`
 
+## 📚 Patterns d'Usage et Cas Métier
+
+WebTools offre **5 stratégies de sources** et **12+ patterns de chaînage** pour s'adapter à vos besoins :
+
+### Stratégies de Sources (`research/quick` et `research/deep`)
+
+| Stratégie | Description | Cas d'usage |
+|-----------|-------------|-------------|
+| **Recherche ouverte** | Web automatique | Questions générales |
+| **`priority`** | Sources fiables prioritaires + web si incomplet | Documentation officielle + compléments |
+| **`exclusive`** | UNIQUEMENT sources fournies, pas de web | Réglementation, conformité légale |
+| **`complement`** | Web + ajout URLs spécifiques | Tutoriels + doc officielle |
+| **`whitelist`** | Limiter à domaines de confiance | Sources gouvernementales uniquement |
+| **`blacklist`** | Exclure domaines non fiables | Éviter forums/blogs/opinions |
+
+### Patterns de Chaînage Multi-Endpoints
+
+- **Search → Extract → Vision** : Données visuelles (graphiques, tableaux)
+- **Search (dorking) → Quick (exclusive)** : Découverte sources + réponse 100% fiable
+- **Extract (links) → Quick (priority)** : Documentation officielle + compléments web
+- **Vision (OCR) → Extract → Quick** : Pipeline complet depuis screenshot
+
+📖 **Guide complet avec exemples JSON** : [`USE_CASES.md`](./USE_CASES.md)
+
 ## Documentation Complète
 
 - **Swagger UI Interactive** : `/docs`
 - **ReDoc** : `/redoc`
+- **📚 Guide Cas d'Usage et Patterns** : [`USE_CASES.md`](./USE_CASES.md)
 - **Guide Architecture Deep Research** : `DEEP_RESEARCH_ARCHITECTURE.md`
+- **Guide Endpoints Détaillé** : `ENDPOINTS_GUIDE.md`
 - **Changelog** : `CHANGELOG.md`
 - **Guide Agent IA** : `AI_AGENT_GUIDE.md`
 
