@@ -2166,21 +2166,20 @@ Retourne JSON:
         }
 
         try:
-            search_result = await searxng_client.search(
+            search_results = await searxng_client.search(
                 query=search_params["query"],
-                categories=search_params["categories"],
-                engines=search_params["engines"]
+                max_results=search_params["max_results"]
             )
 
             urls_found = []
-            if search_result.get("results"):
+            if search_results:
                 urls_found = [
                     {
-                        "url": r.get("url"),
-                        "title": r.get("title", ""),
-                        "snippet": r.get("content", "")[:200]
+                        "url": r.url,
+                        "title": r.title,
+                        "snippet": r.content[:200] if r.content else ""
                     }
-                    for r in search_result["results"][:search_params["max_results"]]
+                    for r in search_results[:search_params["max_results"]]
                 ]
 
             # Analyser les snippets pour identifier sous-thèmes
@@ -2435,27 +2434,50 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         max_sources = {"light": 3, "moderate": 5, "deep": 8}.get(depth, 5)
 
         try:
-            search_result = await searxng_client.search(
+            search_results = await searxng_client.search(
                 query=search_query,
-                categories=["general"],
-                engines=["google", "duckduckgo"]
+                max_results=max_sources
             )
 
             sources = []
-            if search_result.get("results"):
+            if search_results:
                 sources = [
                     {
-                        "url": r.get("url"),
-                        "title": r.get("title", ""),
-                        "snippet": r.get("content", "")[:300]
+                        "url": r.url,
+                        "title": r.title,
+                        "snippet": r.content[:300] if r.content else ""
                     }
-                    for r in search_result["results"][:max_sources]
+                    for r in search_results[:max_sources]
                 ]
+
+                # Tracker la recherche
+                context.add_step(
+                    "searxng",
+                    f"search_for_{section_name}",
+                    search_query,
+                    {"results_count": len(sources), "urls": [s["url"] for s in sources]},
+                    True
+                )
+            else:
+                context.add_step(
+                    "searxng",
+                    f"search_for_{section_name}",
+                    search_query,
+                    None,
+                    False
+                )
 
             return {"sources": sources, "query_used": search_query}
 
         except Exception as e:
             logger.error(f"       ❌ Erreur recherche section: {e}")
+            context.add_step(
+                "searxng",
+                f"search_for_{section_name}",
+                search_query,
+                str(e),
+                False
+            )
             return {"sources": [], "query_used": search_query}
 
     async def _section_extraction_phase(
@@ -2483,20 +2505,57 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             options = ExtractionOptions(
                 extract_images=False,
                 extract_links=False,
-                clean_html=True
+                clean_html=True,
+                use_agent=True,
+                headless=True
             )
 
-            results = await extractor_manager.extract_from_urls(urls, options)
-
+            # Extraire chaque URL séquentiellement
             extracted_data = []
-            for result in results:
-                if result.get("success") and result.get("content"):
-                    extracted_data.append({
-                        "source": result.get("url"),
-                        "title": result.get("title", ""),
-                        "content": result.get("content", ""),
-                        "metadata": result.get("metadata", {})
-                    })
+            for url in urls[:5]:  # Limiter à 5 URLs max pour éviter timeout
+                try:
+                    result = await extractor_manager.extract(
+                        url=url,
+                        llm_client=self.llm_client,
+                        options=options
+                    )
+
+                    if result.success and result.content:
+                        extracted_data.append({
+                            "source": url,
+                            "title": result.title or "",
+                            "content": result.content[:3000],  # Limiter à 3000 chars
+                            "metadata": {}
+                        })
+
+                        # Tracker l'extraction
+                        if url not in context.discovered_sources:
+                            context.discovered_sources.append(url)
+                        context.add_step(
+                            "webextractor",
+                            f"extract_content_for_{section_name}",
+                            url,
+                            {"title": result.title, "content_length": len(result.content)},
+                            True
+                        )
+                    else:
+                        context.add_step(
+                            "webextractor",
+                            f"extract_content_for_{section_name}",
+                            url,
+                            None,
+                            False
+                        )
+                except Exception as url_error:
+                    logger.warning(f"       ⚠️ Extraction failed for {url}: {url_error}")
+                    context.add_step(
+                        "webextractor",
+                        f"extract_content_for_{section_name}",
+                        url,
+                        str(url_error),
+                        False
+                    )
+                    continue
 
             logger.info(f"       → {len(extracted_data)}/{len(urls)} sources extraites")
             return extracted_data
