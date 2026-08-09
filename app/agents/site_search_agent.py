@@ -13,6 +13,7 @@ from langchain_core.messages import SystemMessage
 from playwright.async_api import async_playwright, TimeoutError as PlaywrightTimeout
 
 from app.core.llm.base import BaseLLMClient
+from app.utils.url_safety import assert_safe_url, UnsafeURLError
 
 logger = logging.getLogger(__name__)
 
@@ -60,6 +61,23 @@ class InteractiveSiteAgent:
         Returns:
             Dictionnaire avec les résultats de recherche et métadonnées
         """
+        # Garde SSRF au point d'entree unique des DEUX strategies (Playwright
+        # et browser-use/LLM) : ce chemin contourne ExtractorManager, donc
+        # n'etait pas couvert. Cas le plus a risque du service : un agent LLM
+        # pilotant Chromium sur une URL non filtree peut suivre redirections
+        # et liens internes.
+        try:
+            assert_safe_url(site_url)
+        except UnsafeURLError as e:
+            logger.warning(f"Recherche refusee (SSRF) pour {site_url}: {e}")
+            return {
+                "success": False,
+                "site_url": site_url,
+                "search_query": search_query,
+                "results": [],
+                "error": str(e),
+            }
+
         logger.info(f"Début recherche sur {site_url} avec query: {search_query}")
         start_time = datetime.now()
 

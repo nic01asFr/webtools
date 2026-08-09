@@ -4,6 +4,7 @@ directement (sans repasser par HTTP, meme process) pour des clients type
 Claude Code et autres agents compatibles MCP.
 """
 
+import asyncio
 import os
 import sys
 import logging
@@ -78,7 +79,14 @@ def _is_valid_session(value: str | None) -> bool:
     expected = hmac.new(MCP_ACCESS_KEY.encode(), ts.encode(), "sha256").hexdigest()
     if not hmac.compare_digest(sig, expected):
         return False
-    return (time.time() - int(ts)) < SESSION_TTL_SECONDS
+    # int(ts) sans garde levait ValueError sur un cookie malforme ("abc.<sig>")
+    # -> 500 au lieu d'un refus propre. compare_digest protege deja du
+    # contournement, ceci est de la robustesse.
+    try:
+        issued_at = int(ts)
+    except ValueError:
+        return False
+    return (time.time() - issued_at) < SESSION_TTL_SECONDS
 
 
 LOGIN_FORM = """<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:400px;margin:80px auto">
@@ -112,8 +120,17 @@ class AuthorizeGateMiddleware(BaseHTTPMiddleware):
                 # la meme URL (avec les parametres OAuth d'origine intacts,
                 # deja dans la query string de la requete initiale)
                 resp = RedirectResponse(url=str(request.url), status_code=303)
-                resp.set_cookie(SESSION_COOKIE, _make_session_value(), max_age=SESSION_TTL_SECONDS, httponly=True)
+                resp.set_cookie(
+                    SESSION_COOKIE, _make_session_value(),
+                    max_age=SESSION_TTL_SECONDS,
+                    httponly=True,
+                    secure=True,      # service publie en HTTPS
+                    samesite="lax",
+                )
                 return resp
+            # Ralentissement sur echec : sans lui, la cle partagee est
+            # brute-forcable a la vitesse du reseau.
+            await asyncio.sleep(1)
             return HTMLResponse(LOGIN_FORM.format(error="<p style='color:red'>Cle incorrecte</p>"), status_code=401)
 
         return HTMLResponse(LOGIN_FORM.format(error=""))
@@ -140,7 +157,6 @@ mcp = FastMCP(
 # est derive des logs deja emis par l'orchestrateur (aucune modification
 # de sa logique metier deja testee), via un handler de logging scope a
 # chaque tache.
-import asyncio
 import logging as _logging
 import time as _time
 import uuid as _uuid

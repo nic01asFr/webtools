@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.api.models import VisionRequest, VisionResponse
 from app.core.llm.factory import LLMFactory
+from app.utils.url_safety import assert_safe_url, UnsafeURLError
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +114,19 @@ async def analyze_image(request: VisionRequest):
             model=model,
             base_url=base_url
         )
+
+        # Garde SSRF : image_url part vers un fournisseur LLM qui va la
+        # recuperer, mais selon la configuration c'est parfois ce service qui
+        # fetch. Ce chemin contournait ExtractorManager (ou la garde est
+        # normalement posee), donc n'etait pas couvert.
+        try:
+            assert_safe_url(str(request.image_url))
+        except UnsafeURLError as e:
+            logger.warning(f"Analyse refusee (SSRF) pour {request.image_url}: {e}")
+            return VisionResponse(
+                success=False, image_url=str(request.image_url),
+                prompt=request.prompt, analysis=None, error=str(e)
+            )
 
         logger.info(f"Analyzing image: {request.image_url}")
 

@@ -1,6 +1,6 @@
 [project]
-name = "webextract-service"
-version = "1.0.0"
+name = "webtools-service"
+version = "2.0.0"
 description = "Service autonome d'extraction de contenu web avec support multi-LLM"
 authors = [
     { name = "WebExtract Team" }
@@ -20,8 +20,20 @@ dependencies = [
 
     # LLM Support
     "langchain-openai>=0.3.11",
+    "langchain-anthropic>=0.3.0",
+    "langchain-core>=0.3.0",
     "openai>=1.68.2",
     "anthropic>=0.19.0",
+
+    # Extraction de contenu (import direct dans direct_extractor.py, sans
+    # try/except : sans cette declaration, un build propre produit une image
+    # ou l'extraction directe plante sur le chemin nominal)
+    "trafilatura>=2.0.0",
+
+    # Serveur MCP (mcp_server.py)
+    "fastmcp>=3.0.0",
+    "mcp>=1.0.0",
+    "starlette>=0.37.0",
 
     # HTTP Clients (aiohttp et requests retires : jamais importes dans le
     # code actif, le service utilise exclusivement httpx - dependances

@@ -323,10 +323,26 @@ class IntelligentOrchestrator:
                 logger.info(f"     ✓ {section_name}: {len(extracted_data)} contenus extraits")
                 return section_name, extracted_data
 
+        # return_exceptions=True : sans lui, UNE section qui leve annule tout
+        # le lot et fait echouer le rapport entier, alors que les autres
+        # sections avaient abouti. On isole l'echec a sa propre section.
         extraction_results = await asyncio.gather(*[
             _research_and_extract(name, cfg) for name, cfg in section_targets.items()
-        ])
-        extracted_by_section = dict(extraction_results)
+        ], return_exceptions=True)
+
+        extracted_by_section = {}
+        for item in extraction_results:
+            if isinstance(item, Exception):
+                logger.error(f"  ❌ Une section a échoué pendant recherche/extraction: {item}")
+                continue
+            name, data = item
+            extracted_by_section[name] = data
+
+        # Les sections en echec restent presentes dans le plan avec zero
+        # donnee : elles beneficieront du complement pre-redaction ci-dessous
+        # plutot que de faire echouer tout le rapport.
+        for name in section_targets:
+            extracted_by_section.setdefault(name, [])
 
         # Étape 2.2.5 (verification + complement) : verifie chaque section
         # au regard d'un seuil calibre par le LLM DES LA PHASE 1 (plan.
