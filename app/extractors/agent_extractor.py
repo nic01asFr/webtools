@@ -79,7 +79,33 @@ class AgentExtractor(BaseExtractor):
                 direct_result.metadata["extraction_method"] = "direct_playwright_fast_path"
                 return direct_result
 
-            # ÉTAPE 2: Utiliser l'agent IA
+            # ÉTAPE 1.5 : si l'extraction directe a produit un contenu partiel (pas vide,
+            # juste insuffisant/mal structure), un SEUL appel LLM sur ce texte deja
+            # nettoye coute des dizaines de fois moins cher qu'un agent qui re-navigue
+            # la page depuis zero. On ne reserve l'agent complet qu'aux cas ou la page
+            # n'a produit litteralement aucun contenu exploitable.
+            if direct_result.success and direct_result.content and len(direct_result.content) >= 100:
+                logger.info(f"Contenu partiel ({len(direct_result.content)} car.) - tentative d'un appel LLM unique (non-agentique) avant l'agent complet")
+                try:
+                    raw_text = direct_result.content[:8000]  # borne large mais raisonnable
+                    llm_response = await llm_client.generate(messages=[
+                        {"role": "system", "content": "Tu structures du texte web deja extrait. Reponds UNIQUEMENT au format TITRE: ... puis CONTENU: ..., sans explication."},
+                        {"role": "user", "content": f"Texte extrait de {url} :\n\n{raw_text}"}
+                    ])
+                    if llm_response and len(llm_response) > 100:
+                        title_match = re.search(r'TITRE:\s*(.*?)(?:\n|$)', llm_response, re.IGNORECASE)
+                        content_match = re.search(r'CONTENU:\s*(.*)', llm_response, re.IGNORECASE | re.DOTALL)
+                        title = title_match.group(1).strip() if title_match else (direct_result.title or "Contenu extrait")
+                        cleaned = content_match.group(1).strip() if content_match else llm_response
+                        logger.info(f"Palier LLM unique reussi: {len(cleaned)} caracteres, sans agent complet")
+                        return WebResult.from_success(
+                            url=url, content_type="webpage", title=title, content=cleaned,
+                            metadata={"extraction_method": "direct_playwright_single_llm_pass"}
+                        )
+                except Exception as e:
+                    logger.warning(f"Palier LLM unique echoue pour {url}, escalade vers agent complet: {e}")
+
+            # ÉTAPE 2: Utiliser l'agent IA (dernier recours - page vide/inaccessible en direct)
             logger.info(f"Extraction avec agent IA pour {url}")
 
             # Obtenir le wrapper LangChain du client LLM
@@ -88,11 +114,13 @@ class AgentExtractor(BaseExtractor):
             # Créer l'agent browser-use
             agent = Agent(
                 task=prompt,
-                llm=llm_wrapper
+                llm=llm_wrapper,
+                use_vision=False,
+                max_actions_per_step=3
             )
 
             # Exécuter l'agent avec timeout
-            extraction_task = asyncio.create_task(agent.run())
+            extraction_task = asyncio.create_task(agent.run(max_steps=8))
 
             try:
                 result = await asyncio.wait_for(extraction_task, timeout=float(timeout))
@@ -100,8 +128,19 @@ class AgentExtractor(BaseExtractor):
                 # Extraire le contenu de la réponse de l'agent
                 processed_content = await self._extract_from_agent_response(result)
 
+                # Vérifier que la tâche de l'agent s'est réellement terminée avec succès
+                # (et pas juste qu'il y a du texte : un message d'échec a aussi du texte)
+                agent_succeeded = result.is_successful()
+                if agent_succeeded is False:
+                    preview = (processed_content or "")[:200]
+                    logger.warning(f"Agent a terminé en échec explicite pour {url}: {preview}")
+                    return WebResult.from_error(
+                        url=url,
+                        error_message=processed_content[:500] if processed_content else "Agent a signalé un échec (page bloquée, inaccessible, ou contenu introuvable)"
+                    )
+
                 # Vérifier la qualité du contenu
-                if processed_content and len(processed_content) > 100:
+                if agent_succeeded and processed_content and len(processed_content) > 100:
                     # Analyser le contenu pour extraire titre et corps
                     title_match = re.search(
                         r'TITRE:\s*(.*?)(?:\n|$)',
@@ -194,6 +233,17 @@ class AgentExtractor(BaseExtractor):
             # La réponse peut être de différents types selon la version de browser-use
             if isinstance(response, str):
                 return response
+
+            # AgentHistoryList (browser-use) expose final_result() qui renvoie
+            # le texte du dernier "done" - PAS un attribut .text/.content brut.
+            # Sans ce cas prioritaire, le code tombait sur str(response) plus
+            # bas, qui serialise TOUT l'historique interne de l'agent (chaque
+            # etape, all_model_outputs...) au lieu du seul texte final -
+            # pollution massive du titre/contenu retourne au client.
+            if hasattr(response, 'final_result'):
+                final = response.final_result()
+                if final:
+                    return str(final)
 
             # Si c'est un objet avec attribut text ou content
             if hasattr(response, 'text'):

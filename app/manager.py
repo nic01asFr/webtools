@@ -11,6 +11,8 @@ from app.core.llm.base import BaseLLMClient
 from app.core.llm.factory import LLMFactory
 from app.extractors.direct_extractor import DirectExtractor
 from app.extractors.agent_extractor import AgentExtractor
+from app.extractors.rss_extractor import RssExtractor
+from app.utils.url_safety import assert_safe_url, UnsafeURLError
 from app.utils.content_detector import ContentDetector
 from app.utils.prompts import PromptTemplates
 
@@ -22,11 +24,21 @@ class ExtractorManager:
     Manager principal qui coordonne les différents extractors.
     """
 
-    def __init__(self):
+    def __init__(self, cache_ttl_seconds: int = 300):
         """Initialise le manager avec les extractors disponibles."""
+        self.rss_extractor = RssExtractor()
         self.direct_extractor = DirectExtractor()
         self.agent_extractor = AgentExtractor()
         self.content_detector = ContentDetector()
+
+        # Cache d'extraction avec TTL, partage par toute la duree de vie de
+        # cette instance de manager (donc entre requetes API successives si
+        # le manager est reutilise, comme c'est le cas pour /extract et pour
+        # IntelligentOrchestrator depuis la correction ci-dessus). Une meme
+        # URL redemandee peu apres evite de refaire tout le travail
+        # d'extraction (navigateur, LLM eventuel).
+        self._cache: dict = {}
+        self._cache_ttl = cache_ttl_seconds
 
     async def extract(
         self,
@@ -51,6 +63,28 @@ class ExtractorManager:
         """
         logger.info(f"Début extraction de {url} (type: {extraction_type})")
 
+        # Protection SSRF : verifiee ici, au point d'entree unique de toute
+        # extraction (RSS, direct, LLM leger, agent en heritent tous), avant
+        # toute tentative reelle de connexion.
+        try:
+            assert_safe_url(url)
+        except UnsafeURLError as e:
+            logger.warning(f"Extraction refusee pour {url}: {e}")
+            return WebResult.from_error(url=url, error_message=str(e))
+
+        # Cache avec TTL : une meme URL redemandee dans la fenetre de
+        # validite evite de refaire tout le travail (navigateur, LLM).
+        import time
+        cache_key = f"{url}::{extraction_type}"
+        cached = self._cache.get(cache_key)
+        if cached:
+            cached_result, cached_at = cached
+            if time.time() - cached_at < self._cache_ttl:
+                logger.info(f"Cache hit pour {url} (age: {int(time.time() - cached_at)}s)")
+                return cached_result
+            else:
+                del self._cache[cache_key]  # perime, purge
+
         # Détection automatique du type si "general"
         if extraction_type == "general":
             detected_type = self.content_detector.detect(url)
@@ -65,6 +99,17 @@ class ExtractorManager:
         )
 
         logger.debug(f"Prompt utilisé: {final_prompt[:200]}...")
+
+        # PALIER 0 : tenter un flux RSS/Atom avant tout usage de navigateur ou d'IA.
+        opts_check = options or ExtractionOptions()
+        if getattr(opts_check, "try_rss_first", True):
+            try:
+                rss_result = await self.rss_extractor.try_extract(url)
+                if rss_result and rss_result.success:
+                    logger.info(f"Extraction via flux RSS reussie pour {url}")
+                    return rss_result
+            except Exception as e:
+                logger.debug(f"Palier RSS non concluant pour {url}: {e}")
 
         # Options par défaut
         opts = options or ExtractionOptions()
@@ -109,6 +154,11 @@ class ExtractorManager:
             f"Extraction terminée: success={result.success}, "
             f"content_length={len(result.content) if result.content else 0}"
         )
+
+        # N'a mettre en cache que les succes : un echec transitoire (page
+        # temporairement indisponible) ne doit pas etre fige pour 5 minutes.
+        if result.success:
+            self._cache[cache_key] = (result, time.time())
 
         return result
 

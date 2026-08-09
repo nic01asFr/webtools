@@ -12,10 +12,10 @@ async def get_llm_client() -> BaseLLMClient:
     Returns:
         Instance de BaseLLMClient configurée
     """
-    provider = os.getenv("DEFAULT_LLM_PROVIDER", "albert")
-    model = os.getenv("DEFAULT_LLM_MODEL", "albert-code")
+    provider = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
+    model = os.getenv("DEFAULT_LLM_MODEL", "qwen3-6-35b-moe")
     api_key = os.getenv("DEFAULT_LLM_API_KEY", "")
-    base_url = os.getenv("DEFAULT_LLM_BASE_URL", None)
+    base_url = os.getenv("DEFAULT_LLM_BASE_URL", "https://llm.lab.sspcloud.fr/api")
 
     return LLMFactory.create(
         provider=provider,

@@ -12,6 +12,7 @@ import httpx
 from app.core.llm.base import BaseLLMClient
 from app.extractors.direct_extractor import DirectExtractor
 from app.api.models import SourceInfo, NavigationStep, WebResult
+from app.utils.url_safety import assert_safe_url, UnsafeURLError
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +122,7 @@ class ResearchAgent:
                     url=url,
                     title=result.title or url,
                     excerpt=relevance["excerpt"],
-                    relevance_score=relevance["score"],
+                    relevance_score=max(0.0, min(1.0, relevance["score"])),  # clamp defensif, meme si le schema borne deja cote serveur
                     depth=depth,
                     visited_at=datetime.now().isoformat()
                 ))
@@ -155,6 +156,17 @@ class ResearchAgent:
 
     async def _extract_page(self, url: str) -> Optional[WebResult]:
         """Extrait le contenu d'une page"""
+        # Garde SSRF : cet agent fait de la navigation RECURSIVE (suit les
+        # liens trouves dans chaque page jusqu'a max_depth) via DirectExtractor
+        # directement, en contournant ExtractorManager ou la garde est
+        # normalement posee - donc meme des URLs de depart sures pouvaient
+        # mener a des liens internes non filtres au fil de la navigation.
+        try:
+            assert_safe_url(url)
+        except UnsafeURLError as e:
+            logger.warning(f"Extraction refusee (SSRF) pour {url}: {e}")
+            return None
+
         try:
             result = await self.extractor.extract(
                 url=url,
@@ -182,28 +194,34 @@ class ResearchAgent:
 
 Requête: "{query}"
 URL: {url}
-Contenu (extrait): {content[:3000]}
+Contenu (extrait): {content[:3000]}"""
 
-Réponds au format JSON STRICT (pas de markdown):
-{{
-  "is_relevant": true/false,
-  "score": 0.0-1.0,
-  "excerpt": "extrait pertinent de 200 caractères max"
-}}
-
-IMPORTANT: Réponds UNIQUEMENT le JSON, rien d'autre."""
+        relevance_schema = {
+            "type": "object",
+            "properties": {
+                "is_relevant": {"type": "boolean"},
+                "score": {"type": "number", "minimum": 0.0, "maximum": 1.0},
+                "excerpt": {"type": "string"}
+            },
+            "required": ["is_relevant", "score", "excerpt"],
+            "additionalProperties": False
+        }
 
         try:
             messages = [{"role": "user", "content": prompt}]
-            response = await self.llm_client.generate(messages, max_tokens=500)
 
-            # Parser la réponse JSON
-            response_clean = response.strip()
-            if response_clean.startswith("```"):
-                response_clean = re.sub(r'```json\n?|\n?```', '', response_clean)
-
-            import json
-            analysis = json.loads(response_clean)
+            if hasattr(self.llm_client, "generate_structured"):
+                analysis = await self.llm_client.generate_structured(
+                    messages, schema=relevance_schema,
+                    schema_name="relevance_analysis", max_tokens=500
+                )
+            else:
+                response = await self.llm_client.generate(messages, max_tokens=500)
+                response_clean = response.strip()
+                if response_clean.startswith("```"):
+                    response_clean = re.sub(r'```json\n?|\n?```', '', response_clean)
+                import json
+                analysis = json.loads(response_clean)
 
             return {
                 "is_relevant": analysis.get("is_relevant", False),

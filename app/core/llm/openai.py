@@ -2,6 +2,7 @@
 Client LLM pour OpenAI API.
 """
 
+import json
 from typing import List, Dict, Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain_core.language_models import BaseChatModel
@@ -31,11 +32,57 @@ class OpenAILLMClient(BaseLLMClient):
         """
         super().__init__(api_key=api_key, base_url=base_url, model=model)
 
-        # Client OpenAI asynchrone
+        # Client OpenAI asynchrone. research_deep enchaine des dizaines
+        # d'appels sur plusieurs minutes avec le meme client - un pool de
+        # connexions HTTP garde-vivantes (keep-alive) par defaut peut finir
+        # par reutiliser une connexion perimee cote serveur/passerelle,
+        # provoquant une "Connection error" meme sur un prompt minuscule
+        # (observe : echecs avec 0 chunks selectionnes, donc prompt quasi
+        # vide - la taille du prompt n'est pas en cause). On force un cycle
+        # de vie de connexion court pour eviter la reutilisation de
+        # connexions perimees, avec retry pour absorber le reste.
+        import httpx
+        http_client = httpx.AsyncClient(
+            limits=httpx.Limits(
+                max_connections=20,
+                max_keepalive_connections=5,
+                keepalive_expiry=15.0
+            ),
+            timeout=90.0
+        )
         self.client = AsyncOpenAI(
             api_key=self.api_key,
-            base_url=self.base_url
+            base_url=self.base_url,
+            max_retries=5,
+            timeout=90.0,
+            http_client=http_client
         )
+
+    async def generate_with_vision(
+        self,
+        text: str,
+        image_url: str,
+        system_prompt: Optional[str] = None,
+        **kwargs
+    ) -> str:
+        """
+        Genere une reponse en analysant une image (format vision standard
+        OpenAI-compatible - fonctionne avec tout modele multimodal, y
+        compris via un endpoint SSPCloud/Albert configure en mode "openai").
+        """
+        messages = []
+        if system_prompt:
+            messages.append({"role": "system", "content": system_prompt})
+
+        messages.append({
+            "role": "user",
+            "content": [
+                {"type": "text", "text": text},
+                {"type": "image_url", "image_url": {"url": image_url}}
+            ]
+        })
+
+        return await self.generate(messages, **kwargs)
 
     async def generate(
         self,
@@ -53,7 +100,22 @@ class OpenAILLMClient(BaseLLMClient):
             Contenu de la réponse générée
         """
         try:
-            response = await self.client.chat.completions.create(
+            # Modeles Qwen (SSPCloud et autres deploiements) : desactiver le
+            # mode raisonnement pour les appels de structuration/synthese
+            # courte - sinon le modele peut epuiser tout son budget de tokens
+            # dans sa chaine de pensee interne et ne jamais emettre de contenu
+            # final (content: null, finish_reason: length).
+            if "qwen" in self.model.lower() and "extra_body" not in kwargs:
+                kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
+
+            # max_retries n'est pas un parametre de create() mais du client -
+            # le surcharger par appel necessite with_options() plutot que de
+            # le laisser filtrer dans kwargs (qui ferait echouer create()).
+            client = self.client
+            if "max_retries" in kwargs:
+                client = self.client.with_options(max_retries=kwargs.pop("max_retries"))
+
+            response = await client.chat.completions.create(
                 model=self.model,
                 messages=messages,
                 **kwargs
@@ -67,6 +129,71 @@ class OpenAILLMClient(BaseLLMClient):
         except Exception as e:
             raise LLMClientError(f"Erreur lors de la génération OpenAI: {str(e)}")
 
+    async def embed(self, texts: list, model: str = "qwen3-embedding-8b") -> list:
+        """
+        Genere des embeddings (vecteurs) pour une liste de textes, via
+        l'endpoint /embeddings compatible OpenAI. Utilise pour un scoring
+        de pertinence par similarite semantique reelle plutot que par
+        correspondance de mots-cles (qui rate synonymes/reformulations).
+        """
+        response = await self.client.embeddings.create(model=model, input=texts)
+        return [item.embedding for item in response.data]
+
+    async def generate_structured(
+        self,
+        messages: list,
+        schema: dict,
+        schema_name: str = "response",
+        **kwargs
+    ) -> dict:
+        """
+        Genere une reponse dont le format JSON est garanti par le serveur
+        (response_format=json_schema, strict), plutot que d'esperer qu'un
+        prompt texte suffise et de parser le resultat a la main (recherche
+        de la premiere accolade, comptage de profondeur...). Cette derniere
+        approche est fragile : un LLM peut ajouter du texte avant/apres le
+        JSON, changer legerement la structure d'une generation a l'autre,
+        ou etre coupe en cours de generation - toutes choses qui cassent un
+        parsing manuel silencieusement.
+
+        Args:
+            messages: messages de la conversation
+            schema: JSON Schema (properties, required, additionalProperties: false)
+            schema_name: nom du schema (requis par l'API)
+
+        Returns:
+            dict deja parse et conforme au schema
+        """
+        if "qwen" in self.model.lower() and "extra_body" not in kwargs:
+            kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
+
+        client = self.client
+        if "max_retries" in kwargs:
+            client = self.client.with_options(max_retries=kwargs.pop("max_retries"))
+
+        response = await client.chat.completions.create(
+            model=self.model,
+            messages=messages,
+            response_format={
+                "type": "json_schema",
+                "json_schema": {
+                    "name": schema_name,
+                    "strict": True,
+                    "schema": schema
+                }
+            },
+            **kwargs
+        )
+
+        if not response.choices or len(response.choices) == 0:
+            raise LLMClientError("Réponse inattendue de l'API OpenAI (sortie structurée)")
+
+        content = response.choices[0].message.content
+        try:
+            return json.loads(content)
+        except json.JSONDecodeError as e:
+            raise LLMClientError(f"Sortie structuree invalide malgre le schema force: {e}")
+
     def get_langchain_wrapper(self) -> BaseChatModel:
         """
         Retourne un wrapper LangChain pour browser-use.
@@ -76,6 +203,14 @@ class OpenAILLMClient(BaseLLMClient):
         Returns:
             ChatOpenAI compatible avec browser-use
         """
+        import os
+        # browser-use valide la presence de OPENAI_API_KEY dans l'environnement
+        # independamment des kwargs passes au client - on la fixe explicitement
+        # pour que la config ne depende pas d'une variable d'environnement externe.
+        os.environ["OPENAI_API_KEY"] = self.api_key
+        if self.base_url:
+            os.environ["OPENAI_BASE_URL"] = self.base_url
+
         kwargs = {
             "api_key": self.api_key,
             "model": self.model

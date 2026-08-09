@@ -69,10 +69,19 @@ class DirectExtractor(BaseExtractor):
                 # Créer un contexte
                 context = await browser.new_context(
                     viewport={"width": 1280, "height": 1080},
+                    # Identite navigateur humain standard : se fondre dans le trafic
+                    # normal plutot que de se declarer bot (les systemes anti-bot
+                    # mettent en liste blanche des bots partenaires connus, pas les
+                    # bots inconnus - un Chrome standard evite de se signaler d'emblee).
+                    # Ne change rien aux regles de securite : jamais de CAPTCHA force,
+                    # jamais de contenu de substitution si l'acces est refuse malgre tout.
                     user_agent=(
                         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                        "Chrome/120.0.0.0 Safari/537.36"
-                    )
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    ),
+                    locale="fr-FR",
+                    timezone_id="Europe/Paris"
                 )
 
                 page = await context.new_page()
@@ -88,15 +97,18 @@ class DirectExtractor(BaseExtractor):
                     # Extraire le HTML complet de la page
                     page_html = await page.content()
 
-                    # Nettoyer et contextualiser avec le système avancé
-                    logger.info(f"Nettoyage avancé du contenu de {url}")
-                    cleaned_result = self.content_cleaner.clean_and_contextualize(page_html, url)
-
-                    # Utiliser le contenu structuré (avec marqueurs) pour les agents
-                    content = cleaned_result.structured_content
-
-                    # Titre: priorité aux métadonnées extraites
-                    title = cleaned_result.metadata.title or await page.title()
+                    # Nettoyage via trafilatura : bibliotheque eprouvee specialisee
+                    # dans l'extraction d'article principal (elimine bien mieux le bruit
+                    # de nav/pub/footer qu'un nettoyeur maison), et surtout produit un
+                    # texte beaucoup plus compact -> moins de tokens a envoyer a tout
+                    # LLM en aval, sans rien perdre du contenu utile.
+                    import trafilatura
+                    content = trafilatura.extract(
+                        page_html, url=url, with_metadata=False,
+                        include_comments=False, include_tables=True
+                    )
+                    traf_meta = trafilatura.extract_metadata(page_html)
+                    title = (traf_meta.title if traf_meta else None) or await page.title()
 
                     # Vérifier si on a du contenu
                     if not content or len(content) < 100:
@@ -105,29 +117,21 @@ class DirectExtractor(BaseExtractor):
                             error_message="Contenu extrait insuffisant (< 100 caractères)"
                         )
 
-                    logger.info(
-                        f"Extraction avancée réussie: {cleaned_result.statistics['cleaned_length']} chars, "
-                        f"{cleaned_result.statistics['sections_found']} sections, "
-                        f"{cleaned_result.statistics['elements_removed']} éléments filtrés"
-                    )
+                    logger.info(f"Extraction directe (trafilatura) réussie: {len(content)} chars")
 
-                    # Préparer les métadonnées enrichies
                     metadata = {
-                        "extraction_method": "direct_playwright_advanced",
+                        "extraction_method": "direct_playwright_trafilatura",
                         "content_length": len(content),
-                        "sections_count": len(cleaned_result.sections),
-                        "statistics": cleaned_result.statistics
                     }
 
                     # Ajouter les métadonnées extraites
-                    if cleaned_result.metadata.author:
-                        metadata["author"] = cleaned_result.metadata.author
-                    if cleaned_result.metadata.publish_date:
-                        metadata["publish_date"] = cleaned_result.metadata.publish_date
-                    if cleaned_result.metadata.description:
-                        metadata["description"] = cleaned_result.metadata.description
-                    if cleaned_result.metadata.reading_time_minutes:
-                        metadata["reading_time_minutes"] = cleaned_result.metadata.reading_time_minutes
+                    if traf_meta:
+                        if traf_meta.author:
+                            metadata["author"] = traf_meta.author
+                        if traf_meta.date:
+                            metadata["publish_date"] = traf_meta.date
+                        if traf_meta.description:
+                            metadata["description"] = traf_meta.description
 
                     return WebResult.from_success(
                         url=url,

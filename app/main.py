@@ -10,20 +10,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.api.v1.endpoints import (
-    extract,
-    vision,
-    search_site,
-    api_navigator,
-    smart_api_navigator,
-    adaptive_navigator,
-    adaptive_research,
-    intelligent_research
-)
-# Anciens endpoints avec alias
+from app.api.v1.endpoints import extract, vision, search_site, research_deep, search, research_quick
 from app.api.v1.endpoints import research as research_old
-# Nouveaux endpoints V2
-from app.api.v1.endpoints import search, research_quick, research_deep
 
 from app.api.models import HealthResponse
 from app.core.browser.playwright_manager import ensure_playwright_installed, is_playwright_available
@@ -284,11 +272,31 @@ curl -X POST "http://localhost:8000/api/v1/research/deep" \\
     openapi_url="/openapi.json"
 )
 
-# Configuration CORS
+# Limite de taille de requete : sans ca, FastAPI/Starlette accepte des
+# payloads de n'importe quelle taille avant meme la validation Pydantic -
+# risque de deni de service par payload geant (verifie : 20 Mo acceptes
+# sans broncher avant ce correctif). 5 Mo est largement suffisant pour
+# tout usage legitime de cette API (extraction, recherche, vision).
+MAX_REQUEST_SIZE = 5 * 1024 * 1024  # 5 Mo
+
+@app.middleware("http")
+async def limit_request_size(request, call_next):
+    content_length = request.headers.get("content-length")
+    if content_length and int(content_length) > MAX_REQUEST_SIZE:
+        return JSONResponse(
+            status_code=413,
+            content={"detail": f"Requete trop volumineuse (max {MAX_REQUEST_SIZE // (1024*1024)} Mo)"}
+        )
+    return await call_next(request)
+
+# Configuration CORS. allow_credentials=False car ce service n'utilise
+# aucun cookie/session - allow_origins=["*"] avec credentials=True n'a pas
+# de sens (invalide selon la spec CORS, la plupart des navigateurs le
+# bloquent de toute facon).
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # À restreindre en production
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -310,13 +318,14 @@ app.include_router(
     tags=["basic"]
 )
 
+
+# RECHERCHE
 app.include_router(
     search.router,
     prefix="/api/v1",
     tags=["basic"]
 )
 
-# RECHERCHE (2)
 app.include_router(
     research_quick.router,
     prefix="/api/v1",
@@ -328,6 +337,7 @@ app.include_router(
     prefix="/api/v1",
     tags=["research"]
 )
+
 
 # ====================================================================
 # ANCIENS ENDPOINTS - DEPRECATED (retirés de l'OpenAPI, code conservé)
@@ -350,40 +360,10 @@ app.include_router(
     include_in_schema=False
 )
 
-app.include_router(
-    api_navigator.router,
-    prefix="/api/v1",
-    tags=["deprecated"],
-    include_in_schema=False
-)
 
-app.include_router(
-    smart_api_navigator.router,
-    prefix="/api/v1",
-    tags=["deprecated"],
-    include_in_schema=False
-)
 
-app.include_router(
-    adaptive_navigator.router,
-    prefix="/api/v1",
-    tags=["deprecated"],
-    include_in_schema=False
-)
 
-app.include_router(
-    adaptive_research.router,
-    prefix="/api/v1",
-    tags=["deprecated"],
-    include_in_schema=False
-)
 
-app.include_router(
-    intelligent_research.router,
-    prefix="/api/v1",
-    tags=["deprecated"],
-    include_in_schema=False
-)
 
 
 @app.get("/", response_class=JSONResponse)
@@ -399,11 +379,32 @@ async def root():
 
 @app.get("/health", response_model=HealthResponse, tags=["monitoring"])
 async def health_check():
-    """Endpoint de santé du service."""
+    """
+    Endpoint de sante du service. Verifie aussi les dependances externes
+    (SearXNG, config LLM) - un /health qui ne teste que le process FastAPI
+    lui-meme donne une fausse impression de sante si une dependance est
+    indisponible.
+    """
+    import os
+    from app.services.search_service import searxng_client
+
+    playwright_ok = is_playwright_available()
+
+    try:
+        searxng_ok = await searxng_client.health_check()
+    except Exception:
+        searxng_ok = False
+
+    llm_configured = bool(os.getenv("DEFAULT_LLM_API_KEY", ""))
+
+    overall_status = "healthy" if (playwright_ok and llm_configured) else "degraded"
+
     return HealthResponse(
-        status="healthy",
+        status=overall_status,
         version=settings.api_version,
-        playwright_available=is_playwright_available()
+        playwright_available=playwright_ok,
+        searxng_available=searxng_ok,
+        llm_configured=llm_configured
     )
 
 

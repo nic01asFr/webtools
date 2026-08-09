@@ -55,7 +55,7 @@ class OutputFormat(BaseModel):
 
 
 class DeepResearchRequest(BaseModel):
-    topic: str = Field(..., description="Sujet de la recherche approfondie")
+    topic: str = Field(..., description="Sujet de la recherche approfondie", min_length=5, max_length=500)
     objectives: List[str] = Field(
         default=[],
         description="Liste d'objectifs pour guider la recherche"

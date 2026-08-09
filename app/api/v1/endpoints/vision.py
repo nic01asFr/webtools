@@ -31,7 +31,7 @@ async def vision_health():
 
         return {
             "vision": "ok",
-            "model": "albert-large",
+            "model": os.getenv("DEFAULT_LLM_MODEL", "qwen3-6-35b-moe"),
             "base_url": base_url
         }
     except Exception as e:
@@ -104,22 +104,36 @@ async def analyze_image(request: VisionRequest):
                 error_message="API key not configured"
             )
 
+        provider = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
+        model = os.getenv("DEFAULT_LLM_MODEL", "qwen3-6-35b-moe")
+
         llm_client = LLMFactory.create(
-            provider="albert",
+            provider=provider,
             api_key=api_key,
-            model="albert-large",  # Vision nécessite albert-large
+            model=model,
             base_url=base_url
         )
 
         logger.info(f"Analyzing image: {request.image_url}")
 
         # Analyser l'image avec Albert Vision
+        # Timeout court specifique a la vision : une analyse d'image reussie
+        # prend <10s dans tous les cas observes. Le timeout global de 90s
+        # (necessaire pour les syntheses longues de research_deep) laisserait
+        # une requete sur image inaccessible tourner bien trop longtemps.
+        # max_retries=0 ici : le retry global (5 tentatives) sert a absorber
+        # les erreurs transitoires des syntheses longues de research_deep,
+        # mais une image inaccessible (mauvais domaine, 404...) est un echec
+        # permanent - le retenter 5 fois ne fait que multiplier le temps
+        # d'attente pour un resultat qui ne changera jamais.
         analysis = await llm_client.generate_with_vision(
             text=request.prompt,
             image_url=str(request.image_url),
             system_prompt=request.system_prompt,
             temperature=request.temperature,
-            max_tokens=request.max_tokens
+            max_tokens=request.max_tokens,
+            timeout=20.0,
+            max_retries=0
         )
 
         processing_time = time.time() - start_time
@@ -131,7 +145,7 @@ async def analyze_image(request: VisionRequest):
             image_url=str(request.image_url),
             prompt=request.prompt,
             analysis=analysis,
-            model_used="albert-large",
+            model_used=model,
             processing_time_seconds=round(processing_time, 2)
         )
 
@@ -142,7 +156,8 @@ async def analyze_image(request: VisionRequest):
         response = VisionResponse.from_error(
             image_url=str(request.image_url),
             prompt=request.prompt,
-            error_message=str(e)
+            error_message=str(e),
+            model_used=locals().get("model", "unknown")
         )
         response.processing_time_seconds = round(processing_time, 2)
         return response

@@ -3,7 +3,7 @@ Modèles de données pour l'API WebExtract.
 """
 
 from typing import Optional, Dict, Any, Literal, List
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 
 
 class LLMConfig(BaseModel):
@@ -59,6 +59,27 @@ class ExtractRequest(BaseModel):
         default=None,
         description="Prompt personnalisé pour l'extraction (optionnel)"
     )
+
+    @field_validator("url")
+    @classmethod
+    def validate_url_format(cls, v: str) -> str:
+        """
+        Rejette en amont (422 immediat) toute URL syntaxiquement invalide,
+        avant de declencher le pipeline d'extraction (RSS -> direct ->
+        LLM -> agent). Sans ce garde-fou, une URL vide ou malformee finit
+        par engager l'agent IA complet en pure perte - observe en test :
+        cout et temps gaspilles, voire comportement errant de l'agent qui
+        tente d'interpreter une chaine non-URL comme une intention de
+        recherche.
+        """
+        v = (v or "").strip()
+        if not v:
+            raise ValueError("L'URL ne peut pas être vide")
+        if not (v.startswith("http://") or v.startswith("https://")):
+            raise ValueError("L'URL doit commencer par http:// ou https://")
+        if len(v) < 12:  # http://a.bc minimum plausible
+            raise ValueError("URL trop courte pour être valide")
+        return v
     extraction_type: Literal["general", "article", "product", "repository", "documentation"] = Field(
         default="general",
         description="Type d'extraction à effectuer"
@@ -200,6 +221,8 @@ class HealthResponse(BaseModel):
     status: str = Field(description="Statut du service")
     version: str = Field(description="Version du service")
     playwright_available: bool = Field(description="Playwright est-il disponible?")
+    searxng_available: Optional[bool] = Field(default=None, description="SearXNG est-il accessible?")
+    llm_configured: Optional[bool] = Field(default=None, description="Une cle LLM est-elle configuree?")
 
 
 # ============================================================================
@@ -372,21 +395,21 @@ class VisionResponse(BaseModel):
         description="Analyse de l'image par Albert"
     )
     model_used: str = Field(
-        default="albert-large",
+        default="unknown",
         description="Modèle utilisé pour l'analyse"
     )
     processing_time_seconds: float = 0.0
     error: Optional[str] = None
 
     @classmethod
-    def from_error(cls, image_url: str, prompt: str, error_message: str):
+    def from_error(cls, image_url: str, prompt: str, error_message: str, model_used: str = "unknown"):
         """Crée une réponse d'erreur"""
         return cls(
             success=False,
             image_url=image_url,
             prompt=prompt,
             error=error_message,
-            model_used="albert-large"
+            model_used=model_used
         )
 
 
@@ -501,3 +524,67 @@ class SearchSiteResponse(BaseModel):
             search_query=search_query,
             error=error_message
         )
+
+
+# ============================================================================
+# Modèles pour l'endpoint /search (recherche web simple via SearXNG)
+# ============================================================================
+
+class SearchRequest(BaseModel):
+    """Requête de recherche web simple."""
+    query: str = Field(..., description="Requête de recherche", max_length=500)
+    max_results: int = Field(default=10, ge=1, le=50)
+    language: str = Field(default="fr")
+    categories: Optional[str] = Field(default=None, description="Categories SearXNG (general, images, news...)")
+    engines: Optional[str] = Field(default=None, description="Moteurs specifiques (google, bing...)")
+
+
+class SimpleSearchResult(BaseModel):
+    """Un resultat de recherche simple."""
+    title: str
+    url: str
+    snippet: str = ""
+
+
+class SearchResponse(BaseModel):
+    """Reponse de recherche web simple."""
+    query: str
+    results: List[SimpleSearchResult] = Field(default_factory=list)
+    total: int = 0
+    success: bool = True
+    error: Optional[str] = None
+
+    @classmethod
+    def from_error(cls, query: str, error_message: str):
+        return cls(query=query, results=[], total=0, success=False, error=error_message)
+
+
+# ============================================================================
+# Modèles pour l'endpoint /research/quick (reponse rapide documentee)
+# ============================================================================
+
+class QuickResearchRequest(BaseModel):
+    """Requete de recherche rapide documentee."""
+    query: str = Field(..., description="Question factuelle", min_length=5, max_length=500)
+    max_sources: int = Field(default=5, ge=1, le=15)
+
+
+class QuickResearchSource(BaseModel):
+    """Une source citee dans la reponse rapide."""
+    title: str
+    url: str
+    relevance: float = 0.0
+
+
+class QuickResearchResponse(BaseModel):
+    """Reponse de recherche rapide documentee."""
+    query: str
+    answer: Optional[str] = None
+    sources: List[QuickResearchSource] = Field(default_factory=list)
+    confidence: str = Field(default="medium", description="high | medium | low")
+    success: bool = True
+    error: Optional[str] = None
+
+    @classmethod
+    def from_error(cls, query: str, error_message: str):
+        return cls(query=query, answer=None, sources=[], confidence="low", success=False, error=error_message)

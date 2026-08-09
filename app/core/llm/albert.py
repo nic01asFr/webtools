@@ -39,14 +39,21 @@ class AlbertLLMClient(BaseLLMClient):
         # Normaliser l'URL de base
         self.base_url = base_url.rstrip('/').replace('/v1', '')
 
-        # Client HTTP pour les requêtes
+        # Client HTTP pour les requetes. keepalive_expiry explicite pour
+        # eviter la reutilisation de connexions perimees sur les sessions
+        # longues (memes symptomes et meme cause que sur le client OpenAI -
+        # voir app/core/llm/openai.py).
         self.http_client = httpx.AsyncClient(
             timeout=120.0,
             headers={
                 "Authorization": f"Bearer {self.api_key}",
                 "Content-Type": "application/json"
             },
-            limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
+            limits=httpx.Limits(
+                max_keepalive_connections=5,
+                max_connections=10,
+                keepalive_expiry=15.0
+            ),
             http2=True
         )
 
@@ -74,22 +81,34 @@ class AlbertLLMClient(BaseLLMClient):
             **kwargs
         }
 
-        try:
-            response = await self.http_client.post(url, json=data)
-            response.raise_for_status()
-            result = response.json()
+        # Retry manuel avec backoff : httpx.AsyncClient n'a pas de retry
+        # integre (contrairement au SDK OpenAI utilise ailleurs) - on aligne
+        # le niveau de resilience entre les deux clients.
+        import asyncio
+        last_error = None
+        for attempt in range(3):
+            try:
+                response = await self.http_client.post(url, json=data)
+                response.raise_for_status()
+                result = response.json()
 
-            if "choices" in result and len(result["choices"]) > 0:
-                return result["choices"][0]["message"]["content"]
-            else:
-                raise LLMClientError("Réponse inattendue de l'API Albert")
+                if "choices" in result and len(result["choices"]) > 0:
+                    return result["choices"][0]["message"]["content"]
+                else:
+                    raise LLMClientError("Réponse inattendue de l'API Albert")
 
-        except httpx.HTTPStatusError as e:
-            raise LLMClientError(
-                f"Erreur HTTP {e.response.status_code}: {e.response.text}"
-            )
-        except Exception as e:
-            raise LLMClientError(f"Erreur lors de la génération: {str(e)}")
+            except httpx.HTTPStatusError as e:
+                raise LLMClientError(
+                    f"Erreur HTTP {e.response.status_code}: {e.response.text}"
+                )
+            except (httpx.ConnectError, httpx.ReadTimeout, httpx.RemoteProtocolError) as e:
+                last_error = e
+                if attempt < 2:
+                    await asyncio.sleep(1.5 * (attempt + 1))
+                    continue
+                raise LLMClientError(f"Erreur de connexion après {attempt + 1} tentatives: {str(e)}")
+            except Exception as e:
+                raise LLMClientError(f"Erreur lors de la génération: {str(e)}")
 
     def get_langchain_wrapper(self) -> BaseChatModel:
         """

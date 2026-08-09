@@ -9,6 +9,11 @@ from typing import Dict
 class PromptTemplates:
     """Collection de templates de prompts pour différents types de contenu."""
 
+    AGENT_SAFETY_RULES = """RÈGLES STRICTES DE COMPORTEMENT (à respecter impérativement) :
+- Reste UNIQUEMENT sur le domaine de l'URL fournie. Ne navigue JAMAIS vers Google, un moteur de recherche, web.archive.org, ou tout autre domaine.
+- N'interagis JAMAIS avec un CAPTCHA, un reCAPTCHA, ou tout mécanisme de vérification anti-robot. Si tu en rencontres un, arrête-toi immédiatement et retourne un échec.
+- Ne cherche PAS de contenu de remplacement ou d'archive si la page cible est inaccessible ou bloquée. Retourne un échec plutôt qu'un contenu périmé ou substitué.
+- Objectif : contenu FRAIS de la page demandée, ou échec explicite. Jamais de contenu de substitution non signalé."""
     # Template pour extraction générale (optimisé albert-code)
     GENERAL = """Tu es un expert en analyse de contenu web. Analyse le HTML suivant et extrait le contenu principal.
 
@@ -88,7 +93,7 @@ TECHNOLOGIES: [liste des technologies]
 """
 
     # Template pour documentation (optimisé albert-code - exploite ses capacités code)
-    DOCUMENTATION = """Tu es albert-code, expert en analyse de documentation technique. Analyse ce HTML de documentation.
+    DOCUMENTATION = """Tu es un expert en analyse de documentation technique. Analyse ce HTML de documentation.
 
 URL: {url}
 
@@ -155,4 +160,4 @@ CONTENU: [texte juridique complet avec articles et sections]
         }
 
         template = templates.get(content_type, PromptTemplates.GENERAL)
-        return template.format(url=url)
+        return PromptTemplates.AGENT_SAFETY_RULES + "\n\n" + template.format(url=url)

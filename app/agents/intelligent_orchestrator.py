@@ -18,6 +18,7 @@ Outils disponibles:
 - Vision: Analyse d'images
 """
 
+import asyncio
 import logging
 import json
 from typing import Dict, Any, List, Optional
@@ -33,6 +34,26 @@ from app.api.models import ExtractionOptions
 from app.core.data_extractor import GenericDataExtractor, DataValidator
 
 logger = logging.getLogger(__name__)
+
+
+def _cosine_similarity(a: list, b: list) -> float:
+    """Similarite cosinus entre deux vecteurs d'embedding (0-1)."""
+    dot = sum(x * y for x, y in zip(a, b))
+    norm_a = sum(x * x for x in a) ** 0.5
+    norm_b = sum(y * y for y in b) ** 0.5
+    if norm_a == 0 or norm_b == 0:
+        return 0.0
+    return max(0.0, dot / (norm_a * norm_b))
+
+
+def _extract_domain(url: str) -> str:
+    """Domaine racine d'une URL, pour juger de l'independance de deux sources."""
+    from urllib.parse import urlparse
+    try:
+        netloc = urlparse(url).netloc.lower()
+        return netloc[4:] if netloc.startswith("www.") else netloc
+    except Exception:
+        return url
 
 
 class ToolType(str, Enum):
@@ -76,6 +97,21 @@ class ExecutionContext:
         self.datasets: Dict[str, List[Dict]] = {}
         self.discovered_sources: List[str] = []
         self.tool_success_rate: Dict[str, Dict] = {}
+        # Cache d'extraction partage sur toute la duree d'une requete research_deep :
+        # un meme article pertinent pour plusieurs sections (frequent) n'est
+        # extrait qu'une seule fois, pas une fois par section qui le reference.
+        self.extraction_cache: Dict[str, Any] = {}
+
+        # Cache d'embeddings partage entre le croisement de sources (recherche
+        # de corroboration) et la selection semantique de chunks - un meme
+        # contenu ne fait jamais l'objet de deux appels d'embedding distincts,
+        # peu importe l'ordre d'appel des deux fonctions qui en ont besoin.
+        self.embedding_cache: Dict[str, list] = {}
+
+        # Historique de tous les chunks extraits, tous sujets confondus, pour
+        # pouvoir chercher des corroborations cross-sections (pas seulement
+        # au sein d'une section) : {url, domain, content, embedding}
+        self.all_extracted_chunks: List[Dict[str, Any]] = []
 
         # NOUVEAU: Contenu final structuré avec accumulation par section
         self.final_content: Dict[str, Any] = {
@@ -260,39 +296,81 @@ class IntelligentOrchestrator:
         # ===================================================================
         logger.info("🏗️  PHASE 2: Construction itérative section par section")
 
-        # Pour chaque section du canvas, processus complet
-        for section_name, section_config in plan.get('section_targets', {}).items():
-            logger.info(f"\n  📝 Section: {section_name}")
-            logger.info(f"     Profondeur: {section_config.get('depth', 'moderate')}")
-            logger.info(f"     Objectif: ~{section_config.get('words_target', 500)} mots")
+        # Étape 2.1+2.2 (recherche + extraction) : ces deux étapes sont
+        # independantes entre sections (chacune n'ecrit que dans sa propre
+        # cle de ctx.final_content), contrairement au croisement (2.3) qui
+        # lit l'etat des AUTRES sections deja traitees pour reperer les
+        # sources partagees. On parallelise donc uniquement 2.1+2.2, avec
+        # un plafond de concurrence explicite (semaphore) : sans lui, N
+        # sections x jusqu'a 5 extractions chacune pourrait lancer des
+        # dizaines de navigateurs Chromium simultanement et saturer la
+        # memoire du pod. 2.3+2.4 restent sequentiels ensuite pour
+        # preserver le signal de corroboration inter-sections.
+        section_targets = plan.get('section_targets', {})
+        extraction_semaphore = asyncio.Semaphore(3)
 
-            # Étape 2.1: Recherches ciblées pour cette section
-            section_data = await self._section_research_phase(
-                query=query,
-                section_name=section_name,
-                section_config=section_config,
-                exploration_data=exploration_data,
-                context=ctx
-            )
-            logger.info(f"     ✓ {len(section_data.get('sources', []))} sources collectées")
+        async def _research_and_extract(section_name: str, section_config: Dict):
+            async with extraction_semaphore:
+                logger.info(f"  📝 Section (recherche+extraction): {section_name}")
+                section_data = await self._section_research_phase(
+                    query=query, section_name=section_name,
+                    section_config=section_config, exploration_data=exploration_data,
+                    context=ctx
+                )
+                extracted_data = await self._section_extraction_phase(
+                    section_name=section_name, section_data=section_data, context=ctx
+                )
+                logger.info(f"     ✓ {section_name}: {len(extracted_data)} contenus extraits")
+                return section_name, extracted_data
 
-            # Étape 2.2: Extraction et analyse des sources
-            extracted_data = await self._section_extraction_phase(
-                section_name=section_name,
-                section_data=section_data,
-                context=ctx
-            )
-            logger.info(f"     ✓ {len(extracted_data)} contenus extraits")
+        extraction_results = await asyncio.gather(*[
+            _research_and_extract(name, cfg) for name, cfg in section_targets.items()
+        ])
+        extracted_by_section = dict(extraction_results)
 
-            # Étape 2.3: Croisement avec données existantes
-            enriched_data = self._cross_reference_data(
+        # Étape 2.2.5 (verification + complement) : verifie chaque section
+        # au regard d'un seuil calibre par le LLM DES LA PHASE 1 (plan.
+        # search_strategy.sources_per_section, deja calcule au regard de la
+        # requete et de l'exploration initiale - jamais exploite jusqu'ici),
+        # module localement par la profondeur (depth) deja decidee pour
+        # CETTE section. Aucun nouvel appel LLM pour la decision de seuil
+        # elle-meme - seule l'action de combler (recherche ciblee) declenche
+        # un appel, seulement si necessaire. Agit sur les DONNEES avant
+        # toute redaction, pas sur du texte deja ecrit (contrairement a
+        # l'ajustement local de words_target et a l'enrichissement Phase 4,
+        # qui restent les filets de securite en aval si ceci ne suffit pas).
+        base_threshold = plan.get('search_strategy', {}).get('sources_per_section', 2)
+        DEPTH_MODULATION = {"light": -1, "moderate": 0, "deep": 1}
+
+        for section_name, section_config in section_targets.items():
+            n_sources = len(extracted_by_section.get(section_name, []))
+            depth = section_config.get('depth', 'moderate')
+            threshold = max(1, base_threshold + DEPTH_MODULATION.get(depth, 0))
+
+            if n_sources < threshold:
+                logger.info(f"  🔎 Complément pré-rédaction pour '{section_name}': {n_sources}/{threshold} sources")
+                key_questions = section_config.get('key_questions', [])
+                extra = await self._targeted_search(
+                    query=query, section_title=section_name,
+                    missing=key_questions, ctx=ctx
+                )
+                if extra and extra.get('sources'):
+                    extracted_by_section[section_name] = extracted_by_section.get(section_name, []) + extra['sources']
+                    logger.info(f"     ✓ +{len(extra['sources'])} source(s), total: {len(extracted_by_section[section_name])}")
+
+        # Étape 2.3+2.4 (croisement + synthèse) : sequentiel, car le
+        # croisement doit voir les sections precedentes deja finalisees.
+        for section_name, section_config in section_targets.items():
+            logger.info(f"\n  ✍️  Section (croisement+synthèse): {section_name}")
+            extracted_data = extracted_by_section.get(section_name, [])
+
+            enriched_data = await self._cross_reference_data(
                 section_name=section_name,
                 new_data=extracted_data,
                 context=ctx
             )
             logger.info(f"     ✓ {len(enriched_data)} données enrichies")
 
-            # Étape 2.4: Synthèse de la section
             section_content = await self._synthesize_single_section(
                 query=query,
                 section_name=section_name,
@@ -302,7 +380,14 @@ class IntelligentOrchestrator:
             )
             logger.info(f"     ✓ Contenu généré: {len(section_content.split())} mots")
 
-            # Stocker dans le canvas
+            # Stocker dans le canvas. setdefault plutot qu'un acces direct :
+            # le nom de section utilise ici peut diverger legerement (ponctuation,
+            # espaces) de celui pose par initialize_sections() plus tot dans le
+            # pipeline, provoquant sinon un KeyError qui fait echouer tout le
+            # rapport alors que le contenu de CETTE section a bien ete genere.
+            ctx.final_content['sections'].setdefault(section_name, {
+                "raw_data": [], "content": "", "metadata": {"data_count": 0, "sources": []}
+            })
             ctx.final_content['sections'][section_name]['content'] = section_content
             ctx.final_content['sections'][section_name]['raw_data'] = enriched_data
 
@@ -333,6 +418,20 @@ class IntelligentOrchestrator:
 
         # Étape 4.1: Assemblage final
         final_answer = await self._final_assembly(query, plan, ctx)
+
+        # Étape 4.1.5 (nouveau) : enrichissement iteratif des sections faibles
+        # ou trop courtes - mecanisme complet mais jusqu'ici jamais branche.
+        # Repond directement au probleme observe en session : des sections
+        # en echec ("[Erreur lors de la generation...]") qui restaient dans
+        # le rapport final sans jamais etre retentees. max_iterations=1 par
+        # prudence (defaut=2) pour ne pas alourdir excessivement le temps
+        # total d'un rapport deja long (55-280s observes).
+        try:
+            final_answer = await self._iterative_enrichment(
+                query, ctx, final_answer, max_iterations=1
+            )
+        except Exception as e:
+            logger.warning(f"Enrichissement iteratif echoue, rapport initial conserve: {e}")
 
         # Étape 4.2: Génération bibliographie complète
         logger.info("  ✓ Bibliographie générée")
@@ -623,10 +722,15 @@ EXEMPLE pour requête APPROFONDIE "écosystème Rust 2024, adoption entreprise, 
                 # Recherche web avec SearXNG
                 query = input_data.get("query", ctx.query)
                 max_results = input_data.get("max_results", 10)
+                categories = input_data.get("categories")
+                time_range = input_data.get("time_range")
 
                 logger.info(f"  🔍 Recherche SearXNG: {query}")
 
-                results = await searxng_client.search(query, max_results=max_results)
+                results = await searxng_client.search(
+                    query, max_results=max_results,
+                    categories=categories, time_range=time_range
+                )
 
                 if results:
                     # Extraire URLs et titres
@@ -848,7 +952,7 @@ RÈGLES:
         logger.info(f"  🎯 Préparation données: {len(all_data)} items disponibles")
 
         # Sélectionner les chunks les plus pertinents (max 50000 chars)
-        selected_data = self._semantic_chunk_selection(all_data, query, max_chars=50000)
+        selected_data = await self._semantic_chunk_selection(all_data, query, max_chars=50000)
 
         # Extraire le contenu textuel ET données structurées
         extracted_contents = []
@@ -1118,7 +1222,7 @@ Retourne JSON:
 
         return min(100.0, score)
 
-    def _semantic_chunk_selection(
+    async def _semantic_chunk_selection(
         self,
         all_data: List[Dict],
         query: str,
@@ -1144,19 +1248,52 @@ Retourne JSON:
         Returns:
             Liste triée des chunks les plus pertinents
         """
+        # Filtrer les items valides d'abord (necessaire pour le batch d'embeddings)
+        valid_items = [
+            item for item in all_data
+            if isinstance(item, dict) and item.get("content")
+        ]
+
+        # Scoring semantique par embeddings, en complement du scoring
+        # mots-cles existant : capture les synonymes/reformulations qu'un
+        # simple "le mot exact apparait-il dans le texte" ne peut pas voir.
+        # Repli silencieux sur le scoring mots-cles seul si l'appel
+        # d'embedding echoue (jamais bloquant pour la selection).
+        semantic_scores = {}
+        if hasattr(self.llm_client, "embed") and valid_items:
+            try:
+                texts_to_embed = [query] + [item["content"][:2000] for item in valid_items]
+                vectors = await self.llm_client.embed(texts_to_embed)
+                query_vec = vectors[0]
+                for item, vec in zip(valid_items, vectors[1:]):
+                    semantic_scores[id(item)] = _cosine_similarity(query_vec, vec)
+                logger.info(f"  🧠 Scoring sémantique par embeddings : {len(semantic_scores)} chunks scorés")
+            except Exception as e:
+                logger.warning(f"Embeddings indisponibles pour la selection semantique, repli sur mots-cles seuls: {e}")
+
         scored_items = []
 
-        for item in all_data:
-            if not isinstance(item, dict):
-                continue
-
+        for item in valid_items:
             content = item.get("content", "")
-            if not content:
-                continue
 
-            # Score ce chunk
+            # Score mots-cles + donnees structurees (existant)
             structured_data = item.get("structured_data")
-            score = self._score_relevance(content, query, structured_data)
+            keyword_score = self._score_relevance(content, query, structured_data)
+
+            # Score semantique (0-1 -> 0-100) vs la requete
+            sem = semantic_scores.get(id(item))
+
+            # Bonus de corroboration : un chunk confirme par des sources
+            # independantes (calcule dans _cross_reference_data, cf.
+            # corroboration_count) merite de remonter, meme si son score
+            # de pertinence brut est un peu plus faible - c'est le meme
+            # principe que le croisement de sources en fact-checking.
+            corrob = min(item.get("corroboration_count", 0), 3) / 3.0  # plafonne a 3 sources
+
+            if sem is not None:
+                score = (keyword_score * 0.5) + (sem * 100 * 0.35) + (corrob * 100 * 0.15)
+            else:
+                score = (keyword_score * 0.85) + (corrob * 100 * 0.15)
 
             scored_items.append({
                 "score": score,
@@ -1665,50 +1802,104 @@ RÈGLES:
 """
 
         try:
-            response = await self.llm_client.generate(
-                [{"role": "user", "content": prompt}],
-                max_tokens=1500,
-                temperature=0.1
-            )
+            # Sortie structuree forcee (au lieu du parsing manuel de texte) :
+            # ce validateur est le premier converti comme preuve de concept -
+            # schema simple et stable, contrairement au plan de recherche qui
+            # a des cles dynamiques (section_targets par nom de section).
+            validation_schema = {
+                "type": "object",
+                "properties": {
+                    "coherent": {"type": "boolean"},
+                    "issues": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": {"type": "string"},
+                                "description": {"type": "string"},
+                                "values_involved": {"type": "array", "items": {"type": "string"}},
+                                "severity": {"type": "string", "enum": ["high", "medium", "low"]},
+                                "suggested_fix": {"type": "string"}
+                            },
+                            "required": ["type", "description", "values_involved", "severity", "suggested_fix"],
+                            "additionalProperties": False
+                        }
+                    },
+                    "key_numbers": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "value": {"type": "string"},
+                                "unit": {"type": "string"},
+                                "context": {"type": "string"},
+                                "temporal_marker": {"type": "string"}
+                            },
+                            "required": ["value", "unit", "context", "temporal_marker"],
+                            "additionalProperties": False
+                        }
+                    }
+                },
+                "required": ["coherent", "issues", "key_numbers"],
+                "additionalProperties": False
+            }
 
-            # Parser JSON
-            start_idx = response.find('{')
-            if start_idx != -1:
-                bracket_depth = 0
-                for i, char in enumerate(response[start_idx:], start=start_idx):
-                    if char == '{':
-                        bracket_depth += 1
-                    elif char == '}':
-                        bracket_depth -= 1
-                        if bracket_depth == 0:
-                            validation = json.loads(response[start_idx:i + 1])
+            if hasattr(self.llm_client, "generate_structured"):
+                validation = await self.llm_client.generate_structured(
+                    [{"role": "user", "content": prompt}],
+                    schema=validation_schema,
+                    schema_name="numerical_validation",
+                    max_tokens=1500,
+                    temperature=0.1
+                )
+            else:
+                # Repli pour un client LLM qui ne supporte pas la sortie
+                # structuree (ex: Albert) - ancien parsing manuel conserve.
+                response = await self.llm_client.generate(
+                    [{"role": "user", "content": prompt}],
+                    max_tokens=1500,
+                    temperature=0.1
+                )
+                start_idx = response.find('{')
+                validation = None
+                if start_idx != -1:
+                    bracket_depth = 0
+                    for i, char in enumerate(response[start_idx:], start=start_idx):
+                        if char == '{':
+                            bracket_depth += 1
+                        elif char == '}':
+                            bracket_depth -= 1
+                            if bracket_depth == 0:
+                                validation = json.loads(response[start_idx:i + 1])
+                                break
 
-                            # Logger les problèmes trouvés
-                            if not validation.get('coherent', True):
-                                high_severity_issues = [
-                                    issue for issue in validation.get('issues', [])
-                                    if issue.get('severity') == 'high'
-                                ]
-                                if high_severity_issues:
-                                    logger.warning(f"⚠️ {len(high_severity_issues)} incohérence(s) numérique(s) détectée(s)")
-                                    for issue in high_severity_issues:
-                                        logger.warning(f"  - {issue.get('description')}")
-                                        logger.info(f"    Correction suggérée: {issue.get('suggested_fix')}")
+            if validation is not None:
+                # Logger les problèmes trouvés
+                if not validation.get('coherent', True):
+                    high_severity_issues = [
+                        issue for issue in validation.get('issues', [])
+                        if issue.get('severity') == 'high'
+                    ]
+                    if high_severity_issues:
+                        logger.warning(f"⚠️ {len(high_severity_issues)} incohérence(s) numérique(s) détectée(s)")
+                        for issue in high_severity_issues:
+                            logger.warning(f"  - {issue.get('description')}")
+                            logger.info(f"    Correction suggérée: {issue.get('suggested_fix')}")
 
-                                # Ajouter une note de validation au rapport
-                                report['validation'] = {
-                                    'numerical_coherence_checked': True,
-                                    'issues_found': len(validation.get('issues', [])),
-                                    'high_severity_issues': len(high_severity_issues)
-                                }
-                            else:
-                                logger.info("✓ Cohérence numérique validée")
-                                report['validation'] = {
-                                    'numerical_coherence_checked': True,
-                                    'coherent': True
-                                }
+                    # Ajouter une note de validation au rapport
+                    report['validation'] = {
+                        'numerical_coherence_checked': True,
+                        'issues_found': len(validation.get('issues', [])),
+                        'high_severity_issues': len(high_severity_issues)
+                    }
+                else:
+                    logger.info("✓ Cohérence numérique validée")
+                    report['validation'] = {
+                        'numerical_coherence_checked': True,
+                        'coherent': True
+                    }
 
-                            return report
+                return report
         except Exception as e:
             logger.error(f"Erreur validation cohérence: {e}")
 
@@ -1747,7 +1938,7 @@ RÈGLES:
             section_depth = "moderate"
 
             # Sélection intelligente des données pertinentes pour cette section
-            selected_data = self._semantic_chunk_selection(raw_data, query, max_chars=20000, depth=section_depth)
+            selected_data = await self._semantic_chunk_selection(raw_data, query, max_chars=20000, depth=section_depth)
 
             # Préparation du prompt de synthèse
             data_for_synthesis = []
@@ -2168,7 +2359,9 @@ Retourne JSON:
         try:
             search_results = await searxng_client.search(
                 query=search_params["query"],
-                max_results=search_params["max_results"]
+                max_results=search_params["max_results"],
+                categories=",".join(search_params["categories"]),
+                engines=",".join(search_params["engines"])
             )
 
             urls_found = []
@@ -2368,32 +2561,73 @@ Pour "Écosystème Rust 2024, adoption, roadmap":
 IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_found[:5])}
 """
 
-        try:
-            response = await self.llm_client.generate(
-                [{"role": "user", "content": prompt}],
-                max_tokens=3000,
-                temperature=0.2
-            )
+        # Sortie structuree forcee : plus de clefs dynamiques (l'ancien format
+        # section_targets = {nom_section: {...}} etait incompatible avec un
+        # JSON Schema strict). "sections" devient une liste d'objets, chacun
+        # avec son nom en attribut plutot qu'en clef de dictionnaire - le
+        # nombre de sections reste totalement libre pour le LLM (1 a 10),
+        # seule la FORME de chaque section est garantie.
+        plan_schema = {
+            "type": "object",
+            "properties": {
+                "complexity_analysis": {
+                    "type": "object",
+                    "properties": {
+                        "overall_score": {"type": "number", "minimum": 1.0, "maximum": 5.0},
+                        "target_length": {"type": "string", "enum": ["concis", "standard", "détaillé", "approfondi"]},
+                        "estimated_words": {"type": "integer", "minimum": 100},
+                        "justification": {"type": "string"}
+                    },
+                    "required": ["overall_score", "target_length", "estimated_words", "justification"],
+                    "additionalProperties": False
+                },
+                "sections": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 10,
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "name": {"type": "string"},
+                            "words_target": {"type": "integer", "minimum": 100, "maximum": 1200},
+                            "depth": {"type": "string", "enum": ["light", "moderate", "deep"]},
+                            "objectives": {"type": "array", "items": {"type": "string"}},
+                            "key_questions": {"type": "array", "items": {"type": "string"}}
+                        },
+                        "required": ["name", "words_target", "depth", "objectives", "key_questions"],
+                        "additionalProperties": False
+                    }
+                },
+                "narrative_flow": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "from_section": {"type": "string"},
+                            "to_section": {"type": "string"},
+                            "transition_type": {"type": "string", "enum": ["zoom-in", "cause-effect", "chronological", "comparison"]},
+                            "rationale": {"type": "string"}
+                        },
+                        "required": ["from_section", "to_section", "transition_type", "rationale"],
+                        "additionalProperties": False
+                    }
+                },
+                "search_strategy": {
+                    "type": "object",
+                    "properties": {
+                        "total_sources_needed": {"type": "integer", "minimum": 1},
+                        "sources_per_section": {"type": "integer", "minimum": 1},
+                        "search_depth": {"type": "string", "enum": ["quick", "standard", "exhaustive"]}
+                    },
+                    "required": ["total_sources_needed", "sources_per_section", "search_depth"],
+                    "additionalProperties": False
+                }
+            },
+            "required": ["complexity_analysis", "sections", "narrative_flow", "search_strategy"],
+            "additionalProperties": False
+        }
 
-            # Parser JSON
-            start_idx = response.find('{')
-            if start_idx != -1:
-                bracket_depth = 0
-                for i, char in enumerate(response[start_idx:], start=start_idx):
-                    if char == '{':
-                        bracket_depth += 1
-                    elif char == '}':
-                        bracket_depth -= 1
-                        if bracket_depth == 0:
-                            plan = json.loads(response[start_idx:i + 1])
-                            logger.info(f"     → Plan créé: {len(plan.get('sections', []))} sections")
-                            return plan
-
-        except Exception as e:
-            logger.error(f"  ❌ Erreur planification: {e}")
-
-        # Fallback: plan standard
-        return {
+        FALLBACK_PLAN = {
             "complexity_analysis": {"overall_score": 3.0, "target_length": "standard", "estimated_words": 1200},
             "sections": ["Introduction", "Analyse", "Conclusion"],
             "section_targets": {
@@ -2404,6 +2638,57 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             "narrative_flow": [],
             "search_strategy": {"total_sources_needed": 10, "sources_per_section": 3, "search_depth": "standard"}
         }
+
+        try:
+            if hasattr(self.llm_client, "generate_structured"):
+                structured = await self.llm_client.generate_structured(
+                    [{"role": "user", "content": prompt}],
+                    schema=plan_schema, schema_name="research_plan",
+                    max_tokens=3000, temperature=0.2
+                )
+                # Conversion vers le format interne historique (sections=liste
+                # de strings, section_targets=dict) attendu par tout le reste
+                # du pipeline (Phase 2, _final_assembly, etc.) - zero
+                # changement requis ailleurs dans le fichier.
+                plan = {
+                    "complexity_analysis": structured["complexity_analysis"],
+                    "sections": [s["name"] for s in structured["sections"]],
+                    "section_targets": {
+                        s["name"]: {
+                            "words_target": s["words_target"],
+                            "depth": s["depth"],
+                            "objectives": s["objectives"],
+                            "key_questions": s["key_questions"]
+                        } for s in structured["sections"]
+                    },
+                    "narrative_flow": structured["narrative_flow"],
+                    "search_strategy": structured["search_strategy"]
+                }
+                logger.info(f"     → Plan créé (sortie structurée): {len(plan['sections'])} sections")
+                return plan
+            else:
+                # Repli non-structure pour un client sans generate_structured (ex: Albert)
+                response = await self.llm_client.generate(
+                    [{"role": "user", "content": prompt}], max_tokens=3000, temperature=0.2
+                )
+                start_idx = response.find('{')
+                if start_idx != -1:
+                    bracket_depth = 0
+                    for i, char in enumerate(response[start_idx:], start=start_idx):
+                        if char == '{':
+                            bracket_depth += 1
+                        elif char == '}':
+                            bracket_depth -= 1
+                            if bracket_depth == 0:
+                                plan = json.loads(response[start_idx:i + 1])
+                                logger.info(f"     → Plan créé (parsing manuel): {len(plan.get('sections', []))} sections")
+                                return plan
+
+        except Exception as e:
+            logger.error(f"  ❌ Erreur planification: {e}")
+
+        logger.warning("  ⚠️  Plan de repli generique utilise (echec generation structuree)")
+        return FALLBACK_PLAN
 
     async def _section_research_phase(
         self,
@@ -2499,9 +2784,12 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         if not urls:
             return []
 
-        # Utiliser webextractor
+        # Utiliser webextractor - reutilise l'instance partagee de
+        # l'orchestrateur (self.extractor_manager) plutot que d'en recreer
+        # une nouvelle a chaque section, ce qui permettra un futur cache
+        # au niveau du manager de beneficier a toutes les sections/requetes.
         try:
-            extractor_manager = ExtractorManager()
+            extractor_manager = self.extractor_manager
             options = ExtractionOptions(
                 extract_images=False,
                 extract_links=False,
@@ -2510,15 +2798,22 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                 headless=True
             )
 
-            # Extraire chaque URL séquentiellement
+            # Extraire chaque URL séquentiellement, en reutilisant le cache
+            # partage si cette URL a deja ete extraite pour une autre section
+            # (frequent : un meme article pertinent pour plusieurs sections).
             extracted_data = []
             for url in urls[:5]:  # Limiter à 5 URLs max pour éviter timeout
                 try:
-                    result = await extractor_manager.extract(
-                        url=url,
-                        llm_client=self.llm_client,
-                        options=options
-                    )
+                    if url in context.extraction_cache:
+                        result = context.extraction_cache[url]
+                        logger.info(f"       ♻️  Reutilisation cache extraction pour {url}")
+                    else:
+                        result = await extractor_manager.extract(
+                            url=url,
+                            llm_client=self.llm_client,
+                            options=options
+                        )
+                        context.extraction_cache[url] = result
 
                     if result.success and result.content:
                         extracted_data.append({
@@ -2564,44 +2859,100 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             logger.error(f"       ❌ Erreur extraction: {e}")
             return []
 
-    def _cross_reference_data(
+    async def _cross_reference_data(
         self,
         section_name: str,
         new_data: List[Dict],
         context: ExecutionContext
     ) -> List[Dict]:
         """
-        PHASE 2.3: Croisement avec données existantes.
+        PHASE 2.3: Croisement avec données existantes - a deux niveaux.
 
-        Enrichit les nouvelles données en identifiant connexions
-        avec données déjà collectées dans autres sections.
+        1. Niveau source : meme URL deja citee ailleurs (signal faible -
+           c'est la meme source, pas une confirmation independante).
+        2. Niveau contenu : similarite semantique entre le contenu de CE
+           chunk et des chunks precedents venant d'un DOMAINE DIFFERENT
+           (signal fort - deux redactions independantes disent la meme
+           chose = corroboration reelle). Une similarite extreme (>0.92)
+           est au contraire suspecte (reprise verbatim d'un communique,
+           pas une confirmation independante) et n'est pas comptee.
         """
         logger.info(f"       🔗 Croisement données pour '{section_name}'")
 
-        # Pour chaque nouvelle donnée, chercher mentions dans données existantes
+        CORROBORATION_MIN = 0.75
+        CORROBORATION_MAX = 0.92  # au-dela : probable reprise verbatim, pas une vraie confirmation
+
         enriched = []
+
+        # Embeddings des nouveaux chunks, avec cache partage (evite un
+        # recalcul si _semantic_chunk_selection traite le meme contenu ensuite)
+        new_embeddings = {}
+        if hasattr(self.llm_client, "embed") and new_data:
+            try:
+                to_embed, keys = [], []
+                for dp in new_data:
+                    key = dp.get("source", "") + "::" + dp.get("content", "")[:100]
+                    if key not in context.embedding_cache:
+                        to_embed.append(dp.get("content", "")[:2000])
+                        keys.append(key)
+                if to_embed:
+                    vectors = await self.llm_client.embed(to_embed)
+                    for key, vec in zip(keys, vectors):
+                        context.embedding_cache[key] = vec
+                for dp in new_data:
+                    key = dp.get("source", "") + "::" + dp.get("content", "")[:100]
+                    new_embeddings[id(dp)] = context.embedding_cache.get(key)
+            except Exception as e:
+                logger.warning(f"       Embeddings indisponibles pour le croisement semantique: {e}")
+
         for data_point in new_data:
             enriched_point = data_point.copy()
             enriched_point["cross_references"] = []
+            source_domain = _extract_domain(data_point.get("source", ""))
+            vec = new_embeddings.get(id(data_point))
 
-            # Chercher dans autres sections
+            # Niveau 1 : meme URL reutilisee dans une autre section
             for other_section, section_content in context.final_content['sections'].items():
                 if other_section == section_name:
                     continue
-
-                # Vérifier si URL apparaît dans raw_data
                 for existing_data in section_content.get('raw_data', []):
                     if isinstance(existing_data, dict) and existing_data.get('source') == data_point.get('source'):
                         enriched_point["cross_references"].append({
                             "section": other_section,
+                            "type": "meme_source",
                             "note": "Même source utilisée"
                         })
 
+            # Niveau 2 : corroboration semantique par une source independante
+            # (domaine different, contenu similaire mais pas identique)
+            corroborating_domains = set()
+            if vec:
+                for prior in context.all_extracted_chunks:
+                    if prior["domain"] == source_domain or not prior.get("embedding"):
+                        continue
+                    sim = _cosine_similarity(vec, prior["embedding"])
+                    if CORROBORATION_MIN <= sim <= CORROBORATION_MAX:
+                        corroborating_domains.add(prior["domain"])
+                        enriched_point["cross_references"].append({
+                            "section": prior["section"],
+                            "type": "corroboration_semantique",
+                            "note": f"Confirmé indépendamment par {prior['domain']} (similarité {sim:.2f})"
+                        })
+
+            enriched_point["corroboration_count"] = len(corroborating_domains)
             enriched.append(enriched_point)
 
+            # Alimente l'historique global pour les corroborations futures
+            context.all_extracted_chunks.append({
+                "domain": source_domain,
+                "section": section_name,
+                "embedding": vec,
+            })
+
         cross_ref_count = sum(1 for e in enriched if e.get("cross_references"))
+        corroborated_count = sum(1 for e in enriched if e.get("corroboration_count", 0) > 0)
         if cross_ref_count > 0:
-            logger.info(f"       → {cross_ref_count} données avec croisements")
+            logger.info(f"       → {cross_ref_count} données avec croisements, {corroborated_count} corroborées par une source indépendante")
 
         return enriched
 
@@ -2628,8 +2979,24 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         objectives = section_config.get("objectives", [])
         key_questions = section_config.get("key_questions", [])
 
+        # Ajustement local et leger de l'ambition de CETTE section, au
+        # regard du materiau reellement disponible - le plan reste globalement
+        # fige (pas de replanification complete), mais n'est pas rigide au
+        # point d'imposer un objectif de mots deconnecte de ce qui a ete
+        # trouve. Sans ca, une section pauvre en sources produit un contenu
+        # dilue/generique pour atteindre un objectif arbitraire, ou echoue.
+        n_sources = len(enriched_data)
+        if n_sources == 0:
+            words_target = min(words_target, 150)
+            logger.info(f"       ⚠️  Aucune source pour '{section_name}', objectif réduit à {words_target} mots")
+        elif n_sources <= 2 and words_target > 300:
+            original_target = words_target
+            words_target = max(250, words_target // 2)
+            depth = "light"  # coherence : ne pas demander 6-10 paragraphes "deep" sur 250 mots
+            logger.info(f"       ⚠️  Peu de sources ({n_sources}) pour '{section_name}', objectif ajusté {original_target}→{words_target} mots, profondeur réduite")
+
         # Sélection sémantique adaptée
-        selected_data = self._semantic_chunk_selection(
+        selected_data = await self._semantic_chunk_selection(
             all_data=enriched_data,
             query=f"{query} {section_name}",
             max_chars=words_target * 10,  # Approximation
@@ -2643,6 +3010,26 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             "deep": "Rédige 6-10 paragraphes détaillés explorant tous les aspects."
         }.get(depth, "Rédige un contenu équilibré.")
 
+        # Apercu des sections DEJA REDIGEES (celles qui precedent dans la
+        # boucle sequentielle) - sans nouvel appel LLM, juste les premiers
+        # caracteres du contenu deja ecrit. Objectif : que la redaction
+        # de CETTE section evite proactivement la redondance avec ce qui
+        # a deja ete dit, plutot que de compter uniquement sur la Phase 3
+        # (detection de redondance) pour la corriger apres coup - priorite
+        # a la coherence construite, pas seulement patchee en aval.
+        already_written = []
+        for other_name, other_data in context.final_content['sections'].items():
+            other_content = other_data.get('content', '')
+            if other_content and '[Erreur' not in other_content:
+                already_written.append(f"- \"{other_name}\": {other_content[:180].strip()}...")
+
+        already_written_block = ""
+        if already_written:
+            already_written_block = f"""
+SECTIONS DÉJÀ RÉDIGÉES DANS CE RAPPORT (pour éviter les répétitions, construis sur ce qui a déjà été dit plutôt que de le reformuler) :
+{chr(10).join(already_written[:6])}
+"""
+
         prompt = f"""Rédige la section "{section_name}" pour répondre à: "{query}"
 
 OBJECTIFS DE CETTE SECTION:
@@ -2653,7 +3040,7 @@ QUESTIONS CLÉS À EXPLORER:
 
 INSTRUCTIONS:
 {depth_instructions}
-
+{already_written_block}
 DONNÉES DISPONIBLES ({len(selected_data)} sources):
 {json.dumps(selected_data[:5], indent=2, ensure_ascii=False)}
 
@@ -2663,6 +3050,7 @@ RÈGLES:
 3. Objectif approximatif: ~{words_target} mots
 4. Structure: paragraphes cohérents, pas de listes à puces
 5. Ton: informatif, précis, fluide
+6. Ne répète pas ce qui est déjà couvert par les autres sections listées ci-dessus
 
 Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
 """
@@ -2738,24 +3126,65 @@ Retourne JSON:
 }}
 """
 
-        try:
-            response = await self.llm_client.generate(
-                [{"role": "user", "content": prompt}],
-                max_tokens=1500,
-                temperature=0.2
-            )
+        intersections_schema = {
+            "type": "object",
+            "properties": {
+                "improvements": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "type": {"type": "string", "enum": ["transition", "link", "structure"]},
+                            "between_sections": {"type": "array", "items": {"type": "string"}},
+                            "issue": {"type": "string"},
+                            "suggestion": {"type": "string"},
+                            "priority": {"type": "string", "enum": ["high", "medium", "low"]}
+                        },
+                        "required": ["type", "between_sections", "issue", "suggestion", "priority"],
+                        "additionalProperties": False
+                    }
+                },
+                "redundancies": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "sections": {"type": "array", "items": {"type": "string"}},
+                            "description": {"type": "string"}
+                        },
+                        "required": ["sections", "description"],
+                        "additionalProperties": False
+                    }
+                },
+                "coherence_score": {"type": "integer", "minimum": 0, "maximum": 100}
+            },
+            "required": ["improvements", "redundancies", "coherence_score"],
+            "additionalProperties": False
+        }
 
-            start_idx = response.find('{')
-            if start_idx != -1:
-                bracket_depth = 0
-                for i, char in enumerate(response[start_idx:], start=start_idx):
-                    if char == '{':
-                        bracket_depth += 1
-                    elif char == '}':
-                        bracket_depth -= 1
-                        if bracket_depth == 0:
-                            analysis = json.loads(response[start_idx:i + 1])
-                            return analysis
+        try:
+            if hasattr(self.llm_client, "generate_structured"):
+                analysis = await self.llm_client.generate_structured(
+                    [{"role": "user", "content": prompt}],
+                    schema=intersections_schema, schema_name="coherence_analysis",
+                    max_tokens=1500, temperature=0.2
+                )
+                return analysis
+            else:
+                response = await self.llm_client.generate(
+                    [{"role": "user", "content": prompt}], max_tokens=1500, temperature=0.2
+                )
+                start_idx = response.find('{')
+                if start_idx != -1:
+                    bracket_depth = 0
+                    for i, char in enumerate(response[start_idx:], start=start_idx):
+                        if char == '{':
+                            bracket_depth += 1
+                        elif char == '}':
+                            bracket_depth -= 1
+                            if bracket_depth == 0:
+                                analysis = json.loads(response[start_idx:i + 1])
+                                return analysis
 
         except Exception as e:
             logger.error(f"  ❌ Erreur analyse cohérence: {e}")

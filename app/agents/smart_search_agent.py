@@ -158,11 +158,13 @@ Exemples de méthodes:
 
 Si aucun moyen de rechercher n'est visible, retourne can_search: false."""
 
-        # Appeler Vision AI (albert-large)
+        # Appeler Vision AI (meme provider/modele que le client principal -
+        # fichier non exercé dans le chemin actif du service actuellement,
+        # corrige par cohérence)
         from app.core.llm import LLMFactory
         vision_client = LLMFactory.create(
-            provider="albert",
-            model="albert-large",
+            provider="openai",
+            model=self.llm_client.model,
             api_key=self.llm_client.api_key,
             base_url=self.llm_client.base_url
         )
