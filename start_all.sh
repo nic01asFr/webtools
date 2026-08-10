@@ -14,6 +14,11 @@ cd "$(dirname "$0")"
 export DEFAULT_LLM_API_KEY="${DEFAULT_LLM_API_KEY:?DEFAULT_LLM_API_KEY doit etre defini avant de lancer ce script}"
 export OPENAI_API_KEY="${OPENAI_API_KEY:-$DEFAULT_LLM_API_KEY}"
 
+# Cle d'API protegeant l'API REST publique (en-tete X-API-Key). Sans elle,
+# l'API est ouverte a quiconque connait l'URL : consommation du quota LLM et
+# usage du service comme proxy de scraping anonymisant.
+export WEBTOOLS_API_KEY="${WEBTOOLS_API_KEY:?WEBTOOLS_API_KEY doit etre defini avant de lancer ce script}"
+
 # Configuration non secrete
 export OPENAI_BASE_URL="https://llm.lab.sspcloud.fr/api"
 export DEFAULT_LLM_PROVIDER="openai"

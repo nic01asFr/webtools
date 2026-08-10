@@ -5,7 +5,7 @@ Application principale FastAPI pour Webtools Service.
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
@@ -14,6 +14,7 @@ from app.api.v1.endpoints import extract, vision, search_site, research_deep, se
 from app.api.v1.endpoints import research as research_old
 
 from app.api.models import HealthResponse
+from app.api.auth import require_api_key
 from app.core.browser.playwright_manager import ensure_playwright_installed, is_playwright_available
 
 # Configuration du logging
@@ -309,13 +310,15 @@ app.add_middleware(
 app.include_router(
     extract.router,
     prefix="/api/v1",
-    tags=["basic"]
+    tags=["basic"],
+    dependencies=[Depends(require_api_key)]
 )
 
 app.include_router(
     vision.router,
     prefix="/api/v1",
-    tags=["basic"]
+    tags=["basic"],
+    dependencies=[Depends(require_api_key)]
 )
 
 
@@ -323,19 +326,22 @@ app.include_router(
 app.include_router(
     search.router,
     prefix="/api/v1",
-    tags=["basic"]
+    tags=["basic"],
+    dependencies=[Depends(require_api_key)]
 )
 
 app.include_router(
     research_quick.router,
     prefix="/api/v1",
-    tags=["research"]
+    tags=["research"],
+    dependencies=[Depends(require_api_key)]
 )
 
 app.include_router(
     research_deep.router,
     prefix="/api/v1",
-    tags=["research"]
+    tags=["research"],
+    dependencies=[Depends(require_api_key)]
 )
 
 
@@ -350,14 +356,16 @@ app.include_router(
     research_old.router,
     prefix="/api/v1",
     tags=["deprecated"],
-    include_in_schema=False  # Masquer de l'OpenAPI
+    include_in_schema=False,  # Masquer de l'OpenAPI
+    dependencies=[Depends(require_api_key)]
 )
 
 app.include_router(
     search_site.router,
     prefix="/api/v1",
     tags=["deprecated"],
-    include_in_schema=False
+    include_in_schema=False,
+    dependencies=[Depends(require_api_key)]
 )
 
 
