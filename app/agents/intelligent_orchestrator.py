@@ -3312,6 +3312,17 @@ RÈGLES:
 Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
 """
 
+        # Diagnostic : une synthese qui rend 13-17 mots au lieu de ~400 vient
+        # soit d'un prompt sans donnees exploitables, soit d'un refus du
+        # modele. Journaliser la taille reelle du prompt et le volume de
+        # donnees transmis permet de trancher sans relancer un run complet.
+        _payload_chars = sum(len(str(d.get("content", ""))) for d in selected_data[:5])
+        logger.info(
+            f"       📝 Prompt synthèse '{section_name}': {len(prompt)} chars, "
+            f"{len(selected_data)} source(s), {_payload_chars} chars de données, "
+            f"objectif {words_target} mots (max_tokens={int(words_target * 2.5)})"
+        )
+
         # Reessai avec attente progressive : la synthese est le seul endroit du
         # pipeline ou un echec LLM est irrattrapable (sans texte, pas de
         # section). Les "Connection error" observes sur SSPCloud sont
@@ -3328,6 +3339,11 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
                 )
                 if response and response.strip():
                     word_count = len(response.split())
+                    if word_count < 50 and words_target >= 150:
+                        logger.warning(
+                            f"       ⚠️  Réponse anormalement courte ({word_count} mots "
+                            f"pour {words_target} demandés) — brut: {response.strip()[:300]!r}"
+                        )
                     logger.info(f"       → {word_count} mots générés")
                     return response.strip()
                 last_error = "reponse vide"

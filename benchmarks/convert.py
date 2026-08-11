@@ -21,7 +21,12 @@ def report_to_markdown(payload: Dict[str, Any]) -> str:
     payload : reponse JSON de /api/v1/research/deep
     retour  : markdown unique (le champ `article` attendu par le benchmark)
     """
-    report = payload.get("report") or payload
+    # L'API /research/deep renvoie le rapport sous "result" (et non "report",
+    # qui est le nom interne cote orchestrateur). Chercher la mauvaise cle
+    # produisait un article reduit au seul titre - 12 mots la ou le serveur
+    # avait bien genere 5 234 mots et 23 references. On accepte les deux, plus
+    # le payload nu, pour ne pas dependre d'un detail de nommage.
+    report = payload.get("result") or payload.get("report") or payload
 
     parts = []
 
