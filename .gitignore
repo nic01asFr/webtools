@@ -77,3 +77,6 @@ Thumbs.db
 secrets/
 credentials/
 id_rsa*
+
+# PDF telecharges par les tests d extraction
+*.pdf
