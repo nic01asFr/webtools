@@ -35,7 +35,6 @@ class Settings(BaseSettings):
 
     # Playwright Configuration
     playwright_headless: bool = True
-    playwright_browser_pool_size: int = 3
     playwright_timeout: int = 45000  # milliseconds
 
     # Extraction Configuration
@@ -46,10 +45,12 @@ class Settings(BaseSettings):
 
     # Logging
     log_level: str = "INFO"
-    log_format: str = "json"
 
     # Performance
-    max_concurrent_extractions: int = 10
+    # 3 et non 10 : chaque section peut lancer jusqu'a 5 extractions, dont
+    # certaines via un navigateur Chromium complet. Au-dela, la memoire du
+    # pod sature. Valeur validee en conditions reelles.
+    max_concurrent_extractions: int = 3
 
     model_config = SettingsConfigDict(
         env_file=".env",

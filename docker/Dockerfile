@@ -43,6 +43,11 @@ WORKDIR /app
 # Copier les fichiers de dépendances et le code
 COPY --chown=webextract:webextract pyproject.toml ./
 COPY --chown=webextract:webextract app ./app
+# mcp_server.py etait absent de l'image : elle ne pouvait donc pas servir le
+# MCP, d'ou deux modes de deploiement divergents (Docker incomplet vs
+# start_all.sh complet). Les deux voies convergent desormais.
+COPY --chown=webextract:webextract mcp_server.py ./
+COPY --chown=webextract:webextract start_all.sh ./
 
 # Installer les dépendances Python
 RUN pip install --no-cache-dir --upgrade pip && \
@@ -51,19 +56,22 @@ RUN pip install --no-cache-dir --upgrade pip && \
 # Installer les dépendances système de Playwright (doit être root)
 RUN python -m playwright install-deps chromium
 
+# Emplacement unique et explicite des navigateurs, partage par tous les
+# process (uvicorn ET mcp_server.py, qui peuvent tourner sous des
+# interpreteurs differents).
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+RUN mkdir -p /ms-playwright && chown webextract:webextract /ms-playwright
+
 # Passer à l'utilisateur non-root
 USER webextract
 
 # Installer Playwright en tant qu'utilisateur webextract
 RUN python -m playwright install chromium
 
-# Créer les liens symboliques vers les binaires Playwright (workaround pour le path)
-# Playwright cherche dans /usr/local/lib mais les binaires sont dans ~/.cache
-USER root
-RUN mkdir -p /usr/local/lib/python3.11/site-packages/playwright/driver/package/.local-browsers && \
-    ln -sf /home/webextract/.cache/ms-playwright/chromium-1187 /usr/local/lib/python3.11/site-packages/playwright/driver/package/.local-browsers/ && \
-    ln -sf /home/webextract/.cache/ms-playwright/chromium_headless_shell-1187 /usr/local/lib/python3.11/site-packages/playwright/driver/package/.local-browsers/
-USER webextract
+# PLAYWRIGHT_BROWSERS_PATH plutot que des symlinks au numero de build code
+# en dur (chromium-1187) : ce numero casse a la prochaine montee de
+# Playwright, avec une erreur qui ne ressemble pas a sa cause. start_all.sh
+# fait deja ce choix - les deux voies convergent.
 
 # Variables d'environnement par défaut
 ENV PYTHONUNBUFFERED=1 \

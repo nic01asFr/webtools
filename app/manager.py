@@ -12,6 +12,7 @@ from app.core.llm.factory import LLMFactory
 from app.extractors.direct_extractor import DirectExtractor
 from app.extractors.agent_extractor import AgentExtractor
 from app.extractors.rss_extractor import RssExtractor
+from app.extractors.pdf_extractor import PdfExtractor
 from app.utils.url_safety import assert_safe_url, UnsafeURLError
 from app.utils.content_detector import ContentDetector
 from app.utils.prompts import PromptTemplates
@@ -24,8 +25,18 @@ class ExtractorManager:
     Manager principal qui coordonne les différents extractors.
     """
 
-    def __init__(self, cache_ttl_seconds: int = 300):
-        """Initialise le manager avec les extractors disponibles."""
+    def __init__(self, cache_ttl_seconds: int | None = None, enable_caching: bool | None = None):
+        """
+        Initialise le manager avec les extractors disponibles.
+
+        cache_ttl_seconds / enable_caching : pris de la configuration
+        (app.core.config) si non fournis explicitement. Ces reglages etaient
+        declares dans la config mais jamais lus - le TTL reel etait code en
+        dur ici, donc changer CACHE_TTL_SECONDS en production n'avait aucun
+        effet observable.
+        """
+        from app.core.config import settings
+        self.pdf_extractor = PdfExtractor()
         self.rss_extractor = RssExtractor()
         self.direct_extractor = DirectExtractor()
         self.agent_extractor = AgentExtractor()
@@ -38,7 +49,8 @@ class ExtractorManager:
         # URL redemandee peu apres evite de refaire tout le travail
         # d'extraction (navigateur, LLM eventuel).
         self._cache: dict = {}
-        self._cache_ttl = cache_ttl_seconds
+        self._cache_ttl = cache_ttl_seconds if cache_ttl_seconds is not None else settings.cache_ttl_seconds
+        self._cache_enabled = enable_caching if enable_caching is not None else settings.enable_caching
 
     async def extract(
         self,
@@ -76,7 +88,7 @@ class ExtractorManager:
         # validite evite de refaire tout le travail (navigateur, LLM).
         import time
         cache_key = f"{url}::{extraction_type}"
-        cached = self._cache.get(cache_key)
+        cached = self._cache.get(cache_key) if self._cache_enabled else None
         if cached:
             cached_result, cached_at = cached
             if time.time() - cached_at < self._cache_ttl:
@@ -99,6 +111,22 @@ class ExtractorManager:
         )
 
         logger.debug(f"Prompt utilisé: {final_prompt[:200]}...")
+
+        # PALIER -1 : PDF. Un PDF n'est pas une page web - le rendu navigateur
+        # en produit une page blanche, et l'agent IA qui prend le relais
+        # consomme temps et tokens pour ne rien extraire (constate en usage
+        # reel sur des documents d'urbanisme). Le telechargement direct est
+        # la seule voie correcte, et passe avant tout le reste.
+        try:
+            pdf_result = await self.pdf_extractor.try_extract(url)
+            if pdf_result is not None:
+                if pdf_result.success:
+                    logger.info(f"Extraction PDF directe reussie pour {url}")
+                    if self._cache_enabled:
+                        self._cache[cache_key] = (pdf_result, time.time())
+                return pdf_result
+        except Exception as e:
+            logger.debug(f"Palier PDF non concluant pour {url}: {e}")
 
         # PALIER 0 : tenter un flux RSS/Atom avant tout usage de navigateur ou d'IA.
         opts_check = options or ExtractionOptions()
@@ -157,7 +185,7 @@ class ExtractorManager:
 
         # N'a mettre en cache que les succes : un echec transitoire (page
         # temporairement indisponible) ne doit pas etre fige pour 5 minutes.
-        if result.success:
+        if result.success and self._cache_enabled:
             self._cache[cache_key] = (result, time.time())
 
         return result

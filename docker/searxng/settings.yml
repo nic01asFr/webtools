@@ -1,0 +1,17 @@
+# Configuration SearXNG pour webtools.
+# Le format JSON est INDISPENSABLE : le service interroge l'API JSON de
+# SearXNG. Par defaut seul "html" est active, et toutes les recherches
+# echouent sans que la cause soit evidente.
+use_default_settings: true
+
+server:
+  secret_key: "!!! remplace par SEARXNG_SECRET via l'environnement !!!"
+  limiter: false
+  image_proxy: false
+
+search:
+  formats:
+    - html
+    - json
+  safe_search: 0
+  autocomplete: ""

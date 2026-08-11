@@ -307,7 +307,8 @@ class IntelligentOrchestrator:
         # memoire du pod. 2.3+2.4 restent sequentiels ensuite pour
         # preserver le signal de corroboration inter-sections.
         section_targets = plan.get('section_targets', {})
-        extraction_semaphore = asyncio.Semaphore(3)
+        from app.core.config import settings as _settings
+        extraction_semaphore = asyncio.Semaphore(_settings.max_concurrent_extractions)
 
         async def _research_and_extract(section_name: str, section_config: Dict):
             async with extraction_semaphore:
@@ -326,9 +327,24 @@ class IntelligentOrchestrator:
         # return_exceptions=True : sans lui, UNE section qui leve annule tout
         # le lot et fait echouer le rapport entier, alors que les autres
         # sections avaient abouti. On isole l'echec a sa propre section.
-        extraction_results = await asyncio.gather(*[
-            _research_and_extract(name, cfg) for name, cfg in section_targets.items()
-        ], return_exceptions=True)
+        # Budget de temps sur la vague parallele (la phase la plus longue :
+        # les 578s observes viennent de la). self.timeout etait passe au
+        # constructeur et jamais utilise. Degradation gracieuse : on garde ce
+        # qui a abouti plutot que d'echouer entierement.
+        extraction_budget = max(30, int(self.timeout * 0.6))
+        try:
+            extraction_results = await asyncio.wait_for(
+                asyncio.gather(*[
+                    _research_and_extract(name, cfg) for name, cfg in section_targets.items()
+                ], return_exceptions=True),
+                timeout=extraction_budget
+            )
+        except asyncio.TimeoutError:
+            logger.warning(
+                f"⏱️  Budget d'extraction depasse ({extraction_budget}s) - "
+                f"poursuite avec les donnees deja collectees"
+            )
+            extraction_results = []
 
         extracted_by_section = {}
         for item in extraction_results:

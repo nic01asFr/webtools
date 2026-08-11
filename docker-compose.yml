@@ -1,13 +1,14 @@
-version: '3.8'
-
 services:
-  webextract:
+  webtools:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    container_name: webextract-service
+    container_name: webtools-service
+    depends_on:
+      - searxng
     networks:
       - proxy
+      - webtools-internal
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.webtools.rule=Host(`webtools.colaig.fr`)"
@@ -16,47 +17,36 @@ services:
       - "traefik.http.routers.webtools.tls.certresolver=letsencrypt"
       - "traefik.http.services.webtools.loadbalancer.server.port=8000"
     environment:
-      # API Configuration
       - API_HOST=0.0.0.0
       - API_PORT=8000
 
-      # Default LLM Configuration
+      # Cle protegeant l'API REST publique (en-tete X-API-Key). Sans elle,
+      # l'API est ouverte a quiconque connait l'URL.
+      - WEBTOOLS_API_KEY=${WEBTOOLS_API_KEY:?WEBTOOLS_API_KEY doit etre defini}
+
+      # LLM (SSPCloud par defaut)
       - DEFAULT_LLM_PROVIDER=${DEFAULT_LLM_PROVIDER:-openai}
-      - DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL:-gpt-4o}
-      - DEFAULT_LLM_API_KEY=${DEFAULT_LLM_API_KEY}
+      - DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL:-qwen3-6-35b-moe}
+      - DEFAULT_LLM_BASE_URL=${DEFAULT_LLM_BASE_URL:-https://llm.lab.sspcloud.fr/api}
+      - DEFAULT_LLM_API_KEY=${DEFAULT_LLM_API_KEY:?DEFAULT_LLM_API_KEY doit etre defini}
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-${DEFAULT_LLM_API_KEY}}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://llm.lab.sspcloud.fr/api}
 
-      # OpenAI
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      # SearXNG : dependance reelle du pipeline de recherche. Sans elle,
+      # /search et toute la recherche echouent silencieusement au premier
+      # appel (le defaut localhost:8081 n'a aucun sens dans un conteneur).
+      - SEARXNG_BASE_URL=http://searxng:8080
 
-      # Anthropic
-      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
-
-      # Albert
-      - ALBERT_API_URL=${ALBERT_API_URL:-https://albert.api.etalab.gouv.fr}
-      - ALBERT_API_KEY=${ALBERT_API_KEY}
-      - ALBERT_MODEL=${ALBERT_MODEL:-AgentPublic/llama3-instruct-8b}
-
-      # Playwright
+      # Playwright : chemin explicite, coherent avec le Dockerfile
       - PLAYWRIGHT_HEADLESS=true
-      - PLAYWRIGHT_BROWSERS_PATH=0
+      - PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
       - PLAYWRIGHT_TIMEOUT=45000
 
-      # Extraction
       - DEFAULT_EXTRACTION_TIMEOUT=45
-      - MAX_RETRIES=3
-
-      # Logging
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
-
-    volumes:
-      # Optionnel: monter un volume pour les caches
-      - webextract-cache:/home/webextract/.cache
-      # Monter le code source pour development (hot reload)
-      - ./app:/app/app
 
     restart: unless-stopped
 
-    # Limites de ressources (ajustez selon vos besoins)
     deploy:
       resources:
         limits:
@@ -66,7 +56,6 @@ services:
           cpus: '1'
           memory: 1G
 
-    # Healthcheck
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
@@ -74,10 +63,23 @@ services:
       retries: 3
       start_period: 40s
 
-volumes:
-  webextract-cache:
-    driver: local
+  searxng:
+    image: searxng/searxng:latest
+    container_name: webtools-searxng
+    networks:
+      - webtools-internal
+    environment:
+      - SEARXNG_BASE_URL=http://searxng:8080/
+      # Clef de session : a definir, sinon SearXNG refuse de demarrer
+      - SEARXNG_SECRET=${SEARXNG_SECRET:?SEARXNG_SECRET doit etre defini}
+    volumes:
+      - ./docker/searxng:/etc/searxng:rw
+    restart: unless-stopped
+    # Pas de port publie : accessible uniquement depuis le reseau interne,
+    # jamais expose a l'exterieur.
 
 networks:
   proxy:
     external: true
+  webtools-internal:
+    driver: bridge
