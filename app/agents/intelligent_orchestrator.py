@@ -3296,21 +3296,41 @@ RÈGLES:
 Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
 """
 
-        try:
-            response = await self.llm_client.generate(
-                [{"role": "user", "content": prompt}],
-                max_tokens=int(words_target * 2.5),
-                temperature=0.3
-            )
+        # Reessai avec attente progressive : la synthese est le seul endroit du
+        # pipeline ou un echec LLM est irrattrapable (sans texte, pas de
+        # section). Les "Connection error" observes sur SSPCloud sont
+        # intermittents et souvent resolus au 2e essai ; sans reessai, une
+        # coupure de quelques secondes vidait TOUT le rapport - 5 sections
+        # perdues d'un coup, pour un rapport rendu avec success=true.
+        last_error = None
+        for attempt in range(3):
+            try:
+                response = await self.llm_client.generate(
+                    [{"role": "user", "content": prompt}],
+                    max_tokens=int(words_target * 2.5),
+                    temperature=0.3
+                )
+                if response and response.strip():
+                    word_count = len(response.split())
+                    logger.info(f"       → {word_count} mots générés")
+                    return response.strip()
+                last_error = "reponse vide"
+            except Exception as e:
+                last_error = e
 
-            word_count = len(response.split())
-            logger.info(f"       → {word_count} mots générés")
+            if attempt < 2:
+                delay = 2 ** attempt  # 1s, 2s
+                logger.warning(
+                    f"       ⏳ Synthèse '{section_name}' échouée "
+                    f"({last_error}) — nouvel essai dans {delay}s"
+                )
+                await asyncio.sleep(delay)
 
-            return response.strip()
-
-        except Exception as e:
-            logger.error(f"       ❌ Erreur synthèse: {e}")
-            return f"[Erreur lors de la génération de la section {section_name}]"
+        # Echec definitif : marqueur reconnaissable en aval (permet de
+        # compter les sections perdues et de ne pas rendre un rapport vide
+        # avec success=true, cf. _final_assembly).
+        logger.error(f"       ❌ Synthèse '{section_name}' abandonnée après 3 essais: {last_error}")
+        return f"[SYNTHESE_ECHOUEE] Section '{section_name}' non générée ({last_error})."
 
     async def _analyze_intersections(
         self,
@@ -3526,6 +3546,25 @@ Retourne JSON:
 
         # Conversion sources → bibliographie
         final_report = self._convert_sources_to_bibliography(final_report)
+
+        # Comptabiliser les sections perdues par echec LLM. Sans cela, un
+        # rapport dont TOUTES les sections ont echoue sortait avec
+        # success=true et 88 mots (5 messages d'erreur) : l'appelant ne
+        # pouvait pas distinguer un sujet pauvre d'une panne d'infra, et un
+        # run de benchmark aurait mesure la disponibilite du LLM plutot que
+        # la qualite du pipeline.
+        failed = [
+            s["title"] for s in sections_list
+            if "[SYNTHESE_ECHOUEE]" in (s.get("content") or "")
+        ]
+        if failed:
+            final_report["degraded"] = True
+            final_report["failed_sections"] = failed
+            final_report["metadata"]["failed_sections_count"] = len(failed)
+            logger.error(
+                f"  ⚠️  {len(failed)}/{len(sections_list)} section(s) non générée(s) "
+                f"par échec LLM: {', '.join(failed[:3])}"
+            )
 
         logger.info(f"  ✓ Rapport assemblé: {total_words} mots, {len(sections_list)} sections")
 

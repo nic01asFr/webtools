@@ -440,14 +440,34 @@ async def research_deep(request: DeepResearchRequest):
         logger.info(f"   Steps: {execution_summary.steps_executed}, Sources: {execution_summary.sources_consulted}")
         logger.info(f"   Confidence: {execution_summary.confidence}")
 
+        # Un rapport dont des sections n'ont pas pu etre redigees (echec LLM
+        # repete) est DEGRADE : l'annoncer explicitement plutot que de rendre
+        # success=true sur un rapport quasi vide. L'appelant doit pouvoir
+        # distinguer "sujet pauvre en sources" de "l'infra LLM n'a pas
+        # repondu" - ce sont deux situations sans rapport.
+        answer_dict = answer if isinstance(answer, dict) else {}
+        failed_sections = answer_dict.get("failed_sections", [])
+        is_degraded = bool(answer_dict.get("degraded"))
+        if is_degraded:
+            logger.error(
+                f"⚠️  Rapport DEGRADE : {len(failed_sections)} section(s) non générée(s)"
+            )
+
         # Utiliser OutputFormatter
         formatter = OutputFormatter(tracer, registry, processing_time)
         result_dict = formatter.format_deep_research_output(
             topic=request.topic,
             report=report.dict(),
             execution_context=exec_ctx,  # Passer le contexte original de l'orchestrator
-            success=True
+            success=not is_degraded
         )
+        if is_degraded:
+            result_dict["degraded"] = True
+            result_dict["failed_sections"] = failed_sections
+            result_dict["error"] = (
+                f"{len(failed_sections)} section(s) non générée(s) : échec répété "
+                f"de l'appel LLM de synthèse"
+            )
 
         # Convertir en JSON et streamer pour éviter buffering
         json_str = json.dumps(result_dict, ensure_ascii=False, indent=2)
