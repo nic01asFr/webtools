@@ -3,12 +3,15 @@ Client LLM pour OpenAI API.
 """
 
 import json
+import logging
 from typing import List, Dict, Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain_core.language_models import BaseChatModel
 from openai import AsyncOpenAI
 
 from .base import BaseLLMClient, LLMClientError
+
+logger = logging.getLogger(__name__)
 
 
 class OpenAILLMClient(BaseLLMClient):
@@ -236,5 +239,18 @@ class OpenAILLMClient(BaseLLMClient):
         return ChatOpenAI(**kwargs)
 
     async def close(self):
-        """Ferme le client OpenAI."""
+        """
+        Ferme le client OpenAI.
+
+        ATTENTION : get_llm_client() renvoie une instance PARTAGEE par tout le
+        service. Fermer ce client le rend inutilisable pour tous les appels
+        suivants du processus ("Cannot send a request, as the client has been
+        closed", remonte en generique "Connection error" par le SDK).
+        Le cycle de vie appartient a l'application, pas a un appelant isole.
+        La trace ci-dessous identifie l'appelant en cas de fermeture
+        inattendue.
+        """
+        import traceback
+        caller = "".join(traceback.format_stack()[-4:-1]).strip()
+        logger.warning(f"Fermeture du client LLM PARTAGE demandee par:\n{caller}")
         await self.client.close()

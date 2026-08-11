@@ -74,12 +74,21 @@ async def extract_web_content(request: ExtractRequest) -> ExtractResponse:
             options=options
         )
 
-        # Fermer le client LLM si créé
-        if llm_client:
-            try:
-                await llm_client.close()
-            except Exception:
-                pass
+        # NE PAS fermer le client LLM ici : get_llm_client() renvoie une
+        # instance PARTAGEE par tout le service. La fermer apres une
+        # extraction rendait le client inutilisable pour tout le reste du
+        # processus - "Cannot send a request, as the client has been closed",
+        # remonte par le SDK comme un generique "Connection error".
+        #
+        # C'etait la cause des syntheses perdues dans research/deep : ce
+        # pipeline declenche des dizaines d'extractions, la premiere fermait
+        # le client partage et TOUTES les syntheses suivantes echouaient,
+        # rendant un rapport vide avec success=true. Symptome trompeur : le
+        # client teste isolement passait 15 appels enchaines sans un echec,
+        # et research/quick (peu d'extractions) fonctionnait normalement.
+        #
+        # Le cycle de vie du client partage appartient a l'application, pas a
+        # un endpoint.
 
         # Convertir en réponse API
         response = ExtractResponse.from_web_result(result)
