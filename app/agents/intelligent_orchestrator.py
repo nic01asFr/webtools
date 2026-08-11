@@ -327,24 +327,40 @@ class IntelligentOrchestrator:
         # return_exceptions=True : sans lui, UNE section qui leve annule tout
         # le lot et fait echouer le rapport entier, alors que les autres
         # sections avaient abouti. On isole l'echec a sa propre section.
-        # Budget de temps sur la vague parallele (la phase la plus longue :
-        # les 578s observes viennent de la). self.timeout etait passe au
-        # constructeur et jamais utilise. Degradation gracieuse : on garde ce
-        # qui a abouti plutot que d'echouer entierement.
-        extraction_budget = max(30, int(self.timeout * 0.6))
-        try:
-            extraction_results = await asyncio.wait_for(
-                asyncio.gather(*[
-                    _research_and_extract(name, cfg) for name, cfg in section_targets.items()
-                ], return_exceptions=True),
-                timeout=extraction_budget
-            )
-        except asyncio.TimeoutError:
-            logger.warning(
-                f"⏱️  Budget d'extraction depasse ({extraction_budget}s) - "
-                f"poursuite avec les donnees deja collectees"
-            )
-            extraction_results = []
+        # Budget de temps PAR SECTION, pas sur le lot entier.
+        #
+        # Une premiere version bornait tout le gather avec asyncio.wait_for.
+        # A l'expiration, wait_for annule le gather : toutes les extractions
+        # en cours sont interrompues en plein vol, avec leurs connexions
+        # Playwright et HTTP. Les appels LLM suivants heritaient d'un
+        # environnement asynchrone degrade et echouaient tous en
+        # "Connection error" — TOUTES les syntheses perdues, rapport vide
+        # rendu avec success=true. Le LLM etait hors de cause : teste
+        # isolement, 15 appels enchaines et jusqu'a 30 000 caracteres de
+        # prompt passaient sans un echec.
+        #
+        # Borner chaque section separement evite l'annulation collective :
+        # une section trop lente devient une section sans donnees (reprise
+        # par le complement pre-redaction ci-dessous), les autres aboutissent
+        # normalement. Coherent avec return_exceptions=True.
+        section_budget = max(60, int(self.timeout * 0.8))
+
+        async def _research_and_extract_bounded(name: str, cfg: Dict):
+            try:
+                return await asyncio.wait_for(
+                    _research_and_extract(name, cfg), timeout=section_budget
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"  ⏱️  Section '{name}' : budget de {section_budget}s dépassé, "
+                    f"poursuite sans ses données"
+                )
+                return (name, [])
+
+        extraction_results = await asyncio.gather(*[
+            _research_and_extract_bounded(name, cfg)
+            for name, cfg in section_targets.items()
+        ], return_exceptions=True)
 
         extracted_by_section = {}
         for item in extraction_results:

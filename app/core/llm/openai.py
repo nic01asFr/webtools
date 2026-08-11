@@ -127,7 +127,21 @@ class OpenAILLMClient(BaseLLMClient):
                 raise LLMClientError("Réponse inattendue de l'API OpenAI")
 
         except Exception as e:
-            raise LLMClientError(f"Erreur lors de la génération OpenAI: {str(e)}")
+            # "Connection error" est le message generique du SDK OpenAI : il
+            # masque la cause reelle (httpx.ConnectError, ReadTimeout, DNS,
+            # RemoteProtocolError...). Sans la chaine __cause__, un diagnostic
+            # part sur de fausses pistes - teste isolement, ce client passait
+            # 15 appels enchaines et 30 000 caracteres de prompt sans un echec.
+            cause = e.__cause__
+            chain = []
+            while cause is not None and len(chain) < 4:
+                chain.append(f"{type(cause).__name__}: {cause}")
+                cause = getattr(cause, "__cause__", None)
+            detail = " <- ".join(chain) if chain else "aucune cause sous-jacente"
+            logger.error(
+                f"Echec generation OpenAI: {type(e).__name__}: {e} | cause: {detail}"
+            )
+            raise LLMClientError(f"Erreur lors de la génération OpenAI: {str(e)} [cause: {detail}]")
 
     async def embed(self, texts: list, model: str = "qwen3-embedding-8b") -> list:
         """
