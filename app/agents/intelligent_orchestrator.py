@@ -596,7 +596,19 @@ STRATÉGIES OBLIGATOIRES:
 - **Si AUCUNE URL/source**: TOUJOURS commencer par "searxng" pour découvrir des sources (stratégie "exploration")
 - **hybrid**: Combiner plusieurs outils
 
-RÈGLES CRITIQUES:
+RÈGLES CRITIQUES
+0. search_terms: pour CHAQUE section, formule 1 à 3 requêtes de moteur de
+   recherche COURTES (3 à 8 mots) et directement utilisables. Ce sont des
+   requêtes, PAS des phrases : pas de verbe conjugué, pas de question, pas
+   de reprise de la consigne complète. Utilise les termes que contiendrait
+   réellement une bonne source (noms propres, chiffres, années, termes
+   techniques). Rédige-les dans la LANGUE de la consigne utilisateur.
+   Exemple pour une consigne anglaise sur le Japon :
+     BON   : ["Japan elderly population projection 2050",
+              "Japan senior consumer spending statistics"]
+     MAUVAIS: ["From 2020 to 2050, how many elderly people will there be in
+               Japan and what is their consumption potential"]
+:
 1. Sans URL spécifique, la première étape DOIT être "searxng"
 2. Après searxng, prévoir "webextractor" pour extraire le contenu des URLs trouvées
 3. Les étapes doivent être enchaînées logiquement
@@ -1220,7 +1232,17 @@ Retourne JSON:
 
         if query_words:
             matched_words = sum(1 for word in query_words if word in content_lower)
-            keyword_score = min(40, (matched_words / len(query_words)) * 40)
+            # La normalisation par len(query_words) rendait le score
+            # INVERSEMENT PROPORTIONNEL a la precision de la demande : sur une
+            # consigne de 350 caracteres (~50 mots significatifs), il fallait
+            # qu'un chunk contienne 44% de ces mots pour franchir le seuil de
+            # 35. Un chunk valide plafonnait donc a 30 points (20 longueur +
+            # 10 chiffres) et etait systematiquement rejete — sections vides.
+            # Ca passait inapercu sur des sujets courts type "SearXNG moteur".
+            # On sature desormais sur un nombre de correspondances ABSOLU :
+            # 8 mots distincts retrouves valent le maximum, quelle que soit la
+            # longueur de la consigne.
+            keyword_score = min(40.0, (matched_words / 8.0) * 40.0)
             score += keyword_score
 
         # 2. Structured data boost (max 30 points)
@@ -1388,7 +1410,43 @@ Retourne JSON:
             total_chars += content_len
             chunks_selected += 1
 
-        logger.info(f"  📊 Sélection intelligente: {len(selected)}/{len(all_data)} chunks, {total_chars:,} chars (score moyen: {sum(s['score'] for s in scored_items[:len(selected)]) / max(len(selected), 1):.1f}/100)")
+        # DEGRADATION GRACIEUSE : si AUCUN chunk ne franchit le seuil alors que
+        # des chunks valides existent, on retient quand meme les meilleurs.
+        # Rediger une section sur des sources moyennement pertinentes vaut
+        # toujours mieux que rendre une section vide — et un rapport vide
+        # sortait jusqu'ici avec success=true. Le seuil sert a classer, il ne
+        # doit pas pouvoir aneantir la production.
+        if not selected and scored_items:
+            fallback_n = min(3, len(scored_items))
+            for scored in scored_items[:fallback_n]:
+                selected.append(scored["item"])
+                total_chars += scored["content_length"]
+            logger.warning(
+                f"  🛟 Repli: {fallback_n} chunk(s) retenus malgré un score sous "
+                f"le seuil — une section vide serait pire qu'une section imparfaite"
+            )
+
+        # Le log precedent calculait la moyenne sur scored_items[:len(selected)] :
+        # quand rien n'est selectionne, la tranche est vide et il affichait
+        # "score moyen: 0.0" — laissant croire que les chunks scoraient zero,
+        # alors qu'ils scoraient simplement sous le seuil. Diagnostic fausse.
+        # On affiche desormais le meilleur score REELLEMENT obtenu et le seuil
+        # applique : c'est ce couple qui explique un rejet.
+        best_score = max((s["score"] for s in scored_items), default=0.0)
+        mean_selected = (
+            sum(s["score"] for s in scored_items[:len(selected)]) / len(selected)
+            if selected else 0.0
+        )
+        logger.info(
+            f"  📊 Sélection intelligente: {len(selected)}/{len(all_data)} chunks, "
+            f"{total_chars:,} chars (retenus: {mean_selected:.1f}/100, "
+            f"meilleur disponible: {best_score:.1f}, seuil: {min_score_threshold:.0f})"
+        )
+        if not selected and scored_items:
+            logger.warning(
+                f"  ⚠️  Aucun chunk retenu alors que {len(scored_items)} étaient "
+                f"disponibles (meilleur: {best_score:.1f} < seuil {min_score_threshold:.0f})"
+            )
 
         return selected
 
@@ -1497,13 +1555,56 @@ Retourne JSON:
 
             logger.info(f"  📊 Qualité globale: {quality_analysis.get('overall_score', 0)}/100")
 
+            # Volume reel du rapport, mesure sans LLM. Sert de garde-fou au
+            # score de qualite : un rapport quasi vide ne doit jamais pouvoir
+            # sortir sur un bon score, quelle que soit la note rendue par
+            # l'analyse (qui peut echouer, halluciner, ou noter le plan plutot
+            # que le contenu).
+            total_chars = sum(
+                len(s.get('content', '') or '') for s in report.get('sections', [])
+            )
+            n_sections = max(1, len(report.get('sections', [])))
+            report_is_thin = total_chars < 800 * n_sections
+
             # Si qualité suffisante, arrêter
-            if quality_analysis.get('overall_score', 0) >= 85:
+            if quality_analysis.get('overall_score', 0) >= 85 and not report_is_thin:
                 logger.info("  ✅ Qualité suffisante atteinte")
                 break
 
+            if report_is_thin:
+                logger.warning(
+                    f"  ⚠️  Rapport anormalement court ({total_chars} chars pour "
+                    f"{n_sections} section(s)) — enrichissement malgré le score"
+                )
+
             # Identifier sections à enrichir (score < 75 OU longueur < 2000 chars)
             weak_sections = []
+
+            # GARDE-FOU STRUCTUREL, indépendant du jugement LLM.
+            # Si sections_analysis revient vide (analyse échouée, tronquée ou
+            # mal formée), la boucle ci-dessous ne s'exécute pas, weak_sections
+            # reste vide et l'absence de signal était interprétée comme un
+            # signal positif : "Toutes les sections sont de qualité" sur un
+            # rapport de 78 mots. Un rapport vide sortait avec success=true.
+            # La longueur se mesure directement, sans avoir besoin d'un LLM.
+            analysed_titles = {
+                sa.get('title') for sa in quality_analysis.get('sections_analysis', [])
+            }
+            for sec in report.get('sections', []):
+                if sec.get('title') in analysed_titles:
+                    continue  # traitée par la boucle ci-dessous
+                content_length = len(sec.get('content', '') or '')
+                if content_length < 2000:
+                    logger.warning(
+                        f"  ⚠️  Section '{sec.get('title')}' non analysée et trop courte "
+                        f"({content_length} chars) — enrichissement forcé"
+                    )
+                    weak_sections.append({
+                        "title": sec.get('title'),
+                        "score": 0,
+                        "missing_elements": ["contenu absent ou insuffisant"],
+                    })
+
             for i, section_analysis in enumerate(quality_analysis.get('sections_analysis', [])):
                 section_title = section_analysis.get('title')
                 score = section_analysis.get('score', 100)
@@ -1645,7 +1746,9 @@ CRITÈRES:
         """Recherche ciblée pour combler les manques d'une section."""
 
         # Construire une requête spécifique pour les manques
-        search_query = f"{query} {section_title} {' '.join(missing[:3])}"
+        search_query = self._build_search_query(
+            query=query, section_name=section_title, key_questions=missing
+        )
 
         logger.info(f"    🔎 Recherche ciblée: {search_query}")
 
@@ -2537,7 +2640,8 @@ Retourne JSON:
       "words_target": nombre,
       "depth": "light|moderate|deep",
       "objectives": ["objectif 1", "objectif 2"],
-      "key_questions": ["question à explorer 1", "question 2"]
+      "key_questions": ["question à explorer 1", "question 2"],
+      "search_terms": ["requête moteur courte", "autre angle"]
     }},
     ...
   }},
@@ -2624,9 +2728,24 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                             "words_target": {"type": "integer", "minimum": 100, "maximum": 1200},
                             "depth": {"type": "string", "enum": ["light", "moderate", "deep"]},
                             "objectives": {"type": "array", "items": {"type": "string"}},
-                            "key_questions": {"type": "array", "items": {"type": "string"}}
+                            "key_questions": {"type": "array", "items": {"type": "string"}},
+                            # Requetes de recherche formulees PAR LE LLM.
+                            # La v1 (aujourd'hui morte) faisait deja generer
+                            # input.query par etape ; la refonte v2 l'a perdu et
+                            # l'a remplace par la concatenation brute
+                            # f"{query} {section_name}", qui produit des requetes
+                            # de 400+ caracteres sur consigne realiste — donc
+                            # zero source, donc rapport vide. Le LLM sait
+                            # formuler une requete ; l'extraction de mots-cles
+                            # n'est qu'un repli.
+                            "search_terms": {
+                                "type": "array",
+                                "minItems": 1,
+                                "maxItems": 3,
+                                "items": {"type": "string", "maxLength": 90}
+                            }
                         },
-                        "required": ["name", "words_target", "depth", "objectives", "key_questions"],
+                        "required": ["name", "words_target", "depth", "objectives", "key_questions", "search_terms"],
                         "additionalProperties": False
                     }
                 },
@@ -2690,7 +2809,12 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                             "words_target": s["words_target"],
                             "depth": s["depth"],
                             "objectives": s["objectives"],
-                            "key_questions": s["key_questions"]
+                            "key_questions": s["key_questions"],
+                            # Transmis jusqu'a _section_research_phase, sinon le
+                            # champ serait genere par le LLM puis jamais lu —
+                            # exactement le defaut de cablage rencontre ailleurs
+                            # (sources_per_section, categories/engines...).
+                            "search_terms": s.get("search_terms", [])
                         } for s in structured["sections"]
                     },
                     "narrative_flow": structured["narrative_flow"],
@@ -2722,6 +2846,78 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         logger.warning("  ⚠️  Plan de repli generique utilise (echec generation structuree)")
         return FALLBACK_PLAN
 
+    # Mots vides : retires lors de la reduction d'une consigne longue en
+    # requete de recherche. FR + EN car les consignes arrivent dans les deux
+    # langues et le plan peut etre genere dans l'une ou l'autre.
+    _STOPWORDS = {
+        "le", "la", "les", "un", "une", "des", "du", "de", "et", "ou", "a", "au",
+        "aux", "en", "dans", "sur", "pour", "par", "avec", "sans", "sous", "que",
+        "qui", "quoi", "dont", "est", "sont", "etre", "avoir", "plus", "moins",
+        "ce", "cette", "ces", "son", "leur", "leurs", "quel", "quelle", "quels",
+        "quelles", "comment", "pourquoi", "veuillez", "merci", "sil", "vous",
+        "the", "a", "an", "of", "and", "or", "to", "in", "on", "for", "by",
+        "with", "without", "that", "which", "what", "how", "why", "is", "are",
+        "be", "been", "will", "would", "their", "there", "please", "produce",
+        "based", "various", "such", "as", "across", "from", "about", "can",
+    }
+
+    def _build_search_query(
+        self,
+        query: str,
+        section_name: str,
+        key_questions: List[str] = None,
+        search_terms: List[str] = None,
+        max_words: int = 12,
+    ) -> str:
+        """
+        Construit une requete de recherche EXPLOITABLE.
+
+        Le comportement precedent concatenait la consigne complete, le nom de
+        section et les questions cles. Sur une consigne courte ("SearXNG
+        moteur de recherche") cela passait ; sur une consigne realiste de
+        350 caracteres cela produisait une requete de 400+ caracteres a
+        laquelle aucun moteur ne repond - 0 source sur toutes les sections,
+        rapport vide. Detecte par le benchmark, invisible pour nos tests
+        maison qui utilisaient des sujets courts.
+
+        Ordre de preference :
+        1. search_terms fourni par le plan (le LLM a formule la requete)
+        2. reduction par mots-cles : mots significatifs de la consigne +
+           nom de section, plafonne a max_words
+
+        Le plafond est le point essentiel : au-dela d'une dizaine de mots,
+        un moteur generaliste renvoie du bruit ou rien.
+        """
+        import re
+
+        if search_terms:
+            terms = " ".join(str(t) for t in search_terms if t).strip()
+            if terms:
+                return " ".join(terms.split()[:max_words])
+
+        def salient(text: str, limit: int) -> List[str]:
+            words = re.findall(r"[\w'-]+", text.lower())
+            out, seen = [], set()
+            for w in words:
+                if len(w) <= 2 or w in self._STOPWORDS or w in seen:
+                    continue
+                seen.add(w)
+                out.append(w)
+                if len(out) >= limit:
+                    break
+            return out
+
+        # Le nom de section porte l'angle specifique : prioritaire sur la
+        # consigne generale, qui est commune a toutes les sections.
+        section_words = salient(section_name, 5)
+        budget = max_words - len(section_words)
+        query_words = salient(query, max(3, budget))
+
+        combined = query_words + [w for w in section_words if w not in query_words]
+        result = " ".join(combined[:max_words]).strip()
+
+        return result or query[:120]
+
     async def _section_research_phase(
         self,
         query: str,
@@ -2741,10 +2937,15 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         key_questions = section_config.get("key_questions", [])
         objectives = section_config.get("objectives", [])
 
-        # Requête enrichie
-        search_query = f"{query} {section_name}"
-        if key_questions:
-            search_query += f" {' '.join(key_questions[:2])}"
+        # Requete bornee (voir _build_search_query) : la concatenation brute
+        # produisait des requetes de 400+ caracteres sur consigne longue.
+        search_query = self._build_search_query(
+            query=query,
+            section_name=section_name,
+            key_questions=key_questions,
+            search_terms=section_config.get("search_terms"),
+        )
+        logger.info(f"       ↳ requête: '{search_query}'")
 
         # Nombre de sources selon profondeur
         depth = section_config.get("depth", "moderate")
@@ -3028,9 +3229,17 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             logger.info(f"       ⚠️  Peu de sources ({n_sources}) pour '{section_name}', objectif ajusté {original_target}→{words_target} mots, profondeur réduite")
 
         # Sélection sémantique adaptée
+        # Requete bornee plutot que la consigne brute concatenee : le scoring
+        # compare les mots de la requete au contenu des chunks, une consigne de
+        # 350 caracteres noie les termes discriminants dans du remplissage.
+        scoring_query = self._build_search_query(
+            query=query,
+            section_name=section_name,
+            search_terms=(section_config or {}).get("search_terms"),
+        )
         selected_data = await self._semantic_chunk_selection(
             all_data=enriched_data,
-            query=f"{query} {section_name}",
+            query=scoring_query,
             max_chars=words_target * 10,  # Approximation
             depth=depth
         )
