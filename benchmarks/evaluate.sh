@@ -37,6 +37,9 @@ case "$JUDGE" in
     export OPENAI_API_KEY="$(cat /tmp/llm_key.txt)"
     export RACE_MODEL="${RACE_MODEL:-qwen3-6-35b-moe}"
     export FACT_MODEL="${FACT_MODEL:-qwen3-6-35b-moe}"
+    # Le proxy litellm de SSPCloud rejette reasoning_effort en 400 pour
+    # qwen3-6-35b-moe. Le parametre est optionnel cote benchmark.
+    export SUPPORTS_REASONING_EFFORT=0
     echo "JUGE : SOUVERAIN (SSPCloud / $RACE_MODEL)"
     echo "  -> scores NON comparables au classement public"
     ;;

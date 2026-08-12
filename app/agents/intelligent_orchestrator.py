@@ -2627,6 +2627,33 @@ Retourne JSON:
 
         return [word for word, count in common if count >= 2]
 
+    # Titres de sections qui decrivent le TRAVAIL et non le sujet. Observe
+    # sur la tache 55 du benchmark : le modele avait ajoute "Structure Finale
+    # du Rapport", "Strategie de Recherche Detaillee" et "Criteres de
+    # Validation" comme sections a part entiere - 3 sections sur 11 de notes
+    # de travail livrees au lecteur. C'est la tache qui a obtenu le plus
+    # mauvais score (0.306) malgre le PLUS de mots (4905) et de references
+    # (29) : ni le volume ni le sourcage ne compensent du hors-sujet.
+    _META_SECTION_PATTERNS = (
+        "structure du rapport", "structure finale", "plan du rapport",
+        "plan de travail", "strategie de recherche", "stratégie de recherche",
+        "methodologie de recherche", "méthodologie de recherche",
+        "criteres de validation", "critères de validation",
+        "sources consultees", "sources consultées", "demarche", "démarche",
+    )
+
+    @classmethod
+    def _is_meta_section(cls, name: str) -> bool:
+        """
+        Filet de securite derriere la regle du prompt : une consigne ne
+        suffit pas toujours (verifie sur la langue, ou le modele ignorait
+        une instruction explicite avec exemples). Ici le cout d'un faux
+        positif est faible - un titre legitime rejete - alors qu'un faux
+        negatif livre des notes de travail dans un rapport publie.
+        """
+        low = (name or "").lower()
+        return any(p in low for p in cls._META_SECTION_PATTERNS)
+
     async def _create_detailed_plan(
         self,
         query: str,
@@ -2733,6 +2760,15 @@ Retourne JSON:
     "search_depth": "quick|standard|exhaustive"
   }}
 }}
+
+RÈGLE — SECTIONS INTERDITES:
+Les sections décrivent le SUJET, jamais ton travail. N'invente JAMAIS de
+section du type "Structure du Rapport", "Stratégie de Recherche",
+"Méthodologie", "Critères de Validation", "Plan de Travail" : ce sont des
+notes de travail, pas une réponse à la demande. Un lecteur veut le contenu,
+pas la description de comment tu comptes le produire.
+Chaque titre de section doit pouvoir figurer dans la table des matières
+d'un rapport publié.
 
 RÈGLE — source_axis (par section):
 Choisis l'axe de sources adapté au CONTENU de la section :
@@ -2907,7 +2943,8 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                 # changement requis ailleurs dans le fichier.
                 plan = {
                     "complexity_analysis": structured["complexity_analysis"],
-                    "sections": [s["name"] for s in structured["sections"]],
+                    "sections": [s["name"] for s in structured["sections"]
+                                 if not self._is_meta_section(s["name"])],
                     "section_targets": {
                         s["name"]: {
                             "words_target": s["words_target"],
@@ -2921,6 +2958,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                             "search_terms": s.get("search_terms", []),
                             "source_axis": s.get("source_axis")
                         } for s in structured["sections"]
+                        if not self._is_meta_section(s["name"])
                     },
                     "narrative_flow": structured["narrative_flow"],
                     "search_strategy": structured["search_strategy"]
