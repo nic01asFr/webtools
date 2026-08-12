@@ -54,12 +54,65 @@ FALLBACK_PROFILES: Dict[str, List[str]] = {
 DEFAULT_PROFILE = "general"
 
 
+# --- Regroupement en axes -----------------------------------------------
+#
+# Les categories de SearXNG servent les ONGLETS de son interface web ("je
+# cherche une image", "je cherche du code"), pas un usage programmatique.
+# D'ou leurs defauts pour nous, constates sur le catalogue reel :
+#   - general et web contiennent exactement les memes moteurs (doublon)
+#   - science et scientific publications se recouvrent largement
+#   - le domaine technique est eclate en 5 (it, packages, q&a, repos,
+#     software wikis), ce qui lui donnerait 5x plus de representants qu'a
+#     la science dans une cascade uniforme
+#
+# On regroupe donc en axes equilibres, qui correspondent a la NATURE de la
+# source plutot qu'a un onglet.
+CATEGORY_TO_AXIS: Dict[str, str] = {
+    "general": "generaliste",
+    "web": "generaliste",
+    "science": "academique",
+    "scientific publications": "academique",
+    "news": "actualite",
+    "it": "technique",
+    "packages": "technique",
+    "q&a": "technique",
+    "repos": "technique",
+    "software wikis": "technique",
+    "wikimedia": "encyclopedique",
+}
+
+DEFAULT_AXIS = "generaliste"
+
+# Ordre de preference DANS chaque axe. Explicite et non alphabetique : un
+# tri alphabetique retenait "arch linux wiki" et "askubuntu" avant "github"
+# et "stackoverflow", ce qui aurait annule le benefice de la cascade.
+# Les moteurs absents de cette table passent apres ceux qui y figurent.
+AXIS_PREFERENCE: Dict[str, List[str]] = {
+    "generaliste": ["google", "duckduckgo", "bing", "brave", "startpage",
+                    "google cse", "wikipedia", "mojeek", "qwant"],
+    "academique": ["google scholar", "semantic scholar", "pubmed", "arxiv",
+                   "crossref", "openairepublications", "openairedatasets"],
+    "actualite": ["google news", "reuters", "bing news", "duckduckgo news",
+                  "brave.news", "yahoo news", "startpage news"],
+    "technique": ["github", "stackoverflow", "pypi", "docker hub",
+                  "askubuntu", "superuser", "arch linux wiki", "gentoo"],
+    "encyclopedique": ["wikipedia", "wikidata", "wikibooks", "wikinews"],
+}
+
+# Duree pendant laquelle un moteur en echec est ecarte avant reessai. Sans
+# rehabilitation, un incident passager l'eliminerait definitivement et le
+# catalogue s'appauvrirait silencieusement.
+FAILURE_COOLDOWN_SECONDS = 900
+
+
 class EngineCatalog:
     """Catalogue des moteurs reellement disponibles, decouvert a l'execution."""
 
     def __init__(self):
         self._engines: Dict[str, dict] = {}
         self._loaded = False
+        # moteur -> horodatage du dernier echec (voir mark_failure)
+        self._failures: Dict[str, float] = {}
 
     async def load(self, base_url: str, timeout: float = 10.0) -> bool:
         """Interroge /config. Best-effort : un echec laisse le catalogue vide,
@@ -133,6 +186,88 @@ class EngineCatalog:
                 return chosen
 
         return self.validate(FALLBACK_PROFILES[DEFAULT_PROFILE])
+
+    # --- Disponibilite ---------------------------------------------------
+    #
+    # UNIQUEMENT la disponibilite, jamais la pertinence.
+    #
+    # Agreger des scores de QUALITE par moteur serait une erreur : PubMed
+    # accumulerait de mauvaises notes sur les sujets non medicaux, finirait
+    # par descendre durablement, et serait absent le jour ou une question de
+    # sante publique arrive. On appauvrirait les sources sans jamais le
+    # voir - on ne sait pas ce qu'on n'a pas trouve.
+    # La disponibilite, elle, est independante du sujet : un moteur suspendu
+    # l'est pour tout le monde. Elle est donc transferable sans risque.
+    # Ne pas reintroduire de scoring de pertinence par moteur ici.
+
+    def mark_failure(self, name: str, reason: str = ""):
+        """Signale qu'un moteur n'a pas repondu (suspension, timeout, vide)."""
+        import time
+        key = self._canonical(name)
+        if not key:
+            return
+        self._failures[key] = time.time()
+        logger.debug(f"Moteur '{key}' ecarte temporairement ({reason})")
+
+    def mark_success(self, name: str):
+        """Un moteur qui repond de nouveau est rehabilite immediatement."""
+        key = self._canonical(name)
+        if key:
+            self._failures.pop(key, None)
+
+    def _is_available(self, name: str) -> bool:
+        import time
+        ts = self._failures.get(name)
+        if ts is None:
+            return True
+        if time.time() - ts > FAILURE_COOLDOWN_SECONDS:
+            del self._failures[name]  # rehabilitation apres cooldown
+            return True
+        return False
+
+    def _canonical(self, name: str) -> Optional[str]:
+        key = str(name).strip().lower()
+        return next((real for real in self._engines if real.lower() == key), None)
+
+    def axis_of(self, engine_name: str) -> str:
+        """Axe d'un moteur, deduit de ses categories SearXNG."""
+        meta = self._engines.get(engine_name, {})
+        for cat in meta.get("categories", []):
+            if cat in CATEGORY_TO_AXIS:
+                return CATEGORY_TO_AXIS[cat]
+        return DEFAULT_AXIS
+
+    def cascade(self, per_axis: int = 3, axes: Optional[List[str]] = None) -> List[str]:
+        """
+        Selection par defaut : les `per_axis` meilleurs moteurs DISPONIBLES
+        de chaque axe.
+
+        Garantit l'exhaustivite (chaque axe reste represente) tout en bornant
+        la charge : sans selection, SearXNG interroge tous les moteurs actifs
+        de la categorie. La cascade absorbe aussi les suspensions - si le
+        premier choix d'un axe est indisponible, le suivant prend sa place,
+        la ou une liste figee se serait videe.
+        """
+        if not self._loaded:
+            return []
+
+        by_axis: Dict[str, List[str]] = {}
+        for name in self._engines:
+            by_axis.setdefault(self.axis_of(name), []).append(name)
+
+        selected: List[str] = []
+        for axis, names in by_axis.items():
+            if axes and axis not in axes:
+                continue
+            pref = AXIS_PREFERENCE.get(axis, [])
+            def rank(n: str) -> tuple:
+                low = n.lower()
+                return (pref.index(low) if low in pref else len(pref), low)
+            ordered = sorted(names, key=rank)
+            kept = [n for n in ordered if self._is_available(n)][:per_axis]
+            selected.extend(kept)
+
+        return selected
 
     def prompt_listing(self, max_per_category: int = 6) -> str:
         """
