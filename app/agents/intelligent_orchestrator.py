@@ -2711,7 +2711,8 @@ Retourne JSON:
       "depth": "light|moderate|deep",
       "objectives": ["objectif 1", "objectif 2"],
       "key_questions": ["question à explorer 1", "question 2"],
-      "search_terms": ["requête moteur courte", "autre angle"]
+      "search_terms": ["requête moteur courte", "autre angle"],
+      "source_axis": "generaliste|academique|actualite|technique"
     }},
     ...
   }},
@@ -2732,6 +2733,17 @@ Retourne JSON:
     "search_depth": "quick|standard|exhaustive"
   }}
 }}
+
+RÈGLE — source_axis (par section):
+Choisis l'axe de sources adapté au CONTENU de la section :
+  "academique"  -> études, données chiffrées, publications scientifiques,
+                   statistiques, projections (Google Scholar, PubMed, arXiv)
+  "actualite"   -> événements récents, décisions, tendances de marché
+  "technique"   -> logiciel, code, outils, documentation technique
+  "generaliste" -> contexte général, définitions, vue d'ensemble
+Une même étude mélange souvent les axes : une section "projections
+démographiques" est "academique", une section "réactions du marché" est
+"actualite". Choisis par section, pas une fois pour tout le rapport.
 
 EXEMPLES:
 
@@ -2808,6 +2820,11 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                             # zero source, donc rapport vide. Le LLM sait
                             # formuler une requete ; l'extraction de mots-cles
                             # n'est qu'un repli.
+                            "source_axis": {
+                                "type": "string",
+                                "enum": ["generaliste", "academique", "actualite", "technique"],
+                                "description": "Axe de sources adapte au contenu de CETTE section"
+                            },
                             "search_terms": {
                                 "type": "array",
                                 "minItems": 1,
@@ -2815,7 +2832,13 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                                 "items": {"type": "string", "maxLength": 90}
                             }
                         },
-                        "required": ["name", "words_target", "depth", "objectives", "key_questions", "search_terms"],
+                        # source_axis en required : sans cela le modele omet
+                        # simplement le champ (constate en run reel - le plan
+                        # structure etait bien genere, 6 sections, mais aucun
+                        # axe declare). Un champ optionnel dans un schema
+                        # JSON n'est pas une suggestion polie : c'est une
+                        # permission de ne pas repondre.
+                        "required": ["name", "words_target", "depth", "objectives", "key_questions", "search_terms", "source_axis"],
                         "additionalProperties": False
                     }
                 },
@@ -2869,7 +2892,14 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                 structured = await self.llm_client.generate_structured(
                     [{"role": "user", "content": prompt}],
                     schema=plan_schema, schema_name="research_plan",
-                    max_tokens=3000, temperature=0.2
+                    # 6000 et non 3000 : le plan porte desormais un champ de
+                    # plus par section (source_axis). A 3000, la reponse etait
+                    # tronquee en plein JSON ("Unterminated string at char
+                    # 10963"), tout le plan structure etait rejete et le
+                    # pipeline retombait sur le plan de secours — sans axes,
+                    # sans search_terms. Un depassement silencieux de ce genre
+                    # annule tout le travail de structuration en amont.
+                    max_tokens=6000, temperature=0.2
                 )
                 # Conversion vers le format interne historique (sections=liste
                 # de strings, section_targets=dict) attendu par tout le reste
@@ -2888,7 +2918,8 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                             # champ serait genere par le LLM puis jamais lu —
                             # exactement le defaut de cablage rencontre ailleurs
                             # (sources_per_section, categories/engines...).
-                            "search_terms": s.get("search_terms", [])
+                            "search_terms": s.get("search_terms", []),
+                            "source_axis": s.get("source_axis")
                         } for s in structured["sections"]
                     },
                     "narrative_flow": structured["narrative_flow"],
@@ -3035,7 +3066,30 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             # Si le catalogue n'a pas pu etre charge, engines reste None et
             # le comportement est celui d'avant (best-effort).
             from app.services.engine_catalog import engine_catalog
-            selected_engines = engine_catalog.cascade(per_axis=3) if engine_catalog.available else []
+            selected_engines = []
+            if engine_catalog.available:
+                # Axe declare par le plan pour CETTE section : une section
+                # "projections demographiques" interroge l'axe academique,
+                # une section "reactions du marche" l'axe actualite. Double
+                # benefice : meilleures sources, et charge repartie entre
+                # moteurs au lieu de taper toujours les memes.
+                axis = section_config.get("source_axis")
+                if axis:
+                    selected_engines = engine_catalog.cascade(per_axis=3, axes=[axis])
+                    if selected_engines:
+                        logger.info(f"       🎯 axe '{axis}' → {len(selected_engines)} moteur(s)")
+
+                # Repli elargi : si l'axe demande ne rend aucun moteur
+                # DISPONIBLE (cas reel observe - l'axe generaliste est tombe
+                # a 1 moteur puis 0 quand les 5 generalistes ont ete
+                # suspendus), on elargit plutot que de laisser la section
+                # sans source. Une section vide est refusee en synthese, donc
+                # perdue : mieux vaut des sources moins ciblees que rien.
+                if not selected_engines:
+                    selected_engines = engine_catalog.cascade(per_axis=3)
+                    if axis:
+                        logger.info(f"       ↪ axe '{axis}' indisponible, cascade complète")
+
             engines_param = ",".join(selected_engines) if selected_engines else None
 
             search_results = await searxng_client.search(
