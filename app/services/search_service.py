@@ -133,6 +133,31 @@ class SearXNGClient:
                     response.raise_for_status()
                     data = response.json()
 
+                    # SearXNG signale a CHAQUE reponse les moteurs qui n'ont
+                    # pas repondu (suspension, timeout, CAPTCHA, acces
+                    # refuse). L'information etait ignoree alors qu'elle est
+                    # exactement ce dont la cascade a besoin pour ecarter un
+                    # moteur indisponible et descendre au suivant de son axe.
+                    # Sans cela, une selection ciblant un moteur suspendu
+                    # rend zero resultat la ou une recherche large aurait ete
+                    # servie par les autres.
+                    try:
+                        from app.services.engine_catalog import engine_catalog
+                        unresponsive = data.get("unresponsive_engines") or []
+                        for entry in unresponsive:
+                            # format : ["nom", "raison"] ou parfois juste "nom"
+                            name = entry[0] if isinstance(entry, (list, tuple)) and entry else entry
+                            reason = entry[1] if isinstance(entry, (list, tuple)) and len(entry) > 1 else ""
+                            if name:
+                                engine_catalog.mark_failure(str(name), str(reason))
+                        if unresponsive:
+                            logger.info(
+                                f"Moteurs indisponibles signalés par SearXNG : "
+                                f"{[e[0] if isinstance(e, (list, tuple)) else e for e in unresponsive]}"
+                            )
+                    except Exception as e:
+                        logger.debug(f"Suivi de disponibilité non appliqué : {e}")
+
                     page_results = data.get("results", [])
                     if not page_results:
                         break  # plus de resultats, inutile de continuer
@@ -155,6 +180,16 @@ class SearXNGClient:
 
                     if len(results) >= max_results:
                         break
+
+                # Rehabilitation : un moteur qui a effectivement fourni un
+                # resultat est de nouveau disponible, sans attendre la fin du
+                # cooldown. Le champ engine est conserve depuis l'etape A.
+                try:
+                    from app.services.engine_catalog import engine_catalog
+                    for name in {r.engine for r in results if r.engine}:
+                        engine_catalog.mark_success(name)
+                except Exception:
+                    pass
 
                 logger.info(f"Found {len(results)} results for query: {query}")
                 # On ne met en cache QUE les recherches fructueuses : mettre
