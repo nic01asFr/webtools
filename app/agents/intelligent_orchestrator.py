@@ -2979,7 +2979,16 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                     {
                         "url": r.url,
                         "title": r.title,
-                        "snippet": r.content[:300] if r.content else ""
+                        "snippet": r.content[:300] if r.content else "",
+                        # Moteur d'origine : SearXNG l'expose sur chaque
+                        # resultat, notre client le conserve dans
+                        # SearchResult, mais il etait jete ici. Sans lui,
+                        # impossible de savoir quels moteurs alimentent
+                        # reellement un rapport - ni de detecter qu'un moteur
+                        # ne repond plus (une selection ciblant un moteur
+                        # suspendu rend zero resultat la ou une recherche
+                        # large aurait ete servie par les autres).
+                        "engine": getattr(r, "engine", "") or ""
                     }
                     for r in search_results[:max_sources]
                 ]
