@@ -93,6 +93,10 @@ class ExecutionContext:
 
     def __init__(self, query: str):
         self.query = query
+        # Langue de recherche et de redaction, decidee par le plan (langue de
+        # la consigne). "all" ne restreint rien - c'est le defaut sur, alors
+        # que "auto" fait tomber PubMed de 20 a 0 resultats (verifie).
+        self.search_language: str = "all"
         self.steps: List[Dict] = []
         self.datasets: Dict[str, List[Dict]] = {}
         self.discovered_sources: List[str] = []
@@ -387,7 +391,19 @@ class IntelligentOrchestrator:
         # toute redaction, pas sur du texte deja ecrit (contrairement a
         # l'ajustement local de words_target et a l'enrichissement Phase 4,
         # qui restent les filets de securite en aval si ceci ne suffit pas).
-        base_threshold = plan.get('search_strategy', {}).get('sources_per_section', 2)
+        # Langue decidee par le plan (langue de la consigne), portee par le
+        # contexte plutot que propagee de signature en signature. Le defaut
+        # du client est "all" : ne restreint rien, contrairement a l'ancien
+        # "fr" en dur qui orientait vers des sources francaises meme sur une
+        # consigne anglaise.
+        _strategy = plan.get('search_strategy', {})
+        context.search_language = _strategy.get('language') or 'all'
+        if context.search_language == 'auto':
+            # Verifie sur PubMed : "auto" fait tomber les resultats de 20 a 0.
+            context.search_language = 'all'
+        logger.info(f"  🌐 Langue de recherche et rédaction : {context.search_language}")
+
+        base_threshold = _strategy.get('sources_per_section', 2)
         DEPTH_MODULATION = {"light": -1, "moderate": 0, "deep": 1}
 
         for section_name, section_config in section_targets.items():
@@ -613,6 +629,12 @@ STRATÉGIES OBLIGATOIRES:
 - **hybrid**: Combiner plusieurs outils
 
 RÈGLES CRITIQUES
+0bis. language: déclare le code ISO 639-1 de la LANGUE DE LA CONSIGNE
+   utilisateur (fr, en, es...). Elle sert à la fois aux recherches et à la
+   rédaction : un rapport doit être écrit dans la langue de la demande.
+   Utilise "all" seulement si la consigne ne permet pas de trancher.
+   N'utilise JAMAIS "auto".
+
 0. search_terms: pour CHAQUE section, formule 1 à 3 requêtes de moteur de
    recherche COURTES (3 à 8 mots) et directement utilisables. Ce sont des
    requêtes, PAS des phrases : pas de verbe conjugué, pas de question, pas
@@ -2784,9 +2806,13 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                     "properties": {
                         "total_sources_needed": {"type": "integer", "minimum": 1},
                         "sources_per_section": {"type": "integer", "minimum": 1},
-                        "search_depth": {"type": "string", "enum": ["quick", "standard", "exhaustive"]}
+                        "search_depth": {"type": "string", "enum": ["quick", "standard", "exhaustive"]},
+                        "language": {
+                            "type": "string",
+                            "description": "Code langue ISO 639-1 de la consigne (fr, en, es...) ou 'all' si indifferent"
+                        }
                     },
-                    "required": ["total_sources_needed", "sources_per_section", "search_depth"],
+                    "required": ["total_sources_needed", "sources_per_section", "search_depth", "language"],
                     "additionalProperties": False
                 }
             },
@@ -2970,7 +2996,8 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         try:
             search_results = await searxng_client.search(
                 query=search_query,
-                max_results=max_sources
+                max_results=max_sources,
+                language=getattr(context, "search_language", "all")
             )
 
             sources = []
