@@ -3317,6 +3317,32 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
         # modele. Journaliser la taille reelle du prompt et le volume de
         # donnees transmis permet de trancher sans relancer un run complet.
         _payload_chars = sum(len(str(d.get("content", ""))) for d in selected_data[:5])
+
+        # REFUS DE REDIGER SANS SOURCE.
+        #
+        # Sans donnees, le LLM redigeait quand meme depuis ses connaissances
+        # internes : des rapports de 1 200 a 1 500 mots sortaient avec ZERO
+        # citation et zero entree de bibliographie. C'est exactement
+        # l'hallucination que tout le pipeline (corroboration, scoring,
+        # citations [SOURCE:]) existe pour empecher - un rapport non source
+        # est pire qu'une section absente, parce qu'il est indiscernable d'un
+        # rapport documente pour qui le lit.
+        #
+        # L'ajustement d'ambition (objectif reduit a 150 mots) attenuait le
+        # symptome sans traiter la cause. On refuse desormais franchement, et
+        # la section est marquee pour que l'echec remonte au lieu d'etre
+        # invisible.
+        if not selected_data or _payload_chars < 200:
+            logger.warning(
+                f"       ⛔ Section '{section_name}' non rédigée : "
+                f"{len(selected_data)} source(s), {_payload_chars} chars de données — "
+                f"rédiger sans matière produirait du contenu non sourcé"
+            )
+            return (
+                f"[SECTION_SANS_SOURCE] Aucune donnée exploitable n'a pu être collectée "
+                f"pour cette section."
+            )
+
         logger.info(
             f"       📝 Prompt synthèse '{section_name}': {len(prompt)} chars, "
             f"{len(selected_data)} source(s), {_payload_chars} chars de données, "
@@ -3597,6 +3623,25 @@ Retourne JSON:
                 f"  ⚠️  {len(failed)}/{len(sections_list)} section(s) non générée(s) "
                 f"par échec LLM: {', '.join(failed[:3])}"
             )
+
+        # Sections refusees faute de source : distinctes d'un echec LLM (la
+        # cause est en amont, dans la collecte) mais tout aussi importantes a
+        # signaler. Un rapport majoritairement non source doit etre annonce
+        # comme tel plutot que rendu comme un resultat ordinaire.
+        unsourced = [
+            s["title"] for s in sections_list
+            if "[SECTION_SANS_SOURCE]" in (s.get("content") or "")
+        ]
+        if unsourced:
+            final_report["unsourced_sections"] = unsourced
+            final_report["metadata"]["unsourced_sections_count"] = len(unsourced)
+            logger.warning(
+                f"  ⚠️  {len(unsourced)}/{len(sections_list)} section(s) sans source "
+                f"exploitable: {', '.join(unsourced[:3])}"
+            )
+            # Majorite non sourcee -> le rapport n'est pas un resultat fiable.
+            if len(unsourced) > len(sections_list) / 2:
+                final_report["degraded"] = True
 
         logger.info(f"  ✓ Rapport assemblé: {total_words} mots, {len(sections_list)} sections")
 

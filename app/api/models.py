@@ -565,7 +565,7 @@ class SearchResponse(BaseModel):
 
 class QuickResearchRequest(BaseModel):
     """Requete de recherche rapide documentee."""
-    query: str = Field(..., description="Question factuelle", min_length=5, max_length=500)
+    query: str = Field(..., description="Question factuelle", min_length=5, max_length=2000)
     max_sources: int = Field(default=5, ge=1, le=15)
 
 

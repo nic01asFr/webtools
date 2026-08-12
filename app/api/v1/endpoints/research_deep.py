@@ -55,7 +55,13 @@ class OutputFormat(BaseModel):
 
 
 class DeepResearchRequest(BaseModel):
-    topic: str = Field(..., description="Sujet de la recherche approfondie", min_length=5, max_length=500)
+    # 500 caracteres etait une limite arbitraire : une vraie consigne de
+    # recherche est souvent detaillee et multi-dimensionnelle (les taches de
+    # DeepResearch Bench vont jusqu'a ~1000 caracteres). Le pipeline les
+    # traite correctement depuis que les requetes de moteur sont formulees
+    # par le LLM plutot que par concatenation de la consigne. 4000 laisse de
+    # la marge tout en bornant l'entree.
+    topic: str = Field(..., description="Sujet de la recherche approfondie", min_length=5, max_length=4000)
     objectives: List[str] = Field(
         default=[],
         description="Liste d'objectifs pour guider la recherche"
@@ -447,10 +453,12 @@ async def research_deep(request: DeepResearchRequest):
         # repondu" - ce sont deux situations sans rapport.
         answer_dict = answer if isinstance(answer, dict) else {}
         failed_sections = answer_dict.get("failed_sections", [])
+        unsourced_sections = answer_dict.get("unsourced_sections", [])
         is_degraded = bool(answer_dict.get("degraded"))
         if is_degraded:
             logger.error(
-                f"⚠️  Rapport DEGRADE : {len(failed_sections)} section(s) non générée(s)"
+                f"⚠️  Rapport DEGRADE : {len(failed_sections)} échec(s) LLM, "
+                f"{len(unsourced_sections)} section(s) sans source"
             )
 
         # Utiliser OutputFormatter
@@ -464,10 +472,27 @@ async def research_deep(request: DeepResearchRequest):
         if is_degraded:
             result_dict["degraded"] = True
             result_dict["failed_sections"] = failed_sections
-            result_dict["error"] = (
-                f"{len(failed_sections)} section(s) non générée(s) : échec répété "
-                f"de l'appel LLM de synthèse"
-            )
+            if unsourced_sections:
+                result_dict["unsourced_sections"] = unsourced_sections
+            # Deux causes distinctes, deux messages distincts : un echec LLM
+            # est un incident technique (a reessayer), une absence de source
+            # est un constat sur le sujet (inutile de reessayer a l'identique).
+            # Les confondre ferait chercher une panne la ou il n'y en a pas.
+            if failed_sections and unsourced_sections:
+                result_dict["error"] = (
+                    f"{len(failed_sections)} section(s) non générée(s) par échec LLM et "
+                    f"{len(unsourced_sections)} sans source exploitable"
+                )
+            elif failed_sections:
+                result_dict["error"] = (
+                    f"{len(failed_sections)} section(s) non générée(s) : échec répété "
+                    f"de l'appel LLM de synthèse"
+                )
+            else:
+                result_dict["error"] = (
+                    f"{len(unsourced_sections)} section(s) sans source exploitable : "
+                    f"la collecte n'a rien remonté sur ce sujet"
+                )
 
         # Convertir en JSON et streamer pour éviter buffering
         json_str = json.dumps(result_dict, ensure_ascii=False, indent=2)
