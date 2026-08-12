@@ -44,6 +44,21 @@ class OpenAILLMClient(BaseLLMClient):
         # vide - la taille du prompt n'est pas en cause). On force un cycle
         # de vie de connexion court pour eviter la reutilisation de
         # connexions perimees, avec retry pour absorber le reste.
+        self._build_client()
+
+    def _build_client(self):
+        """
+        (Re)cree le client SDK et son transport HTTP.
+
+        Isole dans une methode car le client doit pouvoir etre reconstruit :
+        get_llm_client() renvoie une instance PARTAGEE par tout le service, et
+        son transport httpx se retrouvait ferme en cours de pipeline sans que
+        notre close() soit jamais appele (tracage en place, 0 appel observe) -
+        vraisemblablement a la sortie d'un contexte asynchrone de Playwright /
+        browser-use. Tous les appels suivants echouaient alors en
+        "Cannot send a request, as the client has been closed", remonte en
+        "Connection error" generique par le SDK.
+        """
         import httpx
         http_client = httpx.AsyncClient(
             limits=httpx.Limits(
@@ -60,6 +75,32 @@ class OpenAILLMClient(BaseLLMClient):
             timeout=90.0,
             http_client=http_client
         )
+
+    def _ensure_open(self):
+        """
+        Reconstruit le client si son transport a ete ferme.
+
+        Auto-reparation plutot que simple detection : sur un client partage,
+        une fermeture externe est toujours anormale mais ne doit pas rendre le
+        service inutilisable jusqu'au redemarrage. Verifie avant chaque appel
+        (cout negligeable : lecture d'un booleen).
+        """
+        try:
+            transport_closed = getattr(self.client, "is_closed", False)
+            if callable(transport_closed):
+                transport_closed = transport_closed()
+            inner = getattr(self.client, "_client", None)
+            if inner is not None and getattr(inner, "is_closed", False):
+                transport_closed = True
+        except Exception:
+            transport_closed = False
+
+        if transport_closed:
+            logger.warning(
+                "Client LLM partage trouve ferme — reconstruction automatique "
+                "(fermeture externe anormale, voir _build_client)"
+            )
+            self._build_client()
 
     async def generate_with_vision(
         self,
@@ -114,6 +155,7 @@ class OpenAILLMClient(BaseLLMClient):
             # max_retries n'est pas un parametre de create() mais du client -
             # le surcharger par appel necessite with_options() plutot que de
             # le laisser filtrer dans kwargs (qui ferait echouer create()).
+            self._ensure_open()
             client = self.client
             if "max_retries" in kwargs:
                 client = self.client.with_options(max_retries=kwargs.pop("max_retries"))
@@ -153,6 +195,7 @@ class OpenAILLMClient(BaseLLMClient):
         de pertinence par similarite semantique reelle plutot que par
         correspondance de mots-cles (qui rate synonymes/reformulations).
         """
+        self._ensure_open()
         response = await self.client.embeddings.create(model=model, input=texts)
         return [item.embedding for item in response.data]
 
@@ -184,6 +227,7 @@ class OpenAILLMClient(BaseLLMClient):
         if "qwen" in self.model.lower() and "extra_body" not in kwargs:
             kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
 
+        self._ensure_open()
         client = self.client
         if "max_retries" in kwargs:
             client = self.client.with_options(max_retries=kwargs.pop("max_retries"))
