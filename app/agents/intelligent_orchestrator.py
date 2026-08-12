@@ -3422,7 +3422,30 @@ SECTIONS DÉJÀ RÉDIGÉES DANS CE RAPPORT (pour éviter les répétitions, cons
 {chr(10).join(already_written[:6])}
 """
 
-        prompt = f"""Rédige la section "{section_name}" pour répondre à: "{query}"
+        # Langue de redaction : la meme que celle des recherches, decidee par
+        # detection sur la consigne. Sans cette consigne, le modele redigeait
+        # systematiquement en francais, y compris sur une consigne anglaise —
+        # or le respect de la consigne est l'un des quatre criteres notes par
+        # RACE : un rapport dans la mauvaise langue echoue sur ce critere
+        # quelle que soit la qualite du fond.
+        _lang = getattr(self, "_search_language", "all")
+        _lang_names = {
+            "fr": "français", "en": "anglais", "es": "espagnol",
+            "de": "allemand", "it": "italien", "pt": "portugais",
+        }
+        if _lang in _lang_names:
+            lang_instruction = (
+                f"\n⚠️ LANGUE : rédige INTÉGRALEMENT en {_lang_names[_lang]}, "
+                f"la langue de la demande. Les sources peuvent être dans "
+                f"d'autres langues : traduis ce que tu en reprends.\n"
+            )
+        else:
+            lang_instruction = (
+                "\n⚠️ LANGUE : rédige dans la langue de la demande ci-dessous.\n"
+            )
+
+        prompt = f"""{lang_instruction}
+Rédige la section "{section_name}" pour répondre à: "{query}"
 
 OBJECTIFS DE CETTE SECTION:
 {chr(10).join(f'- {obj}' for obj in objectives)}
