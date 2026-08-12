@@ -397,11 +397,37 @@ class IntelligentOrchestrator:
         # "fr" en dur qui orientait vers des sources francaises meme sur une
         # consigne anglaise.
         _strategy = plan.get('search_strategy', {})
-        context.search_language = _strategy.get('language') or 'all'
-        if context.search_language == 'auto':
-            # Verifie sur PubMed : "auto" fait tomber les resultats de 20 a 0.
-            context.search_language = 'all'
-        logger.info(f"  🌐 Langue de recherche et rédaction : {context.search_language}")
+
+        # Detection deterministe prioritaire sur la declaration du LLM.
+        # Le prompt lui demandait la langue de la consigne, avec exemples
+        # explicites : teste deux fois sur une consigne anglaise, il a
+        # repondu 'fr' les deux fois. Le prompt du plan porte deja beaucoup
+        # et cette decision s'y perd. La langue d'un texte est une propriete
+        # objective - elle se mesure, elle n'a pas besoin d'etre jugee - et
+        # une detection deterministe est reproductible, ce qui compte pour
+        # un benchmark.
+        from app.utils.language import detect_language
+        _detected = detect_language(query)
+        _declared = _strategy.get('language') or 'all'
+        if _declared == 'auto':
+            # Verifie sur PubMed : 'auto' fait tomber les resultats de 20 a 0.
+            _declared = 'all'
+
+        # La declaration du LLM ne sert que si la detection n'a pas tranche.
+        _lang = _detected if _detected != 'all' else _declared
+        if _detected != 'all' and _declared not in ('all', _detected):
+            logger.debug(f"Langue: detectee '{_detected}', LLM disait '{_declared}' - detection retenue")
+        # context est tantot un ExecutionContext, tantot un dict selon le
+        # chemin d'appel : on gere les deux plutot que de supposer.
+        try:
+            if isinstance(context, dict):
+                context['search_language'] = _lang
+            else:
+                context.search_language = _lang
+        except Exception:
+            pass
+        self._search_language = _lang
+        logger.info(f"  🌐 Langue de recherche et rédaction : {_lang}")
 
         base_threshold = _strategy.get('sources_per_section', 2)
         DEPTH_MODULATION = {"light": -1, "moderate": 0, "deep": 1}
@@ -629,11 +655,17 @@ STRATÉGIES OBLIGATOIRES:
 - **hybrid**: Combiner plusieurs outils
 
 RÈGLES CRITIQUES
-0bis. language: déclare le code ISO 639-1 de la LANGUE DE LA CONSIGNE
-   utilisateur (fr, en, es...). Elle sert à la fois aux recherches et à la
-   rédaction : un rapport doit être écrit dans la langue de la demande.
-   Utilise "all" seulement si la consigne ne permet pas de trancher.
-   N'utilise JAMAIS "auto".
+0bis. language: code ISO 639-1 de la langue DANS LAQUELLE LA CONSIGNE
+   CI-DESSUS EST ÉCRITE — pas ta langue de travail, pas le français par
+   défaut. Regarde les mots de la consigne :
+     consigne en anglais ("What are the main advantages...")  -> "en"
+     consigne en français ("Quels sont les avantages...")     -> "fr"
+     consigne en espagnol                                      -> "es"
+   Cette langue sert aux recherches ET à la rédaction du rapport : un
+   rapport doit être écrit dans la langue de la demande, sinon il ne répond
+   pas à la demande.
+   "all" uniquement si la consigne ne permet vraiment pas de trancher.
+   JAMAIS "auto".
 
 0. search_terms: pour CHAQUE section, formule 1 à 3 requêtes de moteur de
    recherche COURTES (3 à 8 mots) et directement utilisables. Ce sont des
@@ -2994,10 +3026,23 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         max_sources = {"light": 3, "moderate": 5, "deep": 8}.get(depth, 5)
 
         try:
+            # Cascade de moteurs : sans selection, SearXNG interroge tous les
+            # moteurs actifs de la categorie - 74 sources par recherche, dont
+            # des banques d'images, des torrents et la meteo. La cascade
+            # retient les 3 meilleurs DISPONIBLES de chaque axe (technique,
+            # academique, actualite, generaliste), soit ~12 moteurs :
+            # exhaustivite preservee, charge divisee par 6.
+            # Si le catalogue n'a pas pu etre charge, engines reste None et
+            # le comportement est celui d'avant (best-effort).
+            from app.services.engine_catalog import engine_catalog
+            selected_engines = engine_catalog.cascade(per_axis=3) if engine_catalog.available else []
+            engines_param = ",".join(selected_engines) if selected_engines else None
+
             search_results = await searxng_client.search(
                 query=search_query,
                 max_results=max_sources,
-                language=getattr(context, "search_language", "all")
+                language=getattr(self, "_search_language", "all"),
+                engines=engines_param
             )
 
             sources = []

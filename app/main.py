@@ -39,6 +39,15 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("Playwright non disponible - extraction limitée")
 
+    # Catalogue de moteurs : decouvert depuis /config de SearXNG plutot que
+    # code en dur, pour rester juste si la configuration change. Best-effort -
+    # un echec laisse le catalogue vide et les recherches se font sans
+    # selection, comme avant.
+    import os
+    from app.services.engine_catalog import engine_catalog
+    searxng_url = os.environ.get("SEARXNG_BASE_URL", "http://searxng:8080")
+    await engine_catalog.load(searxng_url)
+
     yield
 
     # Shutdown
