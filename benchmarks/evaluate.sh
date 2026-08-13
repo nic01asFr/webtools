@@ -54,6 +54,14 @@ case "$JUDGE" in
   *) echo "JUDGE doit valoir sovereign ou official"; exit 1 ;;
 esac
 
+# Cle Jina pour l'etape scrape de FACT (recuperation des pages citees pour
+# verifier qu'elles soutiennent l'affirmation). Lue depuis un fichier hors
+# depot si la variable n'est pas deja definie. Sans elle, Jina limite le
+# debit et toutes les recuperations echouent en 401.
+if [ -z "${JINA_API_KEY:-}" ] && [ -f /tmp/jina_key.txt ]; then
+  export JINA_API_KEY="$(cat /tmp/jina_key.txt)"
+fi
+
 RAW="$BENCH/data/test_data/raw_data/${MODEL_NAME}.jsonl"
 [ -f "$RAW" ] || { echo "Introuvable : $RAW — lancer generate.py d'abord"; exit 1; }
 echo "Systeme evalue : $MODEL_NAME ($(wc -l < "$RAW") rapport(s))"

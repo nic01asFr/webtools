@@ -3505,6 +3505,20 @@ RÈGLES:
 5. Ton: informatif, précis, fluide
 6. Ne répète pas ce qui est déjà couvert par les autres sections listées ci-dessus
 
+LISIBILITÉ (la dimension la plus faible mesurée sur ce pipeline) :
+7. Commence par la RÉPONSE, pas par une mise en contexte. La première phrase
+   doit apporter l'information principale de la section, pas l'annoncer.
+   Évite "Cette section examine...", "Il convient d'analyser...".
+8. Un paragraphe = une idée. Vise 4 à 6 phrases par paragraphe : au-delà le
+   lecteur décroche, en deçà le propos se hache.
+9. Enchaîne les paragraphes explicitement (conséquence, contraste, exemple)
+   plutôt que de les juxtaposer.
+10. Préfère la voix active et les phrases courtes. Une phrase de plus de 40
+   mots doit être coupée.
+11. Donne les chiffres avec leur unité et leur année, dans la phrase — pas
+   en note ni en aparté.
+12. Pas de jargon sans définition à la première occurrence.
+
 Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
 """
 
