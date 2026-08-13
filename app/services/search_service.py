@@ -2,7 +2,10 @@
 Service de recherche web via SearXNG.
 """
 
+import asyncio
 import logging
+import os
+import time
 from typing import List, Optional
 import httpx
 from pydantic import BaseModel
@@ -25,6 +28,38 @@ class SearXNGClient:
     Client pour interroger SearXNG.
     Permet de rechercher des URLs pertinentes avant l'extraction.
     """
+
+    # --- Espacement des recherches ---------------------------------------
+    #
+    # Ce qui declenche les suspensions cote moteurs, c'est le DEBIT, pas le
+    # volume total : les memes recherches etalees sur une journee ne posent
+    # aucun probleme, concentrees sur une heure elles font suspendre Google,
+    # Brave, DuckDuckGo et Startpage. Observe en conditions reelles : jusqu'a
+    # 6 moteurs suspendus simultanement, dont Wikipedia, ce qui vide
+    # entierement l'axe generaliste et fait echouer des taches completes
+    # ("la collecte n'a rien remonte sur ce sujet").
+    #
+    # L'espacement est le SEUL levier qui ne coute rien en qualite : reduire
+    # le nombre de sources degrade les rapports, ralentir ne degrade rien.
+    # Cout reel : ~20 s sur un rapport qui en prend 250.
+    #
+    # Verrou partage par toutes les instances : le pipeline lance jusqu'a 3
+    # recherches en parallele, sans coordination elles partiraient en rafale.
+    _rate_lock = asyncio.Lock()
+    _last_request_at: float = 0.0
+    _min_interval = float(os.environ.get("SEARXNG_MIN_INTERVAL", "1.0"))
+
+    @classmethod
+    async def _respect_rate_limit(cls):
+        """Attend, si necessaire, pour espacer les appels sortants."""
+        if cls._min_interval <= 0:
+            return
+        async with cls._rate_lock:
+            now = time.monotonic()
+            delta = now - cls._last_request_at
+            if delta < cls._min_interval:
+                await asyncio.sleep(cls._min_interval - delta)
+            cls._last_request_at = time.monotonic()
 
     def __init__(self, base_url: str = "http://searxng:8080"):
         """
@@ -126,6 +161,9 @@ class SearXNGClient:
                 # toujours fige a pageno=1, ce qui plafonnait la couverture
                 # a ~10-20 resultats quel que soit le besoin reel.
                 for page in range(1, max_pages + 1):
+                    # Espacement AVANT chaque appel sortant - mais apres le
+                    # cache : une requete deja connue ne doit rien couter.
+                    await self._respect_rate_limit()
                     params = {**base_params, "pageno": page}
                     logger.info(f"Searching SearXNG for: {query} (page {page})")
 
