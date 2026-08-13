@@ -274,6 +274,21 @@ class IntelligentOrchestrator:
         context = context or {}
         self.current_context = context
 
+        # Contraintes de sources fournies par l'appelant. Elles arrivaient
+        # jusqu'ici (sources_exclusions, domains_whitelist sont dans le
+        # context depuis l'endpoint) mais n'etaient jamais lues : l'API
+        # documentait une capacite que le pipeline n'honorait pas.
+        # Lues ICI, avant l'exploration : celle-ci alimente le plan, donc un
+        # filtrage plus tardif laisserait des domaines exclus orienter la
+        # structure du rapport.
+        _ctx = context if isinstance(context, dict) else {}
+        self._domains_whitelist = [d.lower().strip() for d in (_ctx.get("domains_whitelist") or []) if d]
+        self._domains_exclusions = [d.lower().strip() for d in (_ctx.get("sources_exclusions") or []) if d]
+        if self._domains_whitelist:
+            logger.info(f"  🔒 Whitelist active : {self._domains_whitelist}")
+        if self._domains_exclusions:
+            logger.info(f"  🚫 Exclusions actives : {self._domains_exclusions}")
+
         # ===================================================================
         # PHASE 1: EXPLORATION + PLAN DÉTAILLÉ avec canvas complet
         # ===================================================================
@@ -1826,6 +1841,13 @@ CRITÈRES:
             # Recherche SearXNG
             results = await searxng_client.search(search_query, max_results=5)
 
+            # Meme filtrage que la recherche de section : sans cela, le
+            # complement pre-redaction reintroduisait des domaines exclus.
+            if results:
+                _as_dicts = [{"url": r.url, "title": r.title} for r in results]
+                _kept = {d["url"] for d in self._filter_by_constraints(_as_dicts)}
+                results = [r for r in results if r.url in _kept]
+
             if not results:
                 return None
 
@@ -2579,6 +2601,10 @@ Retourne JSON:
                     }
                     for r in search_results[:search_params["max_results"]]
                 ]
+                # L'exploration alimente le PLAN : sans filtrage ici, des
+                # domaines exclus orienteraient la structure du rapport avant
+                # meme la phase de recherche par section.
+                urls_found = self._filter_by_constraints(urls_found)
 
             # Analyser les snippets pour identifier sous-thèmes
             topics_found = self._extract_topics_from_snippets(urls_found)
@@ -2641,6 +2667,58 @@ Retourne JSON:
         "criteres de validation", "critères de validation",
         "sources consultees", "sources consultées", "demarche", "démarche",
     )
+
+    def _filter_by_constraints(self, sources: List[Dict]) -> List[Dict]:
+        """
+        Applique whitelist et exclusions de domaines aux resultats de
+        recherche.
+
+        Ces contraintes sont documentees dans l'API (SourcesConstraints) et
+        transmises jusqu'a l'orchestrateur depuis l'endpoint, mais n'etaient
+        jamais lues : l'interface promettait une capacite que le pipeline
+        n'honorait pas.
+
+        Whitelist et exclusions sont volontairement appliquees APRES la
+        recherche plutot que dans la requete au moteur : un operateur
+        "site:" mal supporte par certains moteurs rendrait zero resultat
+        sans qu'on sache pourquoi, alors qu'un filtrage a posteriori est
+        explicite et journalisable.
+        """
+        wl = getattr(self, "_domains_whitelist", None) or []
+        ex = getattr(self, "_domains_exclusions", None) or []
+        if not wl and not ex:
+            return sources
+
+        from urllib.parse import urlparse
+
+        def domain_of(url: str) -> str:
+            try:
+                return (urlparse(url).netloc or "").lower()
+            except Exception:
+                return ""
+
+        def matches(dom: str, pattern: str) -> bool:
+            # "example.com" couvre aussi "www.example.com" et les
+            # sous-domaines ; "*.gouv.fr" est accepte par commodite.
+            p = pattern.lstrip("*.").lower()
+            return dom == p or dom.endswith("." + p)
+
+        kept, rejected = [], 0
+        for s in sources:
+            dom = domain_of(s.get("url", ""))
+            if not dom:
+                continue
+            if wl and not any(matches(dom, p) for p in wl):
+                rejected += 1
+                continue
+            if ex and any(matches(dom, p) for p in ex):
+                rejected += 1
+                continue
+            kept.append(s)
+
+        if rejected:
+            logger.info(f"       🔎 {rejected} source(s) écartée(s) par les contraintes de domaines")
+        return kept
 
     @classmethod
     def _is_meta_section(cls, name: str) -> bool:
@@ -3156,6 +3234,8 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                     }
                     for r in search_results[:max_sources]
                 ]
+
+                sources = self._filter_by_constraints(sources)
 
                 # Tracker la recherche
                 context.add_step(
