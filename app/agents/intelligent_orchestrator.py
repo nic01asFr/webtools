@@ -3505,6 +3505,17 @@ RÈGLES:
 5. Ton: informatif, précis, fluide
 6. Ne répète pas ce qui est déjà couvert par les autres sections listées ci-dessus
 
+FIDÉLITÉ DES DONNÉES CHIFFRÉES (règle prioritaire) :
+Tout chiffre, pourcentage, date ou montant doit être RECOPIÉ EXACTEMENT
+depuis la source, avec son année de référence. Ne reformule jamais une
+donnée de mémoire, ne l'arrondis pas, ne l'harmonise pas entre sources.
+  ✗ "en 2020, la proportion atteignait 28,7%"  alors que la source dit
+  ✓ "en 2021, la proportion était de 28,9% [SOURCE:url]"
+Si deux sources donnent des valeurs différentes, cite les deux avec leurs
+années respectives plutôt que d'en fabriquer une moyenne.
+Si tu n'es pas certain du chiffre exact, écris la tendance sans chiffre —
+une affirmation vague et vraie vaut mieux qu'un chiffre précis et faux.
+
 LISIBILITÉ (la dimension la plus faible mesurée sur ce pipeline) :
 7. Commence par la RÉPONSE, pas par une mise en contexte. La première phrase
    doit apporter l'information principale de la section, pas l'annoncer.
@@ -3574,6 +3585,26 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
                     temperature=0.3
                 )
                 if response and response.strip():
+                    # Controle de fidelite numerique : signale les chiffres
+                    # ecrits qui n'apparaissent dans aucune source de la
+                    # section. Diagnostic FACT : les citations invalides ne
+                    # viennent pas d'hallucination mais de derive a la
+                    # reformulation (28,7% en 2020 ecrit pour 28,9% en 2021).
+                    # On journalise sans corriger : un chiffre peut etre
+                    # legitimement calcule sans figurer tel quel.
+                    try:
+                        from app.utils.numeric_fidelity import check_numeric_fidelity
+                        _src_text = " ".join(str(d.get("content", "")) for d in selected_data[:5])
+                        _fid = check_numeric_fidelity(response, _src_text)
+                        if _fid.get("unmatched_count"):
+                            logger.warning(
+                                f"       🔢 '{section_name}': {_fid['unmatched_count']}/"
+                                f"{_fid['numbers_written']} chiffre(s) absent(s) des sources "
+                                f"(fidélité {_fid['fidelity_rate']}) — {_fid['unmatched'][:5]}"
+                            )
+                    except Exception as e:
+                        logger.debug(f"Contrôle de fidélité non appliqué : {e}")
+
                     word_count = len(response.split())
                     if word_count < 50 and words_target >= 150:
                         logger.warning(
