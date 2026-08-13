@@ -94,3 +94,64 @@ semaine plus tard.
   un adaptateur distinct — FACT serait applicable, RACE non
 - Le corpus chinois : exclu par défaut (`ONLY_EN=1`), il doublerait le coût
   sans rien apprendre de plus sur le pipeline
+
+
+---
+
+## Puissance statistique — mesuré, pas supposé
+
+Deux runs de 5 tâches comparés (baseline vs v2) ont donné un delta moyen de
+**0,004** pour un **écart-type de 0,066 par tâche**. Les deltas individuels
+allaient de −0,098 à +0,063 : quinze fois l'effet mesuré.
+
+**Conséquence : aucune conclusion n'est possible sur 5 tâches.**
+
+| Effet à détecter | Tâches nécessaires |
+|---|---|
+| 0,10 (énorme) | 4 |
+| 0,05 (net) | 14 |
+| 0,03 (réaliste) | 38 |
+| 0,02 (fin) | 85 — au-delà du corpus |
+
+Le corpus anglais complet (50 tâches) plafonne à un effet détectable de
+**0,026**. Aucune amélioration plus fine ne sera jamais mesurable ici.
+
+### Ce que ça impose
+
+- **Le pilote à 5 tâches ne mesure pas.** Il vérifie qu'un changement ne
+  casse rien : 0 échec, format valide, pas de régression visible. Ne pas
+  lire ses scores.
+- **Une décision d'amélioration exige 20 tâches minimum** — environ 1h15 de
+  production plus 10 minutes de notation.
+- **Grouper les changements**, contrairement au réflexe d'isoler une
+  variable. Isoler demanderait 20 tâches par changement, pour un effet
+  unitaire de l'ordre de 0,01-0,02 — indétectable. Mieux vaut regrouper 3 à
+  4 améliorations cohérentes et mesurer le paquet.
+- **Toujours comparer contre la même référence** (`webtools-ref20`), pas
+  contre le run précédent.
+
+## Métriques de référence (juge souverain)
+
+| Métrique | Valeur | Date |
+|---|---|---|
+| RACE global | 0,3811 | 5 tâches |
+| — Exhaustivité | 0,3687 | |
+| — Profondeur | 0,4027 | point fort |
+| — Respect consigne | 0,3797 | |
+| — Lisibilité | 0,3354 | point faible |
+| FACT — citations/tâche | 10,2 | 5 tâches |
+| FACT — taux de validité | **56,9 %** | 5 tâches |
+
+Le taux de validité FACT est l'indicateur le plus actionnable : ~4 citations
+sur 10 ne sont pas confirmées par la page qu'elles désignent.
+
+## Pièges d'intégration rencontrés
+
+- `reasoning_effort` est rejeté en 400 par le proxy litellm de SSPCloud →
+  `SUPPORTS_REASONING_EFFORT=0`
+- `JINA_API_KEY` doit être propagée explicitement par `evaluate.sh` : sans
+  elle, les 27 récupérations de pages échouent en 401
+- `utils/scrape.py` reprend là où il s'est arrêté et considère les entrées
+  en échec comme traitées (« processing 0 instances »). **Purger le
+  répertoire `fact/` complet** avant toute relance, pas seulement
+  `scraped.jsonl` et `validated.jsonl`.
