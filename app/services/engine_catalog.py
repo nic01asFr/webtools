@@ -88,8 +88,17 @@ DEFAULT_AXIS = "generaliste"
 # et "stackoverflow", ce qui aurait annule le benefice de la cascade.
 # Les moteurs absents de cette table passent apres ceux qui y figurent.
 AXIS_PREFERENCE: Dict[str, List[str]] = {
-    "generaliste": ["google", "duckduckgo", "bing", "brave", "startpage",
-                    "google cse", "wikipedia", "mojeek", "qwant"],
+    # "wikipedia search" en TETE : c'est la seule source generaliste a API
+    # publique, sans cle, sans quota et jamais suspendue. Tous les autres
+    # moteurs de cet axe sont scrapes par SearXNG faute d'API gratuite, et
+    # se suspendent regulierement (jusqu'a 6 simultanement observes, ce qui
+    # vidait entierement l'axe et faisait echouer des taches completes).
+    # A ne pas confondre avec "wikipedia" (lookup par titre exact, concu
+    # pour l'infobox de l'interface web - rend 0 resultat sur une requete
+    # qui n'est pas un titre d'article).
+    "generaliste": ["wikipedia search", "wiby", "wikibooks", "wikiversity",
+                    "wikisource", "google", "duckduckgo", "bing",
+                    "brave", "startpage", "google cse", "mojeek", "qwant"],
     "academique": ["google scholar", "semantic scholar", "pubmed", "arxiv",
                    "crossref", "openairepublications", "openairedatasets"],
     "actualite": ["google news", "reuters", "bing news", "duckduckgo news",
