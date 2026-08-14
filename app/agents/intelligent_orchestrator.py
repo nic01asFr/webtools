@@ -539,7 +539,17 @@ class IntelligentOrchestrator:
             logger.warning(f"Enrichissement iteratif echoue, rapport initial conserve: {e}")
 
         # Étape 4.2: Génération bibliographie complète
-        logger.info("  ✓ Bibliographie générée")
+        #
+        # Cette etape ANNONCAIT un travail qu'elle ne faisait pas : un simple
+        # logger.info, sans aucun appel a la conversion. Consequence observee
+        # sur ce chemin (le principal) : des marqueurs [SOURCE:url] bruts
+        # restaient dans le texte livre — 5 dans un rapport, y compris dans le
+        # resume — alors que les URLs figuraient correctement en [1], [2]...
+        # dans la bibliographie.
+        # Pour FACT, ces affirmations n'avaient aucune source rattachee :
+        # l'extraction des triplets se fait sur les [n], pas sur les marqueurs
+        # internes.
+        final_answer = self._convert_sources_to_bibliography(final_answer)
 
         # Étape 4.3: Génération des traces complètes
         final_answer = self._add_complete_traces(final_answer, ctx, exploration_data, plan)
@@ -2418,6 +2428,16 @@ Retourne JSON:
 
     def _convert_sources_to_bibliography(self, report: Dict[str, Any]) -> Dict[str, Any]:
         """
+        Convertit [SOURCE:url] en [n] et construit la bibliographie.
+
+        IDEMPOTENCE : appelee deux fois sur le chemin principal (une fois dans
+        _final_assembly, une fois apres l'enrichissement iteratif, qui peut
+        regenerer des sections porteuses de nouveaux [SOURCE:]). Au second
+        passage il ne reste plus de marqueur : sans garde, la bibliographie
+        serait reconstruite VIDE et toutes les references perdues.
+        On conserve donc la bibliographie existante et on complete.
+        """
+        """
         Convertit les citations [SOURCE:url] en références numérotées [1], [2], etc.
         et génère une bibliographie ordonnée.
 
@@ -2427,9 +2447,17 @@ Retourne JSON:
         import re
 
         # Collecter toutes les URLs uniques citées dans le rapport
-        url_to_num = {}
-        bibliography = []
-        counter = 1
+        # Repartir de la bibliographie deja construite, s'il y en a une.
+        _existing = report.get("bibliography") or []
+        bibliography = list(_existing)
+        url_to_num = {b["url"]: b["id"] for b in _existing if b.get("url") and b.get("id")}
+        counter = (max([b.get("id", 0) for b in _existing]) + 1) if _existing else 1
+
+        # Motif de citation. Crochet fermant OPTIONNEL : quand la
+        # generation s'arrete en limite de tokens, l'URL reste ouverte
+        # ("[SOURCE:https://..." sans "]"). Defini ici et non dans la
+        # boucle car il sert aussi au resume.
+        pattern = r'\[SOURCE:\s*(https?://[^\s\]]+)\]?'
 
         # ÉTAPE 1: Collecter les URLs citées dans le contenu avec [SOURCE:url]
         for section in report.get('sections', []):
@@ -2442,13 +2470,31 @@ Retourne JSON:
             # des marqueurs bruts dans le rapport livre — observe sur 3
             # rapports sur 4 du run v3.
             # L'URL s'arrete au premier espace, saut de ligne ou crochet.
-            pattern = r'\[SOURCE:\s*(https?://[^\s\]]+)\]?'
             matches = re.findall(pattern, content)
 
             for url in matches:
                 if url not in url_to_num:
                     url_to_num[url] = counter
                     # Extraire le domaine pour le titre
+                    domain = url.split('/')[2] if len(url.split('/')) > 2 else url
+                    bibliography.append({
+                        "id": counter,
+                        "url": url,
+                        "title": f"Source {counter} - {domain}",
+                        "accessed": datetime.now().strftime("%Y-%m-%d")
+                    })
+                    counter += 1
+
+        # ÉTAPE 1bis: le RESUME cite aussi des sources. Sans ce passage, une
+        # URL citee uniquement dans le resume n'entrait jamais dans la
+        # bibliographie — et son marqueur restait donc brut dans le texte.
+        for _key in ("summary", "introduction", "conclusion"):
+            _txt = report.get(_key)
+            if not isinstance(_txt, str):
+                continue
+            for url in re.findall(pattern, _txt):
+                if url not in url_to_num:
+                    url_to_num[url] = counter
                     domain = url.split('/')[2] if len(url.split('/')) > 2 else url
                     bibliography.append({
                         "id": counter,
@@ -2488,6 +2534,18 @@ Retourne JSON:
                 content = content.replace(f'[SOURCE:{url}', f'[{num}]')
 
             section['content'] = content
+
+        # Le RESUME echappait a la conversion : la boucle ne parcourait que
+        # report['sections']. Observe sur le run v4 — un "[SOURCE:http://
+        # arxiv.org/..." brut apparaissait dans le resume alors que l'URL
+        # figurait bien en [1] dans la bibliographie.
+        for _key in ("summary", "introduction", "conclusion"):
+            _txt = report.get(_key)
+            if isinstance(_txt, str) and "[SOURCE:" in _txt:
+                for url, num in url_to_num.items():
+                    _txt = _txt.replace(f'[SOURCE:{url}]', f'[{num}]')
+                    _txt = _txt.replace(f'[SOURCE:{url}', f'[{num}]')
+                report[_key] = _txt
 
         # Ajouter la bibliographie au rapport
         report['bibliography'] = bibliography
@@ -3987,13 +4045,14 @@ Retourne JSON:
         complexity = plan.get("complexity_analysis", {})
         title = f"Analyse: {query.title()}"
 
-        # Générer summary (résumé du premier paragraphe de la première section)
+        # Le summary est un EXTRAIT de la premiere section. Il etait construit
+        # ICI, avant _convert_sources_to_bibliography : il embarquait donc des
+        # marqueurs [SOURCE:url] bruts, que la conversion ne rattrapait pas
+        # ensuite (l'URL avait deja ete remplacee dans la section, donc elle
+        # n'etait plus cherchee sous cette forme).
+        # Il est desormais construit APRES la conversion, a partir du contenu
+        # deja normalise — voir plus bas.
         summary = ""
-        if sections_list:
-            first_content = sections_list[0].get("content", "")
-            # Prendre les 2 premières phrases
-            sentences = first_content.split('. ')[:2]
-            summary = '. '.join(sentences) + '.' if sentences else "Rapport de recherche approfondie."
 
         final_report = {
             "type": "report",
@@ -4010,6 +4069,26 @@ Retourne JSON:
 
         # Conversion sources → bibliographie
         final_report = self._convert_sources_to_bibliography(final_report)
+
+        # Summary construit APRES conversion : le contenu des sections porte
+        # alors des [n] et non des [SOURCE:url] bruts.
+        #
+        # Filet final : le summary est un EXTRAIT (2 premieres phrases) et la
+        # coupure peut tomber au milieu d'un marqueur, produisant un
+        # "[SOURCE:https://..." orphelin sans crochet fermant — donc
+        # introuvable dans url_to_num. On retire tout residu plutot que de le
+        # livrer au lecteur.
+        _secs = final_report.get("sections") or []
+        if _secs:
+            _first = (_secs[0].get("content") or "").strip()
+            _sentences = _first.split('. ')[:2]
+            _sum = (
+                '. '.join(_sentences).rstrip('.') + '.'
+                if _sentences and _first else "Rapport de recherche approfondie."
+            )
+            import re as _re
+            _sum = _re.sub(r'\s*\[SOURCE:[^\]]*\]?', '', _sum).strip()
+            final_report["summary"] = _sum or "Rapport de recherche approfondie."
 
         # Comptabiliser les sections perdues par echec LLM. Sans cela, un
         # rapport dont TOUTES les sections ont echoue sortait avec
