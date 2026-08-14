@@ -1908,12 +1908,20 @@ CRITÈRES:
                             topic_context=f"{query} - {section_title}"
                         )
 
-                        extracted_data.append({
-                            "url": url,
-                            "title": extract_result.title or "",
-                            "content": extract_result.content[:2000],
-                            "structured_data": structured.to_dict()
-                        })
+                        # Meme decoupage qu'a l'extraction de section : cette
+                        # recherche ciblee est declenchee quand une section
+                        # MANQUE de sources — c'est precisement le moment ou
+                        # tronquer a 2 000 caracteres est le plus dommageable.
+                        from app.utils.chunking import document_to_chunk_items
+                        _items = document_to_chunk_items(
+                            source=url,
+                            title=extract_result.title or "",
+                            content=extract_result.content,
+                        )
+                        for _it in _items:
+                            _it["url"] = url  # ce chemin attend "url", pas "source"
+                            _it["structured_data"] = structured.to_dict()
+                        extracted_data.extend(_items)
                         # Ajouter aux sources découvertes (avec déduplication)
                         if url not in ctx.discovered_sources:
                             ctx.discovered_sources.append(url)
@@ -3641,7 +3649,7 @@ INSTRUCTIONS:
 {depth_instructions}
 {already_written_block}
 DONNÉES DISPONIBLES ({len(selected_data)} sources):
-{json.dumps(selected_data[:12], indent=2, ensure_ascii=False)}
+{json.dumps(selected_data, indent=2, ensure_ascii=False)}
 
 RÈGLES:
 1. Cite TOUTES les sources avec format [SOURCE:url]
@@ -3673,7 +3681,12 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
         # soit d'un prompt sans donnees exploitables, soit d'un refus du
         # modele. Journaliser la taille reelle du prompt et le volume de
         # donnees transmis permet de trancher sans relancer un run complet.
-        _payload_chars = sum(len(str(d.get("content", ""))) for d in selected_data[:12])
+        # Pas de re-limitation ici : _semantic_chunk_selection a deja applique
+        # max_chars ET max_chunks_target. Un plafond supplementaire annulerait
+        # silencieusement le budget accorde — c'est exactement le defaut
+        # corrige plus haut (max_chunks_target=4 plafonnait a 4 000 chars
+        # quel que soit max_chars).
+        _payload_chars = sum(len(str(d.get("content", ""))) for d in selected_data)
 
         # REFUS DE REDIGER SANS SOURCE.
         #
@@ -3730,7 +3743,7 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
                     # legitimement calcule sans figurer tel quel.
                     try:
                         from app.utils.numeric_fidelity import check_numeric_fidelity
-                        _src_text = " ".join(str(d.get("content", "")) for d in selected_data[:12])
+                        _src_text = " ".join(str(d.get("content", "")) for d in selected_data)
                         _fid = check_numeric_fidelity(response, _src_text)
                         if _fid.get("unmatched_count"):
                             logger.warning(
