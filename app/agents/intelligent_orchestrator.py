@@ -1430,7 +1430,35 @@ Retourne JSON:
             corrob = min(item.get("corroboration_count", 0), 3) / 3.0  # plafonne a 3 sources
 
             if sem is not None:
-                score = (keyword_score * 0.5) + (sem * 100 * 0.35) + (corrob * 100 * 0.15)
+                # Densite factuelle : 4e composante, en BONUS additif plutot
+                # qu'en redistribution des poids.
+                #
+                # Le scoring de pertinence mesure si un fragment PARLE DU BON
+                # SUJET ; il ne mesure pas s'il contient des faits
+                # VERIFIABLES. Un paragraphe d'introduction qui reformule le
+                # sujet score tres bien (mots-cles + similarite) sans porter
+                # aucune donnee citable ; un tableau statistique score moins
+                # bien alors qu'il porte l'information qu'on veut citer.
+                # C'est une cause plausible du taux de citations validees de
+                # 61% : on retenait de la prose generale, et le modele
+                # completait les chiffres manquants de memoire.
+                #
+                # EN BONUS et non en poids : un contenu explicatif legitime
+                # (ex. le fonctionnement du borrow checker de Rust) ne
+                # contient aucun chiffre et ne doit pas etre penalise. La
+                # densite fait REMONTER les fragments citables, elle
+                # n'ecarte personne.
+                # Plafonne a 10 points sur 100 : assez pour departager deux
+                # fragments de pertinence voisine, trop peu pour faire
+                # remonter un fragment hors sujet.
+                fact_bonus = 0.0
+                try:
+                    from app.utils.factual_density import factual_density
+                    fact_bonus = factual_density(item.get("content", ""))["score"] * 10.0
+                except Exception:
+                    pass
+
+                score = (keyword_score * 0.5) + (sem * 100 * 0.35) + (corrob * 100 * 0.15) + fact_bonus
             else:
                 score = (keyword_score * 0.85) + (corrob * 100 * 0.15)
 
@@ -1444,21 +1472,26 @@ Retourne JSON:
         scored_items.sort(key=lambda x: x["score"], reverse=True)
 
         # Adapter seuil et stratégie selon profondeur
+        #
+        # Ces cibles ont ete calibrees quand un "chunk" etait un DOCUMENT
+        # entier tronque a 3 000 caracteres. Depuis le decoupage, un chunk
+        # est un fragment de ~2 000 caracteres : il en faut plusieurs pour
+        # couvrir un meme document, et les anciennes valeurs plafonnaient
+        # mecaniquement la matiere (4 chunks x 2 000 = 4 000 chars, quel que
+        # soit le budget max_chars accorde).
+        # Doublees pour que max_chars redevienne la contrainte effective.
         if min_score_threshold is None:
             if depth == "light":
-                # Synthèse concise: seulement top sources très pertinentes
                 min_score_threshold = 60.0
-                max_chunks_target = 4  # Peu de sources, qualité maximale
+                max_chunks_target = 8
             elif depth == "deep":
-                # Analyse approfondie: exploration large
                 min_score_threshold = 35.0
-                max_chunks_target = 15  # Beaucoup de sources pour vision complète
+                max_chunks_target = 30
             else:  # moderate
-                # Équilibré - ABAISSÉ pour permettre plus de données
-                min_score_threshold = 40.0  # Était 55 (trop strict), maintenant 40
-                max_chunks_target = 8  # Était 6, maintenant 8
+                min_score_threshold = 40.0
+                max_chunks_target = 16
         else:
-            max_chunks_target = 20  # Pas de limite si seuil custom
+            max_chunks_target = 40
 
         # Sélectionner les meilleurs chunks
         selected = []
@@ -3318,12 +3351,34 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                         context.extraction_cache[url] = result
 
                     if result.success and result.content:
-                        extracted_data.append({
-                            "source": url,
-                            "title": result.title or "",
-                            "content": result.content[:3000],  # Limiter à 3000 chars
-                            "metadata": {}
-                        })
+                        # DECOUPAGE au lieu de TRONCATURE.
+                        #
+                        # Auparavant : result.content[:3000]. Un article de
+                        # recherche de 100 000 caracteres perdait 97% de son
+                        # contenu DES L'EXTRACTION, avant tout scoring — et le
+                        # chiffre precis cite par le rapport se trouvait
+                        # souvent dans la partie jetee. C'est la cause
+                        # mecanique du taux de citations valides de 61% : le
+                        # modele voyait le debut d'un article et completait le
+                        # reste avec ce qu'il savait du sujet.
+                        #
+                        # Desormais le document entier est decoupe en chunks
+                        # qui se chevauchent ; la selection semantique
+                        # (_semantic_chunk_selection) choisit ensuite les plus
+                        # pertinents. La TOTALITE du document est donc
+                        # candidate, quelle que soit sa taille.
+                        from app.utils.chunking import document_to_chunk_items
+                        _items = document_to_chunk_items(
+                            source=url,
+                            title=result.title or "",
+                            content=result.content,
+                        )
+                        extracted_data.extend(_items)
+                        if len(_items) > 1:
+                            logger.info(
+                                f"          ✂️  {url[:55]} : {len(result.content):,} chars "
+                                f"→ {len(_items)} chunks"
+                            )
 
                         # Tracker l'extraction
                         if url not in context.discovered_sources:
@@ -3509,7 +3564,18 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         selected_data = await self._semantic_chunk_selection(
             all_data=enriched_data,
             query=scoring_query,
-            max_chars=words_target * 10,  # Approximation
+            # Budget de MATIERE, independant de la longueur du texte a
+            # ecrire. Auparavant words_target * 10 : une section de 300 mots
+            # ne recevait que 3 000 caracteres de sources — indexer la
+            # matiere premiere sur la taille du produit fini n'a aucun sens,
+            # et c'est ce qui affamait les sections courtes.
+            # 16 000 caracteres : assez pour porter plusieurs passages
+            # substantiels de documents differents, tout en restant loin du
+            # point ou le contexte se degrade (Chroma, juillet 2025 : la
+            # performance baisse quand le contexte s'allonge). Verifie par
+            # ailleurs : ce client accepte des prompts de 30 000 caracteres
+            # sans difficulte.
+            max_chars=16000,
             depth=depth
         )
 
@@ -3575,7 +3641,7 @@ INSTRUCTIONS:
 {depth_instructions}
 {already_written_block}
 DONNÉES DISPONIBLES ({len(selected_data)} sources):
-{json.dumps(selected_data[:5], indent=2, ensure_ascii=False)}
+{json.dumps(selected_data[:12], indent=2, ensure_ascii=False)}
 
 RÈGLES:
 1. Cite TOUTES les sources avec format [SOURCE:url]
@@ -3607,7 +3673,7 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
         # soit d'un prompt sans donnees exploitables, soit d'un refus du
         # modele. Journaliser la taille reelle du prompt et le volume de
         # donnees transmis permet de trancher sans relancer un run complet.
-        _payload_chars = sum(len(str(d.get("content", ""))) for d in selected_data[:5])
+        _payload_chars = sum(len(str(d.get("content", ""))) for d in selected_data[:12])
 
         # REFUS DE REDIGER SANS SOURCE.
         #
@@ -3664,7 +3730,7 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
                     # legitimement calcule sans figurer tel quel.
                     try:
                         from app.utils.numeric_fidelity import check_numeric_fidelity
-                        _src_text = " ".join(str(d.get("content", "")) for d in selected_data[:5])
+                        _src_text = " ".join(str(d.get("content", "")) for d in selected_data[:12])
                         _fid = check_numeric_fidelity(response, _src_text)
                         if _fid.get("unmatched_count"):
                             logger.warning(
