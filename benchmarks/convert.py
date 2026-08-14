@@ -43,6 +43,12 @@ def report_to_markdown(payload: Dict[str, Any]) -> str:
         content = (section.get("content") or "").strip()
         if not content:
             continue
+        # Garde : les marqueurs internes du pipeline ne doivent jamais
+        # atteindre un rapport evalue. Le serveur les retire desormais, mais
+        # un jeu de rapports ancien pourrait en contenir - observe sur 3/17
+        # rapports du run de reference, dont la PREMIERE PHRASE du mieux note.
+        if "[SECTION_SANS_SOURCE]" in content or "[SYNTHESE_ECHOUEE]" in content:
+            continue
         if sec_title:
             parts.append(f"\n## {sec_title}\n")
         parts.append(content + "\n")
