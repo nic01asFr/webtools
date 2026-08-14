@@ -2436,7 +2436,13 @@ Retourne JSON:
             content = section.get('content', '')
 
             # Trouver toutes les citations [SOURCE:url]
-            pattern = r'\[SOURCE:(https?://[^\]]+)\]'
+            # Crochet fermant OPTIONNEL : quand la generation s'arrete en
+            # limite de tokens, l'URL reste ouverte ("[SOURCE:https://..."
+            # sans "]"). Le motif strict ne les reconnaissait pas, laissant
+            # des marqueurs bruts dans le rapport livre — observe sur 3
+            # rapports sur 4 du run v3.
+            # L'URL s'arrete au premier espace, saut de ligne ou crochet.
+            pattern = r'\[SOURCE:\s*(https?://[^\s\]]+)\]?'
             matches = re.findall(pattern, content)
 
             for url in matches:
@@ -2475,7 +2481,11 @@ Retourne JSON:
 
             # Remplacer chaque citation par son numéro
             for url, num in url_to_num.items():
+                # Les deux formes : avec crochet fermant, et sans (generation
+                # interrompue en limite de tokens). L'ordre compte — la forme
+                # complete d'abord, sinon la forme ouverte la consommerait.
                 content = content.replace(f'[SOURCE:{url}]', f'[{num}]')
+                content = content.replace(f'[SOURCE:{url}', f'[{num}]')
 
             section['content'] = content
 
@@ -3652,7 +3662,13 @@ DONNÉES DISPONIBLES ({len(selected_data)} sources):
 {json.dumps(selected_data, indent=2, ensure_ascii=False)}
 
 RÈGLES:
-1. Cite TOUTES les sources avec format [SOURCE:url]
+1. CITATIONS — chaque affirmation factuelle porte sa source, en fin de
+   phrase, au format [SOURCE:url_complète] (crochet fermant OBLIGATOIRE).
+   Une section de 400 mots doit contenir plusieurs citations, pas une seule
+   en conclusion. Un paragraphe sans citation n'est pas verifiable : soit
+   il reformule une source et doit la citer, soit il n'apporte rien.
+   Copie l'URL exactement telle qu'elle apparaît dans les données, sans la
+   raccourcir ni l'abréger.
 2. La longueur est une CONSÉQUENCE de la matière disponible, jamais un
    objectif. Écris ce que les sources permettent d'établir, puis arrête-toi.
    Mieux vaut une section dense et courte qu'une section étirée pour
