@@ -82,6 +82,20 @@ class SearXNGClient:
         "bing": 8.0,
         "mojeek": 5.0,
         "qwant": 5.0,
+        # Index alternatifs ajoutes a l'axe generaliste. Ils sont eux aussi
+        # scrapes (pas d'API publique), donc espaces — mais moins que les
+        # grands moteurs : ils sont moins sollicites a l'echelle du web et
+        # se sont montres stables sur les tests (3 requetes chacun, aucun
+        # echec). Valeur prudente, a ajuster si des suspensions
+        # apparaissent.
+        "swisscows": 4.0,
+        "neosearch": 4.0,
+        "searchzee": 4.0,
+        "startpagina": 4.0,
+        "resulthunter": 4.0,
+        "seznam": 4.0,
+        "yacy": 4.0,
+        "naver": 4.0,
     }
     DEFAULT_ENGINE_INTERVAL = 0.5  # API publiques : Wikipedia, PubMed, arXiv...
 

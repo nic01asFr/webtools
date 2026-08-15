@@ -96,9 +96,27 @@ AXIS_PREFERENCE: Dict[str, List[str]] = {
     # A ne pas confondre avec "wikipedia" (lookup par titre exact, concu
     # pour l'infobox de l'interface web - rend 0 resultat sur une requete
     # qui n'est pas un titre d'article).
-    "generaliste": ["wikipedia search", "wiby", "wikibooks", "wikiversity",
-                    "wikisource", "google", "duckduckgo", "bing",
-                    "brave", "startpage", "google cse", "mojeek", "qwant"],
+    # Axe generaliste elargi de 3 a ~13 moteurs.
+    #
+    # Il ne comptait que google/duckduckgo/brave/startpage — tous scrapes par
+    # SearXNG faute d'API gratuite, donc tous sujets a suspension. Quand ils
+    # tombaient ENSEMBLE (observe : 5 simultanement), l'axe se vidait et des
+    # taches echouaient completement : trois rapports du run v8 sont passes
+    # de ~2 900 a ~1 500 mots, faisant chuter le score global de 0.3697 a
+    # 0.3049 — une regression imputable a la collecte, pas au code.
+    #
+    # Ordre : d'abord les sources a API publique (jamais suspendues), puis
+    # les index alternatifs valides par test (3 requetes de domaines
+    # differents chacun, aucun n'a flanche), enfin les grands moteurs
+    # scrapes en dernier recours.
+    #   searchzee 225 | startpagina 219 | swisscows 207 | neosearch 206
+    #   resulthunter 59 | naver 45 | seznam 30 | yacy 30
+    # mojeek exclu : 0 resultat sur tous les tests.
+    "generaliste": ["wikipedia search", "wiby", "wikibooks",
+                    "swisscows", "neosearch", "searchzee", "startpagina",
+                    "resulthunter", "seznam", "yacy", "naver",
+                    "google cse", "duckduckgo", "brave", "startpage",
+                    "wikiversity", "wikisource"],
     "academique": ["google scholar", "semantic scholar", "pubmed", "arxiv",
                    "crossref", "openairepublications", "openairedatasets"],
     "actualite": ["google news", "reuters", "bing news", "duckduckgo news",
