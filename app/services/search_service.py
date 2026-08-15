@@ -6,7 +6,7 @@ import asyncio
 import logging
 import os
 import time
-from typing import List, Optional
+from typing import Dict, List, Optional
 import httpx
 from pydantic import BaseModel
 
@@ -49,17 +49,80 @@ class SearXNGClient:
     _last_request_at: float = 0.0
     _min_interval = float(os.environ.get("SEARXNG_MIN_INTERVAL", "1.0"))
 
+    # --- Espacement PAR MOTEUR ------------------------------------------
+    #
+    # L'espacement global ne suffit pas, et les chiffres du run v8 le
+    # montrent : 398 recherches en 55 min, soit une toutes les 8 secondes —
+    # l'intervalle global d'1 s n'a jamais ete la contrainte. Pourtant les
+    # cinq moteurs web se sont suspendus en cours de run, faisant chuter
+    # trois rapports de moitie (2 921 -> 1 510 mots) et le score global de
+    # 0.3697 a 0.3049.
+    #
+    # La cause est la CONCENTRATION : 63 recherches ont cible l'axe
+    # generaliste, toujours sur les 3 memes moteurs. Google, Brave et
+    # DuckDuckGo ont donc recu ~63 requetes chacun en moins d'une heure.
+    # Le ciblage par axe ameliore la pertinence mais concentre la charge —
+    # c'est son effet secondaire.
+    #
+    # Un intervalle PAR MOTEUR permet de proteger les fragiles sans ralentir
+    # les autres : Wikipedia encaisse plusieurs requetes par seconde, Google
+    # non. Les moteurs a API publique gardent l'intervalle par defaut.
+    _engine_last_at: Dict[str, float] = {}
+    _engine_lock = asyncio.Lock()
+
+    # Intervalle minimal en secondes, par moteur. Les moteurs scrapes par
+    # SearXNG faute d'API gratuite sont les seuls a se suspendre : ce sont
+    # eux qu'on ralentit.
+    ENGINE_INTERVALS: Dict[str, float] = {
+        "google": 8.0,
+        "google cse": 8.0,
+        "brave": 8.0,
+        "duckduckgo": 8.0,
+        "startpage": 10.0,
+        "bing": 8.0,
+        "mojeek": 5.0,
+        "qwant": 5.0,
+    }
+    DEFAULT_ENGINE_INTERVAL = 0.5  # API publiques : Wikipedia, PubMed, arXiv...
+
     @classmethod
-    async def _respect_rate_limit(cls):
-        """Attend, si necessaire, pour espacer les appels sortants."""
-        if cls._min_interval <= 0:
+    async def _respect_rate_limit(cls, engines: Optional[str] = None):
+        """
+        Espace les appels sortants : intervalle global, plus un intervalle
+        propre a chaque moteur fragile cible par la requete.
+        """
+        # 1. Espacement global (protege l'instance SearXNG elle-meme)
+        if cls._min_interval > 0:
+            async with cls._rate_lock:
+                now = time.monotonic()
+                delta = now - cls._last_request_at
+                if delta < cls._min_interval:
+                    await asyncio.sleep(cls._min_interval - delta)
+                cls._last_request_at = time.monotonic()
+
+        # 2. Espacement par moteur. On attend le plus contraignant des
+        # moteurs cibles : si la requete vise google + wikipedia, c'est
+        # l'intervalle de google qui s'applique.
+        if not engines:
             return
-        async with cls._rate_lock:
+        names = [e.strip().lower() for e in engines.split(",") if e.strip()]
+        if not names:
+            return
+
+        async with cls._engine_lock:
             now = time.monotonic()
-            delta = now - cls._last_request_at
-            if delta < cls._min_interval:
-                await asyncio.sleep(cls._min_interval - delta)
-            cls._last_request_at = time.monotonic()
+            wait = 0.0
+            for name in names:
+                interval = cls.ENGINE_INTERVALS.get(name, cls.DEFAULT_ENGINE_INTERVAL)
+                elapsed = now - cls._engine_last_at.get(name, 0.0)
+                if elapsed < interval:
+                    wait = max(wait, interval - elapsed)
+            if wait > 0:
+                logger.debug(f"Espacement moteur : attente {wait:.1f}s ({names})")
+                await asyncio.sleep(wait)
+            done = time.monotonic()
+            for name in names:
+                cls._engine_last_at[name] = done
 
     def __init__(self, base_url: str = "http://searxng:8080"):
         """
@@ -163,7 +226,7 @@ class SearXNGClient:
                 for page in range(1, max_pages + 1):
                     # Espacement AVANT chaque appel sortant - mais apres le
                     # cache : une requete deja connue ne doit rien couter.
-                    await self._respect_rate_limit()
+                    await self._respect_rate_limit(engines)
                     params = {**base_params, "pageno": page}
                     logger.info(f"Searching SearXNG for: {query} (page {page})")
 

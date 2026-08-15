@@ -551,6 +551,20 @@ class IntelligentOrchestrator:
         # internes.
         final_answer = self._convert_sources_to_bibliography(final_answer)
 
+        # Nettoyage FINAL des marqueurs residuels, apres toutes les etapes.
+        # Le filet pose dans _final_assembly ne suffit pas : l'enrichissement
+        # iteratif puis cette conversion s'executent APRES lui et peuvent
+        # reintroduire un resume non nettoye. Ici, plus rien ne s'execute
+        # ensuite — c'est le dernier point ou agir.
+        import re as _re_final
+        _marker = _re_final.compile(r'\s*\[SOURCE:[^\]]*\]?')
+        for _k in ("summary", "introduction", "conclusion"):
+            if isinstance(final_answer.get(_k), str):
+                final_answer[_k] = _marker.sub('', final_answer[_k]).strip()
+        for _s in (final_answer.get("sections") or []):
+            if isinstance(_s.get("content"), str) and "[SOURCE:" in _s["content"]:
+                _s["content"] = _marker.sub('', _s["content"]).strip()
+
         # Étape 4.3: Génération des traces complètes
         final_answer = self._add_complete_traces(final_answer, ctx, exploration_data, plan)
 
