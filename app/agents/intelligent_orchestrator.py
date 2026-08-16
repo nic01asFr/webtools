@@ -1853,7 +1853,14 @@ CRITÈRES:
         try:
             response = await self.llm_client.generate(
                 [{"role": "user", "content": prompt}],
-                max_tokens=2000,
+                # 4000 et non 2000 : cette fonction REGENERE une section en
+                # demandant explicitement un contenu "PLUS detaille que
+                # l'original". Un plafond de 2000 jetons (~450 mots en
+                # francais) coupait donc en pleine phrase les sections
+                # qu'elle etait censee enrichir — meme defaut que la
+                # synthese initiale, ou 30% des rapports finissaient sur un
+                # mot tronque.
+                max_tokens=4000,
                 temperature=0.1
             )
 
@@ -3886,7 +3893,7 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
         logger.info(
             f"       📝 Prompt synthèse '{section_name}': {len(prompt)} chars, "
             f"{len(selected_data)} source(s), {_payload_chars} chars de données, "
-            f"objectif {words_target} mots (max_tokens={int(words_target * 2.5)})"
+            f"objectif {words_target} mots (max_tokens={int(words_target * 4.5)})"
         )
 
         # Reessai avec attente progressive : la synthese est le seul endroit du
@@ -3900,7 +3907,23 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
             try:
                 response = await self.llm_client.generate(
                     [{"role": "user", "content": prompt}],
-                    max_tokens=int(words_target * 2.5),
+                    # 4.5 jetons/mot et non 2.5.
+                    #
+                    # Le ratio 2.5 coupait les sections en pleine phrase :
+                    # 30% des rapports du run v9 se terminaient sur un mot
+                    # tronque, contre 0% sur la reference. Mesure directe :
+                    # des sections de 576, 635, 913 et 1003 mots pour un
+                    # budget de 1000 a 1375 jetons.
+                    #
+                    # Deux causes cumulees : le francais consomme plus de
+                    # jetons par mot que l'anglais (accents, elisions), et
+                    # depuis que le budget de sources est passe de 3 000 a
+                    # 16 000 caracteres le modele a bien plus de matiere,
+                    # donc redige plus long que words_target.
+                    # words_target reste un OBJECTIF indicatif ; max_tokens
+                    # doit etre un plafond de securite, pas une contrainte
+                    # qui mutile la derniere phrase.
+                    max_tokens=int(words_target * 4.5),
                     temperature=0.3
                 )
                 if response and response.strip():
