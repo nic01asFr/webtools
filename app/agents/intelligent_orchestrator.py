@@ -3378,8 +3378,14 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             _has_operator = any(
                 op in search_query for op in ("filetype:", "site:", "inurl:", "intitle:", '"')
             )
-            if _has_operator and selected_engines:
-                logger.info("       🔍 requête à opérateur : pas de restriction de moteurs")
+            if _has_operator:
+                # Journalise dans les DEUX cas : le log restait muet quand
+                # selected_engines etait deja vide, ce qui empechait de
+                # distinguer "exemption appliquee" de "code jamais atteint".
+                logger.info(
+                    f"       🔍 requête à opérateur — moteurs avant exemption : "
+                    f"{selected_engines or '(aucun)'}"
+                )
                 selected_engines = []
 
             engines_param = ",".join(selected_engines) if selected_engines else None
