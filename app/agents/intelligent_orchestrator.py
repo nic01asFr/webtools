@@ -2971,6 +2971,21 @@ pas la description de comment tu comptes le produire.
 Chaque titre de section doit pouvoir figurer dans la table des matières
 d'un rapport publié.
 
+RÈGLE — OPÉRATEURS DE RECHERCHE (search_terms):
+Tu peux utiliser des opérateurs quand ils ciblent vraiment mieux :
+  filetype:pdf   → rapports officiels, études, documents institutionnels
+  site:domaine   → source précise et identifiée (ex: site:europa.eu,
+                   site:who.int, site:insee.fr)
+  "expression"   → terminologie exacte, nom de méthode, citation
+Règles d'usage :
+- Au maximum UNE requête sur opérateur par section, jamais toutes. Un
+  opérateur restreint : si la source ciblée n'a rien, la requête rend zéro.
+  Les autres requêtes de la section restent en mots-clés simples.
+- N'utilise site: que si tu es sûr du domaine. Un domaine inventé ne rend
+  rien et fait perdre la recherche.
+- Pas d'opérateur sur les sections d'introduction ou de synthèse : elles ont
+  besoin de vue d'ensemble, pas de ciblage.
+
 RÈGLE — source_axis (par section):
 Choisis l'axe de sources adapté au CONTENU de la section :
   "academique"  -> études, données chiffrées, publications scientifiques,
@@ -3066,6 +3081,22 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                                 "type": "array",
                                 "minItems": 1,
                                 "maxItems": 3,
+                                # La consigne en prose ne suffit pas : le
+                                # modele ignorait la regle sur les operateurs,
+                                # comme il avait ignore celle sur la langue.
+                                # La description du schema est le seul endroit
+                                # ou une contrainte de FORMAT porte.
+                                "description": (
+                                    "Requetes de moteur, 1 a 3. Formule-en UNE "
+                                    "avec un operateur quand le sujet s'y prete : "
+                                    "filetype:pdf pour des rapports ou etudes, "
+                                    "site:domaine pour une source institutionnelle "
+                                    "sure (site:europa.eu, site:who.int, site:oecd.org), "
+                                    "\"expression exacte\" pour une terminologie precise. "
+                                    "Les autres restent en mots-cles simples. "
+                                    "Pas d'operateur sur les sections d'introduction "
+                                    "ou de synthese."
+                                ),
                                 "items": {"type": "string", "maxLength": 90}
                             }
                         },
@@ -3329,6 +3360,28 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                     if axis:
                         logger.info(f"       ↪ axe '{axis}' indisponible, cascade complète")
 
+            # Une requete a OPERATEUR ne doit pas etre restreinte aux moteurs
+            # de l'axe.
+            #
+            # Mesure : "...report filetype:pdf" rend 61 resultats sans
+            # restriction, et 0 sur les 3 moteurs de l'axe generaliste
+            # (wikipedia search, wiby, wikibooks). C'est logique — ce sont des
+            # encyclopedies, elles n'hebergent ni PDF institutionnels ni pages
+            # de meti.go.jp.
+            # L'elargissement de l'axe a mis les API robustes en tete pour la
+            # fiabilite ; c'est le bon choix pour une requete en mots-cles,
+            # mais il rend le dorking inoperant. Les deux mecanismes se
+            # contredisaient : les deux dorks generes ont rendu zero et
+            # declenche le repli.
+            # Un dork cible deja par lui-meme : on laisse SearXNG interroger
+            # l'ensemble des moteurs, qui filtreront selon l'operateur.
+            _has_operator = any(
+                op in search_query for op in ("filetype:", "site:", "inurl:", "intitle:", '"')
+            )
+            if _has_operator and selected_engines:
+                logger.info("       🔍 requête à opérateur : pas de restriction de moteurs")
+                selected_engines = []
+
             engines_param = ",".join(selected_engines) if selected_engines else None
 
             search_results = await searxng_client.search(
@@ -3337,6 +3390,29 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                 language=getattr(self, "_search_language", "all"),
                 engines=engines_param
             )
+
+            # Repli si un operateur de recherche n'a rien donne.
+            #
+            # Un dork (filetype:, site:, "expression") restreint fortement :
+            # si la source ciblee n'a rien sur le sujet, la requete rend zero
+            # alors que les memes mots-cles sans operateur auraient trouve.
+            # Le benefice du ciblage ne doit pas se payer d'une section vide —
+            # on a mesure qu'une section sans source fait chuter tout le
+            # rapport (trois taches du run v8 : -0.26 a -0.33 de score).
+            _OPERATORS = ("filetype:", "site:", "inurl:", "intitle:", '"')
+            if not search_results and any(op in search_query for op in _OPERATORS):
+                import re as _re_op
+                _plain = _re_op.sub(r'\b(?:filetype|site|inurl|intitle):\S+', '', search_query)
+                _plain = _plain.replace('"', '').strip()
+                _plain = " ".join(_plain.split())
+                if _plain and _plain != search_query:
+                    logger.info(f"       ↩️  opérateur infructueux, repli sans dork : '{_plain[:60]}'")
+                    search_results = await searxng_client.search(
+                        query=_plain,
+                        max_results=max_sources,
+                        language=getattr(self, "_search_language", "all"),
+                        engines=engines_param
+                    )
 
             sources = []
             if search_results:
