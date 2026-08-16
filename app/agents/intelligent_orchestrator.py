@@ -3062,6 +3062,26 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                     "type": "array",
                     "minItems": 1,
                     "maxItems": 10,
+                    # Le modele produisait 4-5 sections quelle que soit
+                    # l'ampleur de la demande. Mesure sur 20 taches :
+                    # correlation -0.29 entre longueur de consigne et score —
+                    # plus la demande est detaillee, moins le pipeline s'en
+                    # sort. Cas extreme : une consigne enumerant 6 aspects sur
+                    # une dizaine d'entreprises a recu 3 sections et 1 770
+                    # mots, le plus court des 20 rapports, et le plus mauvais
+                    # score (0.154).
+                    # La contrainte va dans la description : c'est le seul
+                    # endroit ou une exigence porte sur ce modele (verifie
+                    # trois fois : langue, source_axis, operateurs).
+                    "description": (
+                        "Sections du rapport. COUVRE TOUS LES ASPECTS "
+                        "EXPLICITEMENT DEMANDES dans la consigne : releve-les "
+                        "un par un et donne a chacun sa section. Une consigne "
+                        "qui enumere six aspects appelle au moins six "
+                        "sections, pas quatre. Une consigne courte et generale "
+                        "en appelle trois ou quatre. Ne fusionne pas deux "
+                        "aspects distincts pour tenir dans un format."
+                    ),
                     "items": {
                         "type": "object",
                         "properties": {
@@ -3834,7 +3854,34 @@ RÈGLES:
    objectif. Écris ce que les sources permettent d'établir, puis arrête-toi.
    Mieux vaut une section dense et courte qu'une section étirée pour
    atteindre un volume.
-3. Structure: paragraphes cohérents, pas de listes à puces
+3. Structure et PRÉSENTATION DES DONNÉES (critère noté explicitement) :
+   La prose reste le mode principal, mais mets en forme ce qui se lit mal en
+   paragraphe :
+   - un TABLEAU markdown dès que tu compares 3 éléments ou plus sur les mêmes
+     critères, ou que tu alignes des séries chiffrées (années, montants,
+     parts) — c'est plus clair et plus vérifiable qu'une énumération noyée
+     dans une phrase ;
+   - une LISTE courte pour des éléments réellement parallèles (conditions,
+     étapes, facteurs) ;
+   - un SOUS-TITRE (###) quand la section couvre deux angles nettement
+     distincts.
+   Ne fabrique pas de tableau pour du contenu qui n'en est pas : deux
+   chiffres dans une phrase restent une phrase.
+
+   EXEMPLE de ce qui est attendu quand tu compares trois éléments :
+
+   Les trois langages divergent nettement sur la gestion mémoire [SOURCE:url].
+
+   | Critère | Rust | Go | C++ |
+   |---|---|---|---|
+   | Sûreté mémoire | garantie à la compilation | ramasse-miettes | manuelle |
+   | Latence | prévisible | pauses GC | prévisible |
+   | Maturité | écosystème jeune | stable | très mature |
+
+   Cette différence explique pourquoi Rust est retenu pour les systèmes
+   temps réel [SOURCE:url].
+
+   Le tableau ne remplace pas l'analyse : il la précède ou la suit.
 4. Ton: informatif, précis, fluide
 5. Ne répète pas ce qui est déjà couvert par les autres sections listées ci-dessus
 
