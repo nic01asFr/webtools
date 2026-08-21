@@ -3868,17 +3868,6 @@ RÈGLES:
    Ne fabrique pas de tableau pour du contenu qui n'en est pas : deux
    chiffres dans une phrase restent une phrase.
 
-   EXEMPLE de liste, quand tu énumères des éléments de même nature :
-
-   Trois difficultés reviennent dans les retours d'expérience [SOURCE:url] :
-
-   - **observabilité limitée** : les traces distribuées restent incomplètes ;
-   - **couplage au fournisseur** : les API propriétaires freinent la portabilité ;
-   - **tests d'intégration** : reproduire l'environnement localement est coûteux.
-
-   Une énumération noyée dans une phrase ("on peut citer A, mais aussi B, sans
-   oublier C") se lit mal : c'est une liste.
-
    EXEMPLE de ce qui est attendu quand tu compares trois éléments :
 
    Les trois langages divergent nettement sur la gestion mémoire [SOURCE:url].
