@@ -155,3 +155,69 @@ sur 10 ne sont pas confirmées par la page qu'elles désignent.
   en échec comme traitées (« processing 0 instances »). **Purger le
   répertoire `fact/` complet** avant toute relance, pas seulement
   `scraped.jsonl` et `validated.jsonl`.
+
+
+---
+
+## Résultats mesurés — session du 16-21 août
+
+Référence `webtools-ref20` → état actuel `webtools-v11` (juge souverain,
+20 tâches anglaises).
+
+| Indicateur | ref20 | v11 |
+|---|---|---|
+| RACE global | 0,3697 | **0,3797** |
+| — Exhaustivité | 0,3735 | 0,3802 |
+| — Profondeur | 0,3737 | 0,3892 |
+| — Respect consigne | 0,3980 | 0,3970 |
+| — Lisibilité | 0,2995 | **0,3194** |
+| Rapports produits | 17/20 | **20/20** |
+| FACT — citations valides/tâche | 8,1 | **30,0** |
+| FACT — taux de validité | 61,4 % | 56,6 % |
+| Rapports avec tableau | 0 % | **80 %** |
+
+Le gain principal n'est pas dans RACE (+0,010, sous le seuil de détection de
+0,05) mais dans la **robustesse** : plus aucune tâche n'échoue, et le nombre
+de citations réellement vérifiées est multiplié par quatre. Le taux de
+validité baisse de 4,8 points, ce qui est le compromis attendu quand le
+volume quadruple — les citations faciles sortent en premier.
+
+## Ce qui a marché, et ce qui n'a pas marché
+
+**Les mécanismes déterministes ont produit tous les gains solides** :
+découpage complet des documents (au lieu d'une troncature à 3 000
+caractères), correction de `max_tokens`, filtre anti-méta, détection de
+langue, cascade de moteurs, espacement par moteur.
+
+**Les contraintes de schéma JSON portent, les règles en prose non.** Vérifié
+quatre fois : langue, `source_axis`, opérateurs de recherche, couverture des
+sections. Une règle dans la `description` d'un champ est respectée ; la même
+règle en prose dans le prompt est ignorée.
+
+**À défaut de schéma, un exemple concret fonctionne** — mais avec une limite
+importante. L'exemple de tableau a fait passer les rapports mis en forme de
+0 % à 80 %. En revanche, ajouter un exemple de liste a **fait perdre 0,069**
+sur toutes les dimensions et ramené les tableaux à 50 % : un exemple de plus
+peut déplacer l'attention du modèle au lieu de s'y ajouter. Le prompt de
+synthèse porte déjà beaucoup (citations, fidélité numérique, langue,
+structure, présentation).
+
+**Les listes restent hors d'atteinte par le prompt.** Deux approches
+opposées testées — restreindre le tableau, ajouter un exemple de liste — ont
+toutes deux échoué. Le modèle privilégie le tableau ; mieux vaut exploiter
+cette préférence que la combattre. Si le besoin se confirme, une
+transformation déterministe après génération serait plus fiable.
+
+## Pièges d'infrastructure rencontrés
+
+- `start_all.sh` **supervise et relance** le service : un `kill` simple ne
+  suffit pas, et on peut tester pendant une heure du code non chargé.
+  **Toujours vérifier l'heure de démarrage du processus contre la date de
+  modification du fichier** avant d'interpréter un test.
+- La configuration SearXNG (`searx/settings.yml`) vit sur le pod et **n'est
+  pas versionnée** : les moteurs activés seraient perdus à une
+  réinstallation.
+- Un correctif en amont peut être annulé par une étape en aval. Rencontré
+  cinq fois : plafonds de chunks, `selected_data[:12]`, conversion des
+  citations non appelée, résumé construit avant conversion, `max_tokens`
+  calibré pour l'ancien budget de sources.
