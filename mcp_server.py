@@ -276,11 +276,19 @@ def build_deep_diagnostics(payload: dict[str, Any]) -> dict[str, Any]:
 def deep_result(payload: dict[str, Any]) -> dict[str, Any]:
     """Resultat d'outil pour une reponse de recherche approfondie."""
     if payload.get("success") is False:
-        return {
+        failure: dict[str, Any] = {
             "success": False,
             "error": payload.get("error") or "La recherche approfondie a echoue",
             "diagnostics": build_deep_diagnostics(payload),
         }
+        # Un rapport degrade ou partiel (delai global depasse) est rendu avec
+        # success=false : le rapport existe, il ne faut pas le jeter.
+        result = payload.get("result")
+        if isinstance(result, dict) and (result.get("sections") or result.get("summary")):
+            failure["report_markdown"] = format_deep_report(payload)
+            failure["degraded"] = bool(payload.get("degraded"))
+            failure["timed_out"] = bool(payload.get("timed_out"))
+        return failure
     return {
         "success": True,
         "topic": payload.get("topic"),

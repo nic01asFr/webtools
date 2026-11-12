@@ -145,3 +145,27 @@ def test_bornes_du_parametre():
         for bad in (0, 21):
             with pytest.raises(ValidationError):
                 adapter.validate_python(bad)
+
+
+# --- R2 : un rapport degrade rendu avec success=false n'est pas jete ----------
+
+
+def test_deep_result_echec_garde_le_rapport_partiel():
+    payload = {
+        "success": False,
+        "topic": "Sujet",
+        "error": "delai depasse",
+        "degraded": True,
+        "timed_out": True,
+        "result": {"title": "T", "sections": [{"title": "A", "content": "Texte A [1]."}]},
+    }
+    out = mcp_server.deep_result(payload)
+    assert out["success"] is False
+    assert "Texte A" in out["report_markdown"]
+    assert out["degraded"] is True and out["timed_out"] is True
+    assert "data" not in out["report_markdown"]
+
+
+def test_deep_result_echec_sans_rapport_reste_minimal():
+    out = mcp_server.deep_result({"success": False, "error": "boum", "result": None})
+    assert set(out) == {"success", "error", "diagnostics"}
