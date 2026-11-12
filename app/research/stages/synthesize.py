@@ -364,6 +364,13 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
                         "cette section (refus du modele)."
                     )
 
+                if cfg.deep_verify_sections:
+                    response = await verify_section(
+                        svc, context, section_name, prompt, response, selected_data,
+                        max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
+                        temperature=cfg.synthesis_temperature,
+                    )
+
                 word_count = len(response.split())
                 if word_count < 50 and words_target >= 150:
                     logger.warning(
@@ -391,6 +398,71 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
         f"       ❌ Synthèse '{section_name}' abandonnée après {max_attempts} essais: {last_error}"
     )
     return f"[SYNTHESE_ECHOUEE] Section '{section_name}' non générée ({last_error})."
+
+
+async def verify_section(
+    svc: StageServices,
+    context: ExecutionContext,
+    section_name: str,
+    prompt: str,
+    response: str,
+    selected_data: List[Dict],
+    max_tokens: int,
+    temperature: float,
+) -> str:
+    """Verifie chaque phrase de la section contre les passages transmis au
+    modele ; reecrit une fois la section, critique jointe, si une phrase est
+    partielle, contredite ou non soutenue (C89, drapeau deep_verify_sections).
+
+    Une verification ou une reecriture en echec, vide ou refusee garde la
+    section telle quelle : la verification ne doit jamais faire perdre une
+    section.
+    """
+    from app.research.answer_check import FAULTY, check_answer, correction_request
+    from app.research.refusal import is_refusal
+
+    by_url: Dict[str, List[str]] = {}
+    for d in selected_data:
+        url = str(d.get("source") or "")
+        if url:
+            by_url.setdefault(url, []).append(str(d.get("content") or ""))
+    sources = [(url, "\n[...]\n".join(parts)) for url, parts in by_url.items()]
+    try:
+        verdicts = await check_answer(svc.llm_client, response, sources, label_style="url")
+    except Exception as e:
+        logger.warning(f"       Vérification de '{section_name}' impossible : {e}")
+        context.diagnostics.note(
+            "selection.verification_impossible", section=section_name, erreur=type(e).__name__
+        )
+        return response
+    faulty = [v for v in verdicts if v.verdict in FAULTY]
+    context.diagnostics.note(
+        "selection.verification", section=section_name, phrases=len(verdicts), fautives=len(faulty)
+    )
+    if not faulty:
+        return response
+    try:
+        corrected = await svc.llm_client.generate(
+            [
+                {"role": "user", "content": prompt},
+                {"role": "assistant", "content": response},
+                {"role": "user", "content": correction_request(faulty, "[SOURCE:url]")},
+            ],
+            max_tokens=max_tokens,
+            temperature=temperature,
+        )
+    except Exception as e:
+        logger.warning(f"       Réécriture de '{section_name}' impossible : {e}")
+        context.diagnostics.note(
+            "selection.reecriture_impossible", section=section_name, erreur=type(e).__name__
+        )
+        return response
+    if not corrected or not corrected.strip() or is_refusal(corrected):
+        context.diagnostics.note("selection.reecriture_rejetee", section=section_name)
+        return response
+    logger.info(f"       ✔ Section '{section_name}' réécrite : {len(faulty)} phrase(s) fautive(s)")
+    context.diagnostics.note("selection.section_reecrite", section=section_name, fautives=len(faulty))
+    return corrected.strip()
 
 
 async def write_sections(

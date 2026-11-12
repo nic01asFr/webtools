@@ -36,6 +36,7 @@ EXPECTED_DEFAULTS: dict[str, Any] = {
     "search_zero_result_fallback": True,
     "quick_uses_chunk_selection": False,
     "quick_verify_answer": False,
+    "deep_verify_sections": False,
     "max_sources_per_section": None,
     "exploration_max_results": 8,
     "exploration_engines": "google,duckduckgo",

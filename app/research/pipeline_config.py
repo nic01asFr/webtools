@@ -102,6 +102,7 @@ class PipelineConfig:
 
     # --- Lot V3-8 : recherche rapide ---
     quick_uses_chunk_selection: bool = False  # /research/quick: passages choisis par pertinence au lieu de 2000 car. de tete (C63)
+    deep_verify_sections: bool = False  # recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89)
     quick_verify_answer: bool = False  # /research/quick: chaque phrase verifiee contre ses sources, reecriture unique si fautive (C89)
 
     # --- Lot V3-3 : contrat de l'API de recherche approfondie ---

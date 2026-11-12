@@ -21,6 +21,7 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+_HEADING_OR_RULE = re.compile(r"^(?:#{1,6}\s|\|?\s*:?-{3,})")
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[\"«(\[*]?[A-ZÀ-ÖØ-Þ0-9])")
 _CITATION = re.compile(r"\[(\d+(?:\s*[,;–-]\s*\d+)*)\]")
 MIN_WORDS = 4
@@ -76,7 +77,7 @@ def split_sentences(text: str) -> list[str]:
     sentences: list[str] = []
     for paragraph in (text or "").split("\n"):
         paragraph = paragraph.strip()
-        if not paragraph:
+        if not paragraph or _HEADING_OR_RULE.match(paragraph):
             continue
         for piece in _SENTENCE_END.split(paragraph):
             piece = piece.strip()
@@ -85,17 +86,26 @@ def split_sentences(text: str) -> list[str]:
     return sentences
 
 
-def build_messages(sentences: list[str], sources: list[tuple[str, str]]) -> list[dict[str, str]]:
-    """sources : (titre, texte) dans l'ordre de leur numero."""
-    sources_block = "\n\n".join(
-        f"[Source {i}: {title}]\n{text}" for i, (title, text) in enumerate(sources, start=1)
-    )
+def build_messages(
+    sentences: list[str], sources: list[tuple[str, str]], label_style: str = "numero"
+) -> list[dict[str, str]]:
+    """sources : (titre ou URL, texte). label_style "numero" : les phrases
+    citent [1], [2]... dans l'ordre des sources ; "url" : elles citent
+    [SOURCE:url] (texte brut de la recherche approfondie)."""
+    if label_style == "url":
+        sources_block = "\n\n".join(f"[SOURCE:{label}]\n{text}" for label, text in sources)
+    else:
+        sources_block = "\n\n".join(
+            f"[Source {i}: {title}]\n{text}" for i, (title, text) in enumerate(sources, start=1)
+        )
     sentences_block = "\n".join(f"{i}. {s}" for i, s in enumerate(sentences, start=1))
     user = f"SOURCES :\n{sources_block}\n\nPHRASES DE LA REPONSE :\n{sentences_block}"
     return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}]
 
 
-async def check_answer(llm_client: Any, answer: str, sources: list[tuple[str, str]]) -> list[SentenceVerdict]:
+async def check_answer(
+    llm_client: Any, answer: str, sources: list[tuple[str, str]], label_style: str = "numero"
+) -> list[SentenceVerdict]:
     """Verdict de chaque phrase de la reponse (phrases trop courtes exclues).
 
     Leve l'exception du client LLM si la verification echoue : l'appelant
@@ -105,7 +115,8 @@ async def check_answer(llm_client: Any, answer: str, sources: list[tuple[str, st
     if not sentences:
         return []
     raw = await llm_client.generate_structured(
-        build_messages(sentences, sources), schema=SCHEMA, schema_name="verification", temperature=0
+        build_messages(sentences, sources, label_style), schema=SCHEMA, schema_name="verification",
+        temperature=0,
     )
     verdicts: list[SentenceVerdict] = []
     for item in (raw or {}).get("phrases") or []:
@@ -121,7 +132,7 @@ async def check_answer(llm_client: Any, answer: str, sources: list[tuple[str, st
     return verdicts
 
 
-def correction_request(faulty: list[SentenceVerdict]) -> str:
+def correction_request(faulty: list[SentenceVerdict], citation_format: str = "[1], [2]...") -> str:
     """Message demandant la reecriture de la reponse, critique jointe."""
     lines = [
         "Verification de ta reponse contre les sources : les phrases suivantes ne sont pas "
@@ -132,7 +143,7 @@ def correction_request(faulty: list[SentenceVerdict]) -> str:
     lines.append(
         "Reecris la reponse complete : corrige ces phrases d'apres les sources, ou retire-les si "
         "les sources ne permettent pas de les soutenir. Garde les phrases correctes et les memes "
-        "regles (uniquement les sources fournies, citations [1], [2]...). Rends uniquement la "
+        f"regles (uniquement les sources fournies, citations {citation_format}). Rends uniquement la "
         "reponse reecrite."
     )
     return "\n".join(lines)

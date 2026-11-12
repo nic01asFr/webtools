@@ -97,3 +97,70 @@ def test_split_sentences_et_demande_de_correction() -> None:
     ]
     text = correction_request([SentenceVerdict(1, FIRST, "contredite", "la source dit 90 jours")])
     assert FIRST in text and "la source dit 90 jours" in text and "Reecris la reponse complete" in text
+
+
+
+# --- Recherche approfondie : verification des sections (deep_verify_sections) ---
+
+import dataclasses
+import re
+
+from app.research.context import ExecutionContext
+from app.research.stages.synthesize import synthesize_single_section
+from tests.contract.test_pipeline_contract import build_orchestrator, nominal
+
+SECTION_URL = "https://example.org/kyoto"
+SECTION_DATA = [{"source": SECTION_URL, "title": "Kyoto", "content": PAGE * 20}]
+DRAFT = "Le protocole est entre en vigueur le quarantieme jour suivant la ratification [SOURCE:" + SECTION_URL + "]."
+CORRECTED = (
+    "Le protocole est entre en vigueur le quatre-vingt-dixieme jour suivant la ratification "
+    "[SOURCE:" + SECTION_URL + "]."
+)
+
+
+def _deep(verdict: str, verify: bool = True):
+    orch, llm, _search, _extractor = build_orchestrator(nominal())
+    orch.config = dataclasses.replace(orch.config, deep_verify_sections=verify)
+    llm._text.insert(0, (re.compile("Verification de ta reponse", re.DOTALL), CORRECTED))
+    llm._text.insert(1, (re.compile("Rédige la section", re.DOTALL), DRAFT))
+    llm.on_structured("verification", {"phrases": [{"numero": 1, "verdict": verdict, "probleme": "90 jours"}]})
+    return orch, llm
+
+
+async def _write(orch) -> tuple[str, ExecutionContext]:
+    ctx = ExecutionContext("q", config=orch.config)
+    out = await synthesize_single_section(
+        orch.services(), "q", "Entree en vigueur", {"depth": "moderate", "words_target": 300},
+        SECTION_DATA, ctx,
+    )
+    return out, ctx
+
+
+async def test_section_fautive_reecrite() -> None:
+    orch, llm = _deep("contredite")
+    out, ctx = await _write(orch)
+    assert out == CORRECTED
+    assert ctx.diagnostics.count("selection.section_reecrite") == 1
+    check = [c for c in llm.calls if c.schema_name == "verification"][0]
+    # Le verificateur voit les passages sous l'etiquette [SOURCE:url] citee par la section.
+    assert f"[SOURCE:{SECTION_URL}]" in check.prompt and DRAFT in check.prompt
+
+
+async def test_section_soutenue_inchangee() -> None:
+    orch, _llm = _deep("soutenue")
+    out, ctx = await _write(orch)
+    assert out == DRAFT
+    assert ctx.diagnostics.count("selection.section_reecrite") == 0
+    assert ctx.diagnostics.count("selection.verification") == 1
+
+
+async def test_sans_drapeau_section_non_verifiee() -> None:
+    orch, llm = _deep("contredite", verify=False)
+    out, _ctx = await _write(orch)
+    assert out == DRAFT
+    assert not [c for c in llm.calls if c.schema_name == "verification"]
+
+
+def test_titres_et_regles_de_tableau_non_verifies() -> None:
+    text = "### Calendrier\n| A | B |\n|---|---|\n| 2005 | entree en vigueur |\nPhrase normale ici [1]."
+    assert split_sentences(text) == ["| A | B |", "| 2005 | entree en vigueur |", "Phrase normale ici [1]."]
