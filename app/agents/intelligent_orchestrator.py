@@ -101,8 +101,9 @@ class ExecutionContext:
 
     def add_step(self, tool: str, action: str, input_data: Any, output_data: Any, success: bool):
         """Enregistre une étape."""
-        input_str = str(input_data)[:100]
-        output_str = str(output_data)[:100] if output_data else ""
+        preview_chars = self.config.step_preview_chars
+        input_str = str(input_data)[:preview_chars]
+        output_str = str(output_data)[:preview_chars] if output_data else ""
 
         self.steps.append({
             "step_number": len(self.steps) + 1,
@@ -315,7 +316,10 @@ class IntelligentOrchestrator:
         # une section trop lente devient une section sans donnees (reprise
         # par le complement pre-redaction ci-dessous), les autres aboutissent
         # normalement. Coherent avec return_exceptions=True.
-        section_budget = max(60, int(self.timeout * 0.8))
+        section_budget = max(
+            ctx.config.section_budget_min_seconds,
+            int(self.timeout * ctx.config.section_budget_timeout_ratio),
+        )
 
         async def _research_and_extract_bounded(name: str, cfg: Dict):
             try:
@@ -361,13 +365,22 @@ class IntelligentOrchestrator:
         # qui restent les filets de securite en aval si ceci ne suffit pas).
         _strategy = plan.get('search_strategy', {})
 
-        base_threshold = _strategy.get('sources_per_section', 2)
-        DEPTH_MODULATION = {"light": -1, "moderate": 0, "deep": 1}
+        base_threshold = _strategy.get(
+            'sources_per_section', ctx.config.complement_default_sources_per_section
+        )
+        DEPTH_MODULATION = {
+            "light": ctx.config.complement_depth_light_delta,
+            "moderate": ctx.config.complement_depth_moderate_delta,
+            "deep": ctx.config.complement_depth_deep_delta,
+        }
 
         for section_name, section_config in section_targets.items():
             n_sources = len(extracted_by_section.get(section_name, []))
             depth = section_config.get('depth', 'moderate')
-            threshold = max(1, base_threshold + DEPTH_MODULATION.get(depth, 0))
+            threshold = max(
+                ctx.config.complement_min_threshold,
+                base_threshold + DEPTH_MODULATION.get(depth, 0),
+            )
 
             if n_sources < threshold:
                 logger.info(f"  🔎 Complément pré-rédaction pour '{section_name}': {n_sources}/{threshold} sources")
@@ -450,7 +463,7 @@ class IntelligentOrchestrator:
         # total d'un rapport deja long (55-280s observes).
         try:
             final_answer = await self._iterative_enrichment(
-                query, ctx, final_answer, max_iterations=1
+                query, ctx, final_answer, max_iterations=ctx.config.enrichment_max_iterations
             )
         except Exception as e:
             logger.warning(f"Enrichissement iteratif echoue, rapport initial conserve: {e}")
@@ -635,7 +648,13 @@ class IntelligentOrchestrator:
             "processing_time": (datetime.now() - started).total_seconds(),
         }
 
-    def _score_relevance(self, content: str, query: str, structured_data: Optional[Dict] = None) -> float:
+    def _score_relevance(
+        self,
+        content: str,
+        query: str,
+        structured_data: Optional[Dict] = None,
+        config: PipelineConfig | None = None,
+    ) -> float:
         """
         Score la pertinence d'un chunk de contenu par rapport à la requête.
 
@@ -650,6 +669,7 @@ class IntelligentOrchestrator:
         if not content:
             return 0.0
 
+        cfg = config if config is not None else self.config
         score = 0.0
         content_lower = content.lower()
         query_lower = query.lower()
@@ -670,7 +690,11 @@ class IntelligentOrchestrator:
             # On sature desormais sur un nombre de correspondances ABSOLU :
             # 8 mots distincts retrouves valent le maximum, quelle que soit la
             # longueur de la consigne.
-            keyword_score = min(40.0, (matched_words / 8.0) * 40.0)
+            keyword_score = min(
+                cfg.selection_keyword_max_points,
+                (matched_words / cfg.selection_keyword_match_saturation)
+                * cfg.selection_keyword_max_points,
+            )
             score += keyword_score
 
         # 2. Structured data boost (max 30 points)
@@ -680,18 +704,29 @@ class IntelligentOrchestrator:
             ent_count = len(structured_data.get("entities", []))
 
             # Plus de données structurées = plus pertinent
-            struct_score = min(30, (num_count * 3) + (temp_count * 2) + (ent_count * 1))
+            struct_score = min(
+                cfg.selection_structured_max_points,
+                (num_count * cfg.selection_structured_numerical_weight)
+                + (temp_count * cfg.selection_structured_temporal_weight)
+                + (ent_count * cfg.selection_structured_entity_weight),
+            )
             score += struct_score
 
         # 3. Content length quality (max 20 points)
         # Ni trop court (< 500 chars) ni trop long (> 5000 chars)
         content_len = len(content)
-        if 500 <= content_len <= 5000:
-            length_score = 20
-        elif content_len < 500:
-            length_score = (content_len / 500) * 20
-        else:  # > 5000
-            length_score = max(10, 20 - ((content_len - 5000) / 1000))
+        len_min = cfg.selection_length_ideal_min_chars
+        len_max = cfg.selection_length_ideal_max_chars
+        len_points = cfg.selection_length_max_points
+        if len_min <= content_len <= len_max:
+            length_score = len_points
+        elif content_len < len_min:
+            length_score = (content_len / len_min) * len_points
+        else:  # > len_max
+            length_score = max(
+                cfg.selection_length_floor_points,
+                len_points - ((content_len - len_max) / cfg.selection_length_decay_chars),
+            )
         score += length_score
 
         # 4. Presence of numbers/dates (max 10 points)
@@ -699,7 +734,10 @@ class IntelligentOrchestrator:
         numbers = re.findall(r'\d+(?:[.,]\d+)?', content)
         dates = re.findall(r'\d{4}[-/]\d{2}[-/]\d{2}|\d{2}[-/]\d{2}[-/]\d{4}', content)
 
-        data_score = min(10, len(numbers) + len(dates) * 2)
+        data_score = min(
+            cfg.selection_numbers_max_points,
+            len(numbers) + len(dates) * cfg.selection_dates_weight,
+        )
         score += data_score
 
         return min(100.0, score)
@@ -708,7 +746,7 @@ class IntelligentOrchestrator:
         self,
         all_data: List[Dict],
         query: str,
-        max_chars: int = 50000,
+        max_chars: int | None = None,
         depth: str = "moderate",
         min_score_threshold: float = None,
         context: Optional["ExecutionContext"] = None,
@@ -724,7 +762,7 @@ class IntelligentOrchestrator:
         Args:
             all_data: Toutes les données collectées
             query: Requête utilisateur pour contexte
-            max_chars: Budget maximum de caractères
+            max_chars: Budget maximum de caractères (selection_default_max_chars si None)
             depth: "light" | "moderate" | "deep" - Profondeur d'analyse attendue
             min_score_threshold: Score minimum pour inclure un chunk (auto si None)
             context: contexte de la requete (cache d'embeddings, diagnostics,
@@ -733,6 +771,10 @@ class IntelligentOrchestrator:
         Returns:
             Liste triée des chunks les plus pertinents
         """
+        cfg = context.config if context is not None else self.config
+        if max_chars is None:
+            max_chars = cfg.selection_default_max_chars
+
         # Filtrer les items valides d'abord (necessaire pour le batch d'embeddings)
         valid_items = [
             item for item in all_data
@@ -781,7 +823,7 @@ class IntelligentOrchestrator:
 
             # Score mots-cles + donnees structurees (existant)
             structured_data = item.get("structured_data")
-            keyword_score = self._score_relevance(content, query, structured_data)
+            keyword_score = self._score_relevance(content, query, structured_data, config=cfg)
 
             # Score semantique (0-1 -> 0-100) vs la requete
             sem = semantic_scores.get(id(item))
@@ -791,7 +833,10 @@ class IntelligentOrchestrator:
             # corroboration_count) merite de remonter, meme si son score
             # de pertinence brut est un peu plus faible - c'est le meme
             # principe que le croisement de sources en fact-checking.
-            corrob = min(item.get("corroboration_count", 0), 3) / 3.0  # plafonne a 3 sources
+            corrob = (
+                min(item.get("corroboration_count", 0), cfg.selection_corroboration_cap)
+                / float(cfg.selection_corroboration_cap)
+            )  # plafonne a selection_corroboration_cap sources
 
             if sem is not None:
                 # Densite factuelle : 4e composante, en BONUS additif plutot
@@ -818,16 +863,27 @@ class IntelligentOrchestrator:
                 fact_bonus = 0.0
                 try:
                     from app.utils.factual_density import factual_density
-                    fact_bonus = factual_density(item.get("content", ""))["score"] * 10.0
+                    fact_bonus = (
+                        factual_density(item.get("content", ""))["score"]
+                        * cfg.selection_fact_bonus_max
+                    )
                 except Exception as e:
                     if context is not None:
                         context.diagnostics.note(
                             "selection.densite_factuelle_indisponible", erreur=str(e)
                         )
 
-                score = (keyword_score * 0.5) + (sem * 100 * 0.35) + (corrob * 100 * 0.15) + fact_bonus
+                score = (
+                    (keyword_score * cfg.selection_weight_keyword)
+                    + (sem * 100 * cfg.selection_weight_semantic)
+                    + (corrob * 100 * cfg.selection_weight_corroboration)
+                    + fact_bonus
+                )
             else:
-                score = (keyword_score * 0.85) + (corrob * 100 * 0.15)
+                score = (
+                    (keyword_score * cfg.selection_weight_keyword_only)
+                    + (corrob * 100 * cfg.selection_weight_corroboration)
+                )
 
             scored_items.append({
                 "score": score,
@@ -849,22 +905,22 @@ class IntelligentOrchestrator:
         # Doublees pour que max_chars redevienne la contrainte effective.
         if min_score_threshold is None:
             if depth == "light":
-                min_score_threshold = 60.0
-                max_chunks_target = 8
+                min_score_threshold = cfg.selection_min_score_light
+                max_chunks_target = cfg.selection_max_chunks_light
             elif depth == "deep":
-                min_score_threshold = 35.0
-                max_chunks_target = 30
+                min_score_threshold = cfg.selection_min_score_deep
+                max_chunks_target = cfg.selection_max_chunks_deep
             else:  # moderate
-                min_score_threshold = 40.0
-                max_chunks_target = 16
+                min_score_threshold = cfg.selection_min_score_moderate
+                max_chunks_target = cfg.selection_max_chunks_moderate
         else:
-            max_chunks_target = 40
+            max_chunks_target = cfg.selection_max_chunks_explicit_threshold
 
         # Sélectionner les meilleurs chunks
         selected = []
         total_chars = 0
         chunks_selected = 0
-        max_per_source = context.config.max_chunks_per_source if context is not None else 0
+        max_per_source = context.config.max_chunks_per_source if context is not None else 0  # 0 sans contexte : pas de plafond
         per_source: Dict[str, int] = {}
 
         for scored in scored_items:
@@ -892,7 +948,7 @@ class IntelligentOrchestrator:
                 # Pour profondeur deep, essayer de prendre au moins un extrait
                 if depth == "deep":
                     remaining = max_chars - total_chars
-                    if remaining > 1000:  # Au moins 1000 chars disponibles
+                    if remaining > cfg.selection_deep_min_remaining_chars:  # budget restant suffisant
                         # Truncate ce chunk pour fit
                         item_copy = item.copy()
                         item_copy["content"] = item["content"][:remaining]
@@ -912,7 +968,7 @@ class IntelligentOrchestrator:
         # sortait jusqu'ici avec success=true. Le seuil sert a classer, il ne
         # doit pas pouvoir aneantir la production.
         if not selected and scored_items:
-            fallback_n = min(3, len(scored_items))
+            fallback_n = min(cfg.selection_fallback_chunks, len(scored_items))
             for scored in scored_items[:fallback_n]:
                 selected.append(scored["item"])
                 total_chars += scored["content_length"]
@@ -985,10 +1041,14 @@ class IntelligentOrchestrator:
                 len(s.get('content', '') or '') for s in report.get('sections', [])
             )
             n_sections = max(1, len(report.get('sections', [])))
-            report_is_thin = total_chars < 800 * n_sections
+            report_is_thin = total_chars < ctx.config.enrichment_thin_chars_per_section * n_sections
 
             # Si qualité suffisante, arrêter
-            if overall_score is not None and overall_score >= 85 and not report_is_thin:
+            if (
+                overall_score is not None
+                and overall_score >= ctx.config.enrichment_stop_score
+                and not report_is_thin
+            ):
                 logger.info("  ✅ Qualité suffisante atteinte")
                 break
 
@@ -1015,7 +1075,7 @@ class IntelligentOrchestrator:
                 if sec.get('title') in analysed_titles:
                     continue  # traitée par la boucle ci-dessous
                 content_length = len(sec.get('content', '') or '')
-                if content_length < 2000:
+                if content_length < ctx.config.enrichment_min_section_chars:
                     logger.warning(
                         f"  ⚠️  Section '{sec.get('title')}' non analysée et trop courte "
                         f"({content_length} chars) — enrichissement forcé"
@@ -1039,9 +1099,12 @@ class IntelligentOrchestrator:
 
                 # Critères: score < 75 OU longueur < 2000 chars
                 content_length = len(actual_section.get('content', '')) if actual_section else 0
-                if score < 75 or content_length < 2000:
+                if (
+                    score < ctx.config.enrichment_weak_score
+                    or content_length < ctx.config.enrichment_min_section_chars
+                ):
                     weak_sections.append(section_analysis)
-                    if content_length < 2000:
+                    if content_length < ctx.config.enrichment_min_section_chars:
                         logger.info(f"  📏 Section '{section_title}' trop courte: {content_length} chars")
 
             if not weak_sections:
@@ -1053,12 +1116,12 @@ class IntelligentOrchestrator:
                 "enrichissement.iteration",
                 iteration=iteration + 1,
                 weak_sections=len(weak_sections),
-                regenerated_max=min(2, len(weak_sections)),
+                regenerated_max=min(ctx.config.enrichment_max_sections_per_iteration, len(weak_sections)),
                 overall_score=overall_score,
             )
 
             # Enrichir les sections faibles (max 2 par itération)
-            for section_analysis in weak_sections[:2]:
+            for section_analysis in weak_sections[:ctx.config.enrichment_max_sections_per_iteration]:
                 section_title = section_analysis.get('title')
                 missing = section_analysis.get('missing', [])
 
@@ -1117,7 +1180,7 @@ class IntelligentOrchestrator:
 REQUÊTE: "{query}"
 
 RAPPORT:
-{chr(10).join(sections_text)[:5000]}
+{chr(10).join(sections_text)[:ctx.config.enrichment_report_chars]}
 
 Pour CHAQUE section, évalue:
 
@@ -1164,8 +1227,8 @@ CRITÈRES:
                 # qu'elle etait censee enrichir — meme defaut que la
                 # synthese initiale, ou 30% des rapports finissaient sur un
                 # mot tronque.
-                max_tokens=4000,
-                temperature=0.1
+                max_tokens=ctx.config.enrichment_analysis_max_tokens,
+                temperature=ctx.config.enrichment_analysis_temperature
             )
 
             # Parser JSON
@@ -1213,7 +1276,7 @@ CRITÈRES:
             _engines = await self._cascade_engines(search_query, ctx=ctx)
             results = await self.search_client.search(
                 search_query,
-                max_results=self._search_pool_size(5),
+                max_results=self._search_pool_size(cfg.targeted_search_pool_size),
                 language=ctx.search_language if cfg.search_language_from_query else "all",
                 engines=",".join(_engines) if _engines else None,
             )
@@ -1229,7 +1292,7 @@ CRITÈRES:
                 return None
 
             # Extraire les 2 premiers résultats les plus pertinents
-            urls_to_extract = [r.url for r in results[:2]]
+            urls_to_extract = [r.url for r in results[:cfg.targeted_search_max_urls]]
 
             extracted_data = []
             for url in urls_to_extract:
@@ -1238,7 +1301,7 @@ CRITÈRES:
                         url=url,
                         llm_client=self.llm_client,
                         options=ExtractionOptions(
-                            timeout=30,
+                            timeout=cfg.targeted_extract_timeout,
                             use_agent=False,
                             headless=True,
                             rss_tier_root_only=cfg.rss_tier_root_only,
@@ -1252,7 +1315,7 @@ CRITÈRES:
                         structured = None
                         if not cfg.targeted_search_skip_structured:
                             structured = await self.data_extractor.extract_structured_data(
-                                content=extract_result.content[:2000],
+                                content=extract_result.content[:cfg.targeted_structured_input_chars],
                                 source_url=url,
                                 topic_context=f"{query} - {section_title}"
                             )
@@ -1322,7 +1385,7 @@ CRITÈRES:
             enrichment_data.get('sources', []),
             indent=2,
             ensure_ascii=False
-        )[:3000]
+        )[:ctx.config.enrichment_data_chars]
 
         prompt = f"""Améliore cette section de rapport avec les nouvelles données collectées:
 
@@ -1357,8 +1420,8 @@ IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
         try:
             response = await self.llm_client.generate(
                 [{"role": "user", "content": prompt}],
-                max_tokens=2000,
-                temperature=0.1
+                max_tokens=ctx.config.enrichment_regenerate_max_tokens,
+                temperature=ctx.config.enrichment_regenerate_temperature
             )
 
             # Parser JSON
@@ -1477,8 +1540,8 @@ Consignes:
                 [{"role": "user", "content": prompt}],
                 schema=schema,
                 schema_name="section_regeneree",
-                max_tokens=6000,
-                temperature=0.1,
+                max_tokens=ctx.config.enrichment_regenerate_v2_max_tokens,
+                temperature=ctx.config.enrichment_regenerate_temperature,
             )
         except Exception as e:
             logger.error(f"Erreur régénération section (v2): {e}")
@@ -1568,9 +1631,9 @@ Consignes:
         logger.info("  🔎 Exploration initiale (recherche restreinte)")
 
         cfg = ctx.config if ctx is not None else self.config
-        max_results = 8  # Restreint pour exploration rapide
+        max_results = cfg.exploration_max_results  # Restreint pour exploration rapide
         search_query = query
-        engines_param: Optional[str] = "google,duckduckgo"
+        engines_param: Optional[str] = cfg.exploration_engines
         if cfg.exploration_uses_plan_query:
             # La consigne entiere n'est pas une requete : meme reduction que
             # pour les sections, et moteurs de la cascade plutot que les deux
@@ -1600,7 +1663,7 @@ Consignes:
                     {
                         "url": r.url,
                         "title": r.title,
-                        "snippet": r.content[:200] if r.content else ""
+                        "snippet": r.content[:cfg.exploration_snippet_chars] if r.content else ""
                     }
                     for r in search_results
                 ]
@@ -1611,10 +1674,13 @@ Consignes:
                 urls_found = self._filter_by_constraints(urls_found)[:max_results]
 
             # Analyser les snippets pour identifier sous-thèmes
-            topics_found = self._extract_topics_from_snippets(urls_found)
+            topics_found = self._extract_topics_from_snippets(urls_found, config=cfg)
 
             # Évaluer la richesse du champ
-            field_assessment = "rich" if len(urls_found) >= 6 else ("moderate" if len(urls_found) >= 3 else "limited")
+            field_assessment = (
+                "rich" if len(urls_found) >= cfg.exploration_rich_min_sources
+                else ("moderate" if len(urls_found) >= cfg.exploration_moderate_min_sources else "limited")
+            )
 
             logger.info(f"     → {len(urls_found)} sources, champ: {field_assessment}")
             logger.info(f"     → Sous-thèmes: {', '.join(topics_found[:3])}")
@@ -1625,7 +1691,7 @@ Consignes:
                 "topics_found": topics_found,
                 "data_preview": {
                     "total_sources": len(urls_found),
-                    "snippets": [u["snippet"] for u in urls_found[:3]]
+                    "snippets": [u["snippet"] for u in urls_found[:cfg.exploration_preview_snippets]]
                 }
             }
 
@@ -1650,7 +1716,7 @@ Consignes:
         domaines exclus occuper les places avant le filtre (C35).
         """
         if getattr(self, "_domains_whitelist", None) or getattr(self, "_domains_exclusions", None):
-            return wanted * 3
+            return wanted * self.config.search_pool_multiplier
         return wanted
 
     async def _cascade_engines(
@@ -1669,6 +1735,7 @@ Consignes:
         """
         from app.services.engine_catalog import engine_catalog
 
+        cfg = ctx.config if ctx is not None else self.config
         if not engine_catalog.available:
             await engine_catalog.ensure_loaded()
         if not engine_catalog.available:
@@ -1681,14 +1748,14 @@ Consignes:
         # "projections demographiques" interroge l'axe academique, une
         # section "reactions du marche" l'axe actualite.
         if axis:
-            selected_engines = engine_catalog.cascade(per_axis=3, axes=[axis])
+            selected_engines = engine_catalog.cascade(per_axis=cfg.cascade_engines_per_axis, axes=[axis])
             if selected_engines:
                 logger.info(f"       🎯 axe '{axis}' → {len(selected_engines)} moteur(s)")
 
         # Repli elargi : si l'axe demande ne rend aucun moteur DISPONIBLE, on
         # elargit plutot que de laisser la section sans source.
         if not selected_engines:
-            selected_engines = engine_catalog.cascade(per_axis=3)
+            selected_engines = engine_catalog.cascade(per_axis=cfg.cascade_engines_per_axis)
             if axis:
                 logger.info(f"       ↪ axe '{axis}' indisponible, cascade complète")
 
@@ -1705,7 +1772,9 @@ Consignes:
             return []
         return selected_engines
 
-    def _extract_topics_from_snippets(self, urls_data: List[Dict]) -> List[str]:
+    def _extract_topics_from_snippets(
+        self, urls_data: List[Dict], config: PipelineConfig | None = None
+    ) -> List[str]:
         """Extrait les sous-thèmes des snippets de recherche."""
         # Analyse simple par mots-clés fréquents
         from collections import Counter
@@ -1720,9 +1789,10 @@ Consignes:
         # Mots les plus fréquents (hors stopwords basiques)
         stopwords = {'this', 'that', 'with', 'from', 'have', 'more', 'will', 'your', 'about', 'what', 'when', 'where', 'which', 'their', 'there'}
         filtered = [w for w in words if w not in stopwords]
-        common = Counter(filtered).most_common(5)
+        cfg = config if config is not None else self.config
+        common = Counter(filtered).most_common(cfg.exploration_topics_max)
 
-        return [word for word, count in common if count >= 2]
+        return [word for word, count in common if count >= cfg.exploration_topic_min_count]
 
     # Titres de sections qui decrivent le TRAVAIL et non le sujet. Observe
     # sur la tache 55 du benchmark : le modele avait ajoute "Structure Finale
@@ -1824,6 +1894,8 @@ Consignes:
         """
         logger.info("  📋 Création du plan détaillé avec canvas")
 
+        cfg = ctx.config if ctx is not None else self.config
+
         # Construire le contexte enrichi
         topics_found = exploration_data.get("topics_found", [])
         field_richness = exploration_data.get("field_assessment", "moderate")
@@ -1836,8 +1908,8 @@ REQUÊTE: "{query}"
 DONNÉES D'EXPLORATION:
 - Sources découvertes: {sources_count}
 - Richesse du champ: {field_richness}
-- Sous-thèmes identifiés: {', '.join(topics_found[:5])}
-- Aperçu: {exploration_data.get('data_preview', {}).get('snippets', [])[0][:150] if exploration_data.get('data_preview', {}).get('snippets') else 'N/A'}
+- Sous-thèmes identifiés: {', '.join(topics_found[:cfg.plan_topics_in_prompt])}
+- Aperçu: {exploration_data.get('data_preview', {}).get('snippets', [])[0][:cfg.plan_snippet_chars] if exploration_data.get('data_preview', {}).get('snippets') else 'N/A'}
 
 CONTEXTE UTILISATEUR:
 {json.dumps(context, indent=2) if context else "Aucun"}
@@ -1980,7 +2052,7 @@ Pour "Écosystème Rust 2024, adoption, roadmap":
   "search_strategy": {{"total_sources_needed": 15, "sources_per_section": 3, "search_depth": "exhaustive"}}
 }}
 
-IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_found[:5])}
+IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_found[:cfg.plan_topics_in_prompt])}
 """
 
         def _note(event: str, **details: Any) -> None:
@@ -2010,7 +2082,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                 "sections": {
                     "type": "array",
                     "minItems": 1,
-                    "maxItems": 10,
+                    "maxItems": cfg.plan_max_sections,
                     # Le modele produisait 4-5 sections quelle que soit
                     # l'ampleur de la demande. Mesure sur 20 taches :
                     # correlation -0.29 entre longueur de consigne et score —
@@ -2035,7 +2107,11 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                         "type": "object",
                         "properties": {
                             "name": {"type": "string"},
-                            "words_target": {"type": "integer", "minimum": 100, "maximum": 1200},
+                            "words_target": {
+                                "type": "integer",
+                                "minimum": cfg.plan_words_target_min,
+                                "maximum": cfg.plan_words_target_max,
+                            },
                             "depth": {"type": "string", "enum": ["light", "moderate", "deep"]},
                             "objectives": {"type": "array", "items": {"type": "string"}},
                             "key_questions": {"type": "array", "items": {"type": "string"}},
@@ -2056,7 +2132,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                             "search_terms": {
                                 "type": "array",
                                 "minItems": 1,
-                                "maxItems": 3,
+                                "maxItems": cfg.plan_max_search_terms,
                                 # La consigne en prose ne suffit pas : le
                                 # modele ignorait la regle sur les operateurs,
                                 # comme il avait ignore celle sur la langue.
@@ -2073,7 +2149,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                                     "Pas d'operateur sur les sections d'introduction "
                                     "ou de synthese."
                                 ),
-                                "items": {"type": "string", "maxLength": 90}
+                                "items": {"type": "string", "maxLength": cfg.plan_search_term_max_chars}
                             }
                         },
                         # source_axis en required : sans cela le modele omet
@@ -2123,16 +2199,20 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             "complexity_analysis": {"overall_score": 3.0, "target_length": "standard", "estimated_words": 1200},
             "sections": ["Introduction", "Analyse", "Conclusion"],
             "section_targets": {
-                "Introduction": {"words_target": 300, "depth": "moderate", "objectives": ["Introduire le sujet"], "key_questions": []},
-                "Analyse": {"words_target": 600, "depth": "moderate", "objectives": ["Analyser le sujet"], "key_questions": []},
-                "Conclusion": {"words_target": 300, "depth": "light", "objectives": ["Conclure"], "key_questions": []}
+                "Introduction": {"words_target": cfg.plan_fallback_intro_words, "depth": "moderate", "objectives": ["Introduire le sujet"], "key_questions": []},
+                "Analyse": {"words_target": cfg.plan_fallback_analysis_words, "depth": "moderate", "objectives": ["Analyser le sujet"], "key_questions": []},
+                "Conclusion": {"words_target": cfg.plan_fallback_conclusion_words, "depth": "light", "objectives": ["Conclure"], "key_questions": []}
             },
             "narrative_flow": [],
-            "search_strategy": {"total_sources_needed": 10, "sources_per_section": 3, "search_depth": "standard"}
+            "search_strategy": {
+                "total_sources_needed": cfg.plan_fallback_total_sources,
+                "sources_per_section": cfg.plan_fallback_sources_per_section,
+                "search_depth": "standard",
+            }
         }
 
         if self.config.plan_prompt_v2:
-            prompt = self._build_plan_prompt_v2(query, context, exploration_data)
+            prompt = self._build_plan_prompt_v2(query, context, exploration_data, cfg)
             if not self.llm_client.supports_structured:
                 # Sans sortie structuree, le schema devient la seule description
                 # du format attendu.
@@ -2155,7 +2235,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                     # pipeline retombait sur le plan de secours — sans axes,
                     # sans search_terms. Un depassement silencieux de ce genre
                     # annule tout le travail de structuration en amont.
-                    max_tokens=6000, temperature=0.2
+                    max_tokens=cfg.plan_max_tokens_structured, temperature=cfg.plan_temperature
                 )
                 # Conversion vers le format interne historique (sections=liste
                 # de strings, section_targets=dict) attendu par tout le reste
@@ -2192,7 +2272,9 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             else:
                 # Repli non-structure pour un client sans generate_structured (ex: Albert)
                 response = await self.llm_client.generate(
-                    [{"role": "user", "content": prompt}], max_tokens=3000, temperature=0.2
+                    [{"role": "user", "content": prompt}],
+                    max_tokens=cfg.plan_max_tokens_unstructured,
+                    temperature=cfg.plan_temperature,
                 )
                 start_idx = response.find('{')
                 if start_idx != -1:
@@ -2229,7 +2311,12 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         return fallback
 
     @staticmethod
-    def _build_plan_prompt_v2(query: str, context: dict, exploration_data: dict) -> str:
+    def _build_plan_prompt_v2(
+        query: str,
+        context: dict,
+        exploration_data: dict,
+        config: PipelineConfig | None = None,
+    ) -> str:
         """
         Prompt de planification v2 (drapeau plan_prompt_v2).
 
@@ -2239,6 +2326,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         Il ne recoit que les champs utiles du contexte, pas le dictionnaire
         entier.
         """
+        cfg = config if config is not None else PipelineConfig()
         ctx_in = context if isinstance(context, dict) else {}
         topics = exploration_data.get("topics_found", [])
         snippets = (exploration_data.get("data_preview") or {}).get("snippets") or []
@@ -2273,10 +2361,10 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             "EXPLORATION:",
             f"- Sources decouvertes: {len(exploration_data.get('sources', []))}",
             f"- Richesse du champ: {exploration_data.get('field_assessment', 'moderate')}",
-            f"- Sous-themes identifies: {', '.join(str(t) for t in topics[:5]) or 'N/A'}",
+            f"- Sous-themes identifies: {', '.join(str(t) for t in topics[:cfg.plan_topics_in_prompt]) or 'N/A'}",
         ]
         if snippets:
-            lines.append(f"- Apercu: {str(snippets[0])[:150]}")
+            lines.append(f"- Apercu: {str(snippets[0])[:cfg.plan_snippet_chars]}")
         lines += [
             "",
             "Regles:",
@@ -2316,7 +2404,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         section_name: str,
         key_questions: List[str] = None,
         search_terms: List[str] = None,
-        max_words: int = 12,
+        max_words: int | None = None,
     ) -> str:
         """
         Construit une requete de recherche EXPLOITABLE.
@@ -2339,6 +2427,10 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         """
         import re
 
+        cfg = self.config
+        if max_words is None:
+            max_words = cfg.search_query_max_words
+
         if search_terms:
             terms = " ".join(str(t) for t in search_terms if t).strip()
             if terms:
@@ -2358,14 +2450,14 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
 
         # Le nom de section porte l'angle specifique : prioritaire sur la
         # consigne generale, qui est commune a toutes les sections.
-        section_words = salient(section_name, 5)
+        section_words = salient(section_name, cfg.search_query_section_words)
         budget = max_words - len(section_words)
-        query_words = salient(query, max(3, budget))
+        query_words = salient(query, max(cfg.search_query_min_query_words, budget))
 
         combined = query_words + [w for w in section_words if w not in query_words]
         result = " ".join(combined[:max_words]).strip()
 
-        return result or query[:120]
+        return result or query[:cfg.search_query_fallback_chars]
 
     def _section_search_queries(
         self,
@@ -2386,7 +2478,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         if config.separate_search_terms and terms:
             cleaned = [str(t).strip() for t in terms if t and str(t).strip()]
             queries: List[str] = []
-            for term in cleaned[:3]:
+            for term in cleaned[:config.search_terms_max_queries]:
                 q = self._build_search_query(
                     query=query,
                     section_name=section_name,
@@ -2430,7 +2522,11 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
 
         # Nombre de sources selon profondeur, sauf plafond impose par l'API
         depth = section_config.get("depth", "moderate")
-        max_sources = {"light": 3, "moderate": 5, "deep": 8}.get(depth, 5)
+        max_sources = {
+            "light": context.config.search_sources_light,
+            "moderate": context.config.search_sources_moderate,
+            "deep": context.config.search_sources_deep,
+        }.get(depth, context.config.search_sources_moderate)
         # Plafond explicite de la requete (max_sources_per_section, V3-3).
         _override = context.config.max_sources_per_section
         if _override is not None and _override > 0:
@@ -2501,7 +2597,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                     {
                         "url": r.url,
                         "title": r.title,
-                        "snippet": r.content[:300] if r.content else "",
+                        "snippet": r.content[:context.config.search_snippet_chars] if r.content else "",
                         # Moteur d'origine : SearXNG l'expose sur chaque
                         # resultat ; sans lui, impossible de savoir quels
                         # moteurs alimentent reellement un rapport ni de
@@ -2594,7 +2690,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             elif cfg.extraction_cap_follows_depth:
                 url_cap = len(urls)
             else:
-                url_cap = 5
+                url_cap = cfg.extraction_url_cap_default
             for url in urls[:url_cap]:
                 try:
                     if url in context.extraction_cache:
@@ -2697,8 +2793,8 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         """
         logger.info(f"       🔗 Croisement données pour '{section_name}'")
 
-        CORROBORATION_MIN = 0.75
-        CORROBORATION_MAX = 0.92  # au-dela : probable reprise verbatim, pas une vraie confirmation
+        CORROBORATION_MIN = context.config.corroboration_min_similarity
+        CORROBORATION_MAX = context.config.corroboration_max_similarity  # au-dela : probable reprise verbatim, pas une vraie confirmation
 
         enriched = []
 
@@ -2802,7 +2898,8 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         logger.info(f"       ✍️  Synthèse section '{section_name}'")
 
         depth = section_config.get("depth", "moderate")
-        words_target = section_config.get("words_target", 500)
+        cfg = context.config
+        words_target = section_config.get("words_target", cfg.synthesis_default_words_target)
         objectives = section_config.get("objectives", [])
         key_questions = section_config.get("key_questions", [])
 
@@ -2814,11 +2911,17 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         # dilue/generique pour atteindre un objectif arbitraire, ou echoue.
         n_sources = len(enriched_data)
         if n_sources == 0:
-            words_target = min(words_target, 150)
+            words_target = min(words_target, cfg.synthesis_no_source_words_cap)
             logger.info(f"       ⚠️  Aucune source pour '{section_name}', objectif réduit à {words_target} mots")
-        elif n_sources <= 2 and words_target > 300:
+        elif (
+            n_sources <= cfg.synthesis_few_sources_max
+            and words_target > cfg.synthesis_few_sources_words_threshold
+        ):
             original_target = words_target
-            words_target = max(250, words_target // 2)
+            words_target = max(
+                cfg.synthesis_few_sources_words_floor,
+                words_target // cfg.synthesis_few_sources_words_divisor,
+            )
             depth = "light"  # coherence : ne pas demander 6-10 paragraphes "deep" sur 250 mots
             logger.info(f"       ⚠️  Peu de sources ({n_sources}) pour '{section_name}', objectif ajusté {original_target}→{words_target} mots, profondeur réduite")
 
@@ -2845,7 +2948,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             # performance baisse quand le contexte s'allonge). Verifie par
             # ailleurs : ce client accepte des prompts de 30 000 caracteres
             # sans difficulte.
-            max_chars=16000,
+            max_chars=cfg.synthesis_source_budget_chars,
             depth=depth,
             context=context,
         )
@@ -2884,13 +2987,13 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         for other_name, other_data in context.final_content['sections'].items():
             other_content = other_data.get('content', '')
             if other_content and '[Erreur' not in other_content:
-                already_written.append(f"- \"{other_name}\": {other_content[:180].strip()}...")
+                already_written.append(f"- \"{other_name}\": {other_content[:cfg.synthesis_previous_sections_chars].strip()}...")
 
         already_written_block = ""
         if already_written:
             already_written_block = f"""
 SECTIONS DÉJÀ RÉDIGÉES DANS CE RAPPORT (pour éviter les répétitions, construis sur ce qui a déjà été dit plutôt que de le reformuler) :
-{chr(10).join(already_written[:6])}
+{chr(10).join(already_written[:cfg.synthesis_previous_sections_max])}
 """
 
         # Langue de redaction : la meme que celle des recherches, decidee par
@@ -3014,7 +3117,7 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
         # symptome sans traiter la cause. On refuse desormais franchement, et
         # la section est marquee pour que l'echec remonte au lieu d'etre
         # invisible.
-        if not selected_data or _payload_chars < 200:
+        if not selected_data or _payload_chars < cfg.synthesis_min_payload_chars:
             logger.warning(
                 f"       ⛔ Section '{section_name}' non rédigée : "
                 f"{len(selected_data)} source(s), {_payload_chars} chars de données — "
@@ -3028,7 +3131,7 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
         logger.info(
             f"       📝 Prompt synthèse '{section_name}': {len(prompt)} chars, "
             f"{len(selected_data)} source(s), {_payload_chars} chars de données, "
-            f"objectif {words_target} mots (max_tokens={int(words_target * 4.5)})"
+            f"objectif {words_target} mots (max_tokens={int(words_target * cfg.synthesis_tokens_per_word)})"
         )
 
         # Reessai avec attente progressive : la synthese est le seul endroit du
@@ -3038,7 +3141,8 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
         # coupure de quelques secondes vidait TOUT le rapport - 5 sections
         # perdues d'un coup, pour un rapport rendu avec success=true.
         last_error = None
-        for attempt in range(3):
+        max_attempts = cfg.synthesis_max_attempts
+        for attempt in range(max_attempts):
             try:
                 response = await self.llm_client.generate(
                     [{"role": "user", "content": prompt}],
@@ -3058,14 +3162,14 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
                     # words_target reste un OBJECTIF indicatif ; max_tokens
                     # doit etre un plafond de securite, pas une contrainte
                     # qui mutile la derniere phrase.
-                    max_tokens=int(words_target * 4.5),
-                    temperature=0.3
+                    max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
+                    temperature=cfg.synthesis_temperature
                 )
                 if self.llm_client.last_truncated:
                     context.diagnostics.note(
                         "selection.synthese_tronquee",
                         section=section_name,
-                        max_tokens=int(words_target * 4.5),
+                        max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
                     )
                 if response and response.strip():
                     # Controle de fidelite numerique : signale les chiffres
@@ -3111,8 +3215,8 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
             except Exception as e:
                 last_error = e
 
-            if attempt < 2:
-                delay = 2 ** attempt  # 1s, 2s
+            if attempt < max_attempts - 1:
+                delay = cfg.synthesis_retry_backoff_base ** attempt  # 1s, 2s par defaut
                 logger.warning(
                     f"       ⏳ Synthèse '{section_name}' échouée "
                     f"({last_error}) — nouvel essai dans {delay}s"
@@ -3122,7 +3226,7 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
         # Echec definitif : marqueur reconnaissable en aval (permet de
         # compter les sections perdues et de ne pas rendre un rapport vide
         # avec success=true, cf. _final_assembly).
-        logger.error(f"       ❌ Synthèse '{section_name}' abandonnée après 3 essais: {last_error}")
+        logger.error(f"       ❌ Synthèse '{section_name}' abandonnée après {max_attempts} essais: {last_error}")
         return f"[SYNTHESE_ECHOUEE] Section '{section_name}' non générée ({last_error})."
 
     async def _analyze_intersections(
@@ -3145,7 +3249,7 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
         for section_name, section_data in context.final_content['sections'].items():
             sections_content.append({
                 "title": section_name,
-                "content_preview": section_data.get('content', '')[:500],
+                "content_preview": section_data.get('content', '')[:context.config.coherence_preview_chars],
                 "word_count": len(section_data.get('content', '').split()),
                 "sources_count": len(section_data.get('raw_data', []))
             })
@@ -3221,12 +3325,15 @@ Retourne JSON:
                 analysis = await self.llm_client.generate_structured(
                     [{"role": "user", "content": prompt}],
                     schema=intersections_schema, schema_name="coherence_analysis",
-                    max_tokens=1500, temperature=0.2
+                    max_tokens=context.config.coherence_max_tokens,
+                    temperature=context.config.coherence_temperature,
                 )
                 return analysis
             else:
                 response = await self.llm_client.generate(
-                    [{"role": "user", "content": prompt}], max_tokens=1500, temperature=0.2
+                    [{"role": "user", "content": prompt}],
+                    max_tokens=context.config.coherence_max_tokens,
+                    temperature=context.config.coherence_temperature,
                 )
                 start_idx = response.find('{')
                 if start_idx != -1:
@@ -3267,13 +3374,13 @@ Retourne JSON:
 
         if not context.config.coherence_append_enabled:
             context.diagnostics.note(
-                "coherence.append_desactive", suggestions_ignorees=len(high_priority[:3])
+                "coherence.append_desactive", suggestions_ignorees=len(high_priority[:context.config.coherence_max_improvements])
             )
             return
 
         logger.info(f"  🔧 Application de {len(high_priority)} améliorations")
 
-        for improvement in high_priority[:3]:  # Limiter à 3 max
+        for improvement in high_priority[:context.config.coherence_max_improvements]:  # plafond d'ameliorations
             imp_type = improvement.get("type")
             sections_involved = improvement.get("between_sections", [])
             suggestion = improvement.get("suggestion", "")
@@ -3426,7 +3533,7 @@ Retourne JSON:
                 f"exploitable: {', '.join(unsourced[:3])}"
             )
             # Majorite non sourcee -> le rapport n'est pas un resultat fiable.
-            if len(unsourced) > len(sections_list) / 2:
+            if len(unsourced) > len(sections_list) * context.config.unsourced_degraded_ratio:
                 final_report["degraded"] = True
 
         # Summary construit APRES conversion (le contenu porte des [n]) et
@@ -3438,7 +3545,7 @@ Retourne JSON:
             final_report["summary"] = ""
         elif _secs:
             _first = (_secs[0].get("content") or "").strip()
-            _sentences = _first.split('. ')[:2]
+            _sentences = _first.split('. ')[:context.config.summary_sentences]
             _sum = (
                 '. '.join(_sentences).rstrip('.') + '.'
                 if _sentences and _first else "Rapport de recherche approfondie."
