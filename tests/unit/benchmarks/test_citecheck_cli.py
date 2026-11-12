@@ -153,7 +153,8 @@ async def test_generer_puis_evaluer(tmp_path: Path) -> None:
 
     judge_calls: list[str] = []
     eval_args = argparse.Namespace(sortie=str(out), juge="juge-test", plongements="aucun",
-                                   concurrence=2, sans_pipeline=False, raisonnement=False)
+                                   concurrence=2, sans_pipeline=False, raisonnement=False,
+                                   sans_navigateur=True)
     assert await cli.cmd_evaluate(eval_args, env, llm_transport=_judge_transport(judge_calls),
                                   page_transport=_page_transport()) == 0
     summary = json.loads((out / "evaluation-juge-test" / "resume.json").read_text(encoding="utf-8"))
@@ -317,3 +318,41 @@ def test_accord_des_juges() -> None:
     assert [d["key"] for d in result["desaccords"]] == ["k1"]
     assert result["verdict_identique"] == 0.5
     assert cli.judges_agreement(a, rows(["soutenue", "soutenue", "contredite", "partielle"]))["kappa"] == 1.0
+
+
+async def test_repli_navigateur_pour_page_vide_ou_bloquee(tmp_path: Path) -> None:
+    from citecheck.pages import Page
+
+    opened: list[str] = []
+
+    async def browser(url: str) -> Page:
+        opened.append(url)
+        if url.endswith("/vide"):
+            return Page(url=url, status="ok", text="texte rendu par JavaScript " * 20, method="navigateur")
+        return Page(url=url, status="http_error", http_status=403, error="HTTP 403", method="navigateur")
+
+    async with default_client(_page_transport()) as client:
+        store = PageStore(tmp_path, client, browser=browser)
+        rendered = await store.get("https://a.example/vide")
+        blocked = await store.get("https://a.example/interdit")
+        direct = await store.get("https://a.example/page")
+        image = await store.get("https://a.example/image")
+        # Deuxieme lecture : servie par le cache, sans rouvrir le navigateur.
+        await store.get("https://a.example/interdit")
+    assert rendered.ok and rendered.method == "navigateur"
+    assert not blocked.ok and blocked.method == "http+navigateur"
+    assert direct.method == "http" and not image.ok
+    assert opened == ["https://a.example/vide", "https://a.example/interdit"]
+
+
+async def test_page_en_cache_sans_navigateur_reessayee_avec(tmp_path: Path) -> None:
+    from citecheck.pages import Page
+
+    async with default_client(_page_transport()) as client:
+        first = await PageStore(tmp_path, client).get("https://a.example/vide")
+
+        async def browser(url: str) -> Page:
+            return Page(url=url, status="ok", text="rendu " * 60, method="navigateur")
+
+        second = await PageStore(tmp_path, client, browser=browser).get("https://a.example/vide")
+    assert first.status == "vide" and second.ok and second.method == "navigateur"

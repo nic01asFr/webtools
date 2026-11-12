@@ -53,10 +53,20 @@ class Page:
     content_type: str = ""
     text: str = ""
     error: str = ""
+    method: str = "http"  # http | navigateur | http+navigateur (les deux ont echoue)
 
     @property
     def ok(self) -> bool:
         return self.status == STATUS_OK
+
+    @property
+    def browser_may_help(self) -> bool:
+        """Une page vide (rendue en JavaScript), bloquee ou en erreur peut
+        s'ouvrir dans un navigateur ; une page absente (404, 410) ou non
+        textuelle non."""
+        if self.ok or self.status == "non_textuel":
+            return False
+        return self.http_status not in (404, 410)
 
 
 def html_to_text(html: str) -> str:
@@ -167,14 +177,84 @@ def default_client(transport: httpx.AsyncBaseTransport | None = None) -> httpx.A
     )
 
 
+class BrowserFetcher:
+    """Repli par un Chromium headless ordinaire (Playwright), comme un lecteur
+    qui ouvre la page. Aucune technique de contournement : une page qui
+    bloque aussi le navigateur reste inverifiable."""
+
+    def __init__(self, concurrency: int = 2, settle_ms: int = 2500) -> None:
+        self._semaphore = asyncio.Semaphore(concurrency)
+        self.settle_ms = settle_ms
+        self._playwright = None
+        self._browser = None
+
+    async def __aenter__(self) -> "BrowserFetcher":
+        from playwright.async_api import async_playwright
+
+        self._playwright = await async_playwright().start()
+        self._browser = await self._playwright.chromium.launch(headless=True)
+        return self
+
+    async def __aexit__(self, *exc: object) -> None:
+        if self._browser is not None:
+            await self._browser.close()
+        if self._playwright is not None:
+            await self._playwright.stop()
+
+    async def __call__(self, url: str) -> Page:
+        status = None
+        content_type = ""
+        final_url = None
+        async with self._semaphore:
+            context = await self._browser.new_context(
+                locale="fr-FR", extra_http_headers=request_headers(url) or None
+            )
+            try:
+                page = await context.new_page()
+                response = await page.goto(url, wait_until="domcontentloaded", timeout=int(TIMEOUT_S * 1000))
+                if response is not None:
+                    status = response.status
+                    content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
+                if content_type == "application/pdf" and response is not None:
+                    text = pdf_to_text(await response.body())
+                else:
+                    await page.wait_for_timeout(self.settle_ms)
+                    text = html_to_text(await page.content())
+                final_url = page.url
+            except Exception as exc:  # noqa: BLE001 - echec du navigateur : page inverifiable
+                return Page(url=url, status="erreur", error=f"navigateur : {type(exc).__name__}: {exc}"[:300],
+                            method="navigateur")
+            finally:
+                await context.close()
+        result = Page(url=url, status="erreur", http_status=status, final_url=final_url,
+                      content_type=content_type, method="navigateur")
+        if status is not None and status >= 400:
+            result.status, result.error = "http_error", f"HTTP {status}"
+            return result
+        text = text.strip()[:MAX_TEXT_CHARS]
+        result.text = text
+        if len(text) < MIN_TEXT_CHARS:
+            result.status, result.error = "vide", f"{len(text)} caracteres"
+            return result
+        result.status = STATUS_OK
+        return result
+
+
 class PageStore:
     """Pages recuperees, en cache disque : deux evaluations d'un meme run
     jugent exactement le meme texte."""
 
-    def __init__(self, directory: Path, client: httpx.AsyncClient, concurrency: int = 6) -> None:
+    def __init__(
+        self,
+        directory: Path,
+        client: httpx.AsyncClient,
+        concurrency: int = 6,
+        browser=None,
+    ) -> None:
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
         self.client = client
+        self.browser = browser
         self._semaphore = asyncio.Semaphore(concurrency)
         self._locks: dict[str, asyncio.Lock] = {}
 
@@ -185,9 +265,20 @@ class PageStore:
         lock = self._locks.setdefault(url, asyncio.Lock())
         async with lock:
             path = self._path(url)
+            page = None
             if path.exists():
-                return Page(**json.loads(path.read_text(encoding="utf-8")))
-            async with self._semaphore:
-                page = await fetch_page(self.client, url)
+                page = Page(**json.loads(path.read_text(encoding="utf-8")))
+                if page.ok or self.browser is None or page.method != "http":
+                    return page
+            if page is None:
+                async with self._semaphore:
+                    page = await fetch_page(self.client, url)
+            if self.browser is not None and page.browser_may_help:
+                second = await self.browser(url)
+                if second.ok:
+                    page = second
+                else:
+                    page.method = "http+navigateur"
+                    page.error = f"{page.error} ; {second.error}"[:300]
             path.write_text(json.dumps(asdict(page), ensure_ascii=False), encoding="utf-8")
             return page

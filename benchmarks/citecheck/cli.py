@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import contextlib
 import hashlib
 import json
 import os
@@ -33,7 +34,7 @@ import httpx
 from citecheck.juge import Judge, Judgement, embedder_for
 from citecheck.llm import Endpoint
 from citecheck.mesures import JUDGED, PROBLEMS, answer_correct, ratio_ci, summarize
-from citecheck.pages import PageStore, default_client
+from citecheck.pages import BrowserFetcher, PageStore, default_client
 from citecheck.texte import fold
 from citecheck.triplets import parse_answer, pipeline_texts
 
@@ -344,8 +345,9 @@ async def cmd_evaluate(
     judge = Judge(endpoint, args.juge, embedder)
     semaphore = asyncio.Semaphore(args.concurrence)
     lock = asyncio.Lock()
-    async with default_client(page_transport) as http:
-        store = PageStore(out / "pages", http)
+    browser_cm = contextlib.nullcontext() if args.sans_navigateur else BrowserFetcher()
+    async with default_client(page_transport) as http, browser_cm as browser:
+        store = PageStore(out / "pages", http, browser=browser)
 
         async def worker(item: dict[str, Any]) -> None:
             async with semaphore:
@@ -725,6 +727,8 @@ def build_parser() -> argparse.ArgumentParser:
     e.add_argument("--plongements", default=DEFAULT_EMBED_MODEL)
     e.add_argument("--concurrence", type=int, default=4)
     e.add_argument("--sans-pipeline", action="store_true")
+    e.add_argument("--sans-navigateur", action="store_true",
+                   help="pas de repli par navigateur pour les pages vides ou bloquees")
     e.add_argument("--raisonnement", action="store_true", help="laisser le juge raisonner (coupe par defaut)")
 
     c = sub.add_parser("etalonner")
