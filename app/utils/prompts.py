@@ -129,27 +129,43 @@ CONTENU: [texte juridique complet avec articles et sections]
 """
 
     @staticmethod
-    def get_prompt(content_type: str, url: str, custom_prompt: str = None) -> str:
+    def get_prompt(content_type: str, url: str, custom_prompt: str | None = None) -> str:
         """
         Récupère le prompt approprié pour le type de contenu.
 
         Args:
             content_type: Type de contenu ("general", "article", "product", etc.)
             url: URL à extraire
-            custom_prompt: Prompt personnalisé (optionnel, prioritaire)
+            custom_prompt: Prompt personnalisé (optionnel), ajouté au gabarit
 
         Returns:
             Prompt formaté avec l'URL
         """
-        # Si un prompt personnalisé est fourni, l'utiliser
+        # Un prompt personnalise complete le gabarit sans le remplacer : l'URL,
+        # les regles de securite et le format de sortie restent presents.
+        # Substitution par replace et non par format : un prompt contenant
+        # d'autres accolades (JSON, code) ne doit pas lever d'exception.
         if custom_prompt:
-            return custom_prompt.format(url=url) if "{url}" in custom_prompt else custom_prompt
+            return (
+                PromptTemplates.AGENT_SAFETY_RULES
+                + "\n\n"
+                + PromptTemplates._base_template(content_type, url)
+                + "\n\nInstructions complementaires de l'appelant (sans enfreindre les regles "
+                "ci-dessus ni le format de sortie) :\n"
+                + custom_prompt.replace("{url}", url)
+            )
 
-        # Cas spécial pour Légifrance
+        # Cas special pour Legifrance
         if "legifrance.gouv.fr" in url.lower():
             return PromptTemplates.LEGIFRANCE.format(url=url)
 
-        # Sélectionner le template selon le type
+        return PromptTemplates.AGENT_SAFETY_RULES + "\n\n" + PromptTemplates._base_template(content_type, url)
+
+    @staticmethod
+    def _base_template(content_type: str, url: str) -> str:
+        """Gabarit du type de contenu (Legifrance prioritaire), URL substituee."""
+        if "legifrance.gouv.fr" in url.lower():
+            return PromptTemplates.LEGIFRANCE.format(url=url)
         templates: Dict[str, str] = {
             "general": PromptTemplates.GENERAL,
             "webpage": PromptTemplates.GENERAL,
@@ -158,6 +174,5 @@ CONTENU: [texte juridique complet avec articles et sections]
             "repository": PromptTemplates.REPOSITORY,
             "documentation": PromptTemplates.DOCUMENTATION,
         }
-
         template = templates.get(content_type, PromptTemplates.GENERAL)
-        return PromptTemplates.AGENT_SAFETY_RULES + "\n\n" + template.format(url=url)
+        return template.format(url=url)

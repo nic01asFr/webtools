@@ -2,8 +2,14 @@
 Manager principal pour orchestrer les extractions web.
 """
 
+import asyncio
+import hashlib
+import json
 import logging
+import time
+from collections import OrderedDict
 from typing import Optional, Dict, Any
+from urllib.parse import urlparse, parse_qs
 
 from app.api.models import WebResult, ExtractionOptions
 from app.core.config import settings
@@ -11,7 +17,7 @@ from app.core.llm.base import BaseLLMClient
 from app.core.llm.factory import LLMFactory
 from app.extractors.direct_extractor import DirectExtractor
 from app.extractors.agent_extractor import AgentExtractor
-from app.extractors.rss_extractor import RssExtractor
+from app.extractors.rss_extractor import RssExtractor, COMMON_FEED_PATHS
 from app.extractors.pdf_extractor import PdfExtractor
 from app.utils.url_safety import assert_safe_url, UnsafeURLError
 from app.utils.content_detector import ContentDetector
@@ -19,13 +25,39 @@ from app.utils.prompts import PromptTemplates
 
 logger = logging.getLogger(__name__)
 
+# Nombre maximal d'entrees conservees dans le cache d'extraction.
+DEFAULT_CACHE_MAX_ENTRIES = 256
+
+# Marge accordee a un palier au-dela du budget restant, pour qu'un palier qui
+# gere lui-meme son delai (agent) puisse rendre son repli avant l'interruption.
+BUDGET_GRACE_SECONDS = 1.0
+
+_FEED_SUFFIXES = (".xml", ".rss", ".atom")
+
+
+def is_site_root_or_feed(url: str) -> bool:
+    """Vrai si l'URL est la racine du site ou un flux RSS/Atom lui-meme."""
+    parsed = urlparse(url)
+    path = parsed.path or "/"
+    query = parse_qs(parsed.query)
+    if path == "/" and not query:
+        return True
+    if path.rstrip("/") in COMMON_FEED_PATHS or path.lower().endswith(_FEED_SUFFIXES):
+        return True
+    return "feed" in query
+
 
 class ExtractorManager:
     """
     Manager principal qui coordonne les différents extractors.
     """
 
-    def __init__(self, cache_ttl_seconds: int | None = None, enable_caching: bool | None = None):
+    def __init__(
+        self,
+        cache_ttl_seconds: int | None = None,
+        enable_caching: bool | None = None,
+        cache_max_entries: int = DEFAULT_CACHE_MAX_ENTRIES,
+    ):
         """
         Initialise le manager avec les extractors disponibles.
 
@@ -48,9 +80,59 @@ class ExtractorManager:
         # IntelligentOrchestrator depuis la correction ci-dessus). Une meme
         # URL redemandee peu apres evite de refaire tout le travail
         # d'extraction (navigateur, LLM eventuel).
-        self._cache: dict = {}
+        self._cache: OrderedDict = OrderedDict()
+        self._cache_max_entries = cache_max_entries
+        self._clock = time.monotonic
         self._cache_ttl = cache_ttl_seconds if cache_ttl_seconds is not None else settings.cache_ttl_seconds
         self._cache_enabled = enable_caching if enable_caching is not None else settings.enable_caching
+
+    @staticmethod
+    def _make_cache_key(
+        url: str,
+        extraction_type: str,
+        prompt: str | None,
+        options: ExtractionOptions,
+        has_llm_client: bool,
+    ) -> str:
+        """Cle de cache couvrant tout ce qui change le resultat."""
+        payload = json.dumps(
+            [url, extraction_type, prompt, options.model_dump(), has_llm_client],
+            sort_keys=True,
+            default=str,
+        )
+        return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+    def _cache_get(self, key: str) -> WebResult | None:
+        if not self._cache_enabled:
+            return None
+        cached = self._cache.get(key)
+        if not cached:
+            return None
+        cached_result, cached_at = cached
+        if time.time() - cached_at < self._cache_ttl:
+            logger.info(f"Cache hit (age: {int(time.time() - cached_at)}s)")
+            self._cache.move_to_end(key)
+            # Copie : l'appelant peut modifier l'objet sans corrompre le cache.
+            return cached_result.model_copy(deep=True)
+        del self._cache[key]
+        return None
+
+    def _cache_put(self, key: str, result: WebResult) -> None:
+        # Seuls les succes sont conserves : un echec transitoire ne doit pas
+        # etre fige pour la duree du TTL.
+        if not (result.success and self._cache_enabled):
+            return
+        self._cache[key] = (result.model_copy(deep=True), time.time())
+        self._cache.move_to_end(key)
+        while len(self._cache) > self._cache_max_entries:
+            self._cache.popitem(last=False)
+
+    @staticmethod
+    def _budget_error(url: str, budget: float) -> WebResult:
+        return WebResult.from_error(
+            url=url,
+            error_message=f"Budget d'extraction epuise ({budget:g}s, tous paliers confondus)",
+        )
 
     async def extract(
         self,
@@ -61,133 +143,144 @@ class ExtractorManager:
         options: Optional[ExtractionOptions] = None
     ) -> WebResult:
         """
-        Point d'entrée principal pour l'extraction de contenu web.
+        Point d'entree principal pour l'extraction de contenu web.
 
-        Args:
-            url: URL à extraire
-            prompt: Prompt personnalisé (optionnel)
-            extraction_type: Type d'extraction ("general", "article", "product", etc.)
-            llm_client: Client LLM à utiliser (optionnel, utilise config par défaut si non fourni)
-            options: Options d'extraction
-
-        Returns:
-            WebResult avec le contenu extrait
+        options.timeout est un budget global : la somme des paliers (PDF, RSS,
+        direct, LLM, agent) ne depasse pas cette duree (a BUDGET_GRACE_SECONDS
+        pres). Le resultat porte le palier producteur dans
+        metadata["extraction_tier"] (pdf, rss, direct, llm, agent).
         """
-        logger.info(f"Début extraction de {url} (type: {extraction_type})")
+        logger.info(f"Debut extraction de {url} (type: {extraction_type})")
+        opts = options.model_copy() if options else ExtractionOptions()
+        budget = float(opts.timeout)
+        deadline = self._clock() + budget
 
         # Protection SSRF : verifiee ici, au point d'entree unique de toute
-        # extraction (RSS, direct, LLM leger, agent en heritent tous), avant
-        # toute tentative reelle de connexion.
+        # extraction, avant toute tentative reelle de connexion.
         try:
             assert_safe_url(url)
         except UnsafeURLError as e:
             logger.warning(f"Extraction refusee pour {url}: {e}")
             return WebResult.from_error(url=url, error_message=str(e))
 
-        # Cache avec TTL : une meme URL redemandee dans la fenetre de
-        # validite evite de refaire tout le travail (navigateur, LLM).
-        import time
-        cache_key = f"{url}::{extraction_type}"
-        cached = self._cache.get(cache_key) if self._cache_enabled else None
-        if cached:
-            cached_result, cached_at = cached
-            if time.time() - cached_at < self._cache_ttl:
-                logger.info(f"Cache hit pour {url} (age: {int(time.time() - cached_at)}s)")
-                return cached_result
-            else:
-                del self._cache[cache_key]  # perime, purge
+        cache_key = self._make_cache_key(url, extraction_type, prompt, opts, llm_client is not None)
+        cached_result = self._cache_get(cache_key)
+        if cached_result is not None:
+            return cached_result
 
-        # Détection automatique du type si "general"
+        # Detection automatique du type si "general"
         if extraction_type == "general":
             detected_type = self.content_detector.detect(url)
-            logger.info(f"Type détecté automatiquement: {detected_type}")
+            logger.info(f"Type detecte automatiquement: {detected_type}")
             extraction_type = detected_type
 
-        # Générer le prompt approprié
         final_prompt = PromptTemplates.get_prompt(
             content_type=extraction_type,
             url=url,
             custom_prompt=prompt
         )
 
-        logger.debug(f"Prompt utilisé: {final_prompt[:200]}...")
+        def remaining() -> float:
+            return deadline - self._clock()
 
-        # PALIER -1 : PDF. Un PDF n'est pas une page web - le rendu navigateur
-        # en produit une page blanche, et l'agent IA qui prend le relais
-        # consomme temps et tokens pour ne rien extraire (constate en usage
-        # reel sur des documents d'urbanisme). Le telechargement direct est
-        # la seule voie correcte, et passe avant tout le reste.
+        # PALIER PDF : un PDF n'est pas une page web, le telechargement direct
+        # est la seule voie correcte et passe avant tout le reste.
         try:
-            pdf_result = await self.pdf_extractor.try_extract(url)
+            pdf_result = await asyncio.wait_for(
+                self.pdf_extractor.try_extract(url), timeout=max(remaining(), 0.001)
+            )
             if pdf_result is not None:
+                pdf_result.metadata["extraction_tier"] = "pdf"
                 if pdf_result.success:
                     logger.info(f"Extraction PDF directe reussie pour {url}")
-                    if self._cache_enabled:
-                        self._cache[cache_key] = (pdf_result, time.time())
+                    self._cache_put(cache_key, pdf_result)
                 return pdf_result
         except Exception as e:
             logger.debug(f"Palier PDF non concluant pour {url}: {e}")
+        if remaining() <= 0:
+            return self._budget_error(url, budget)
 
-        # PALIER 0 : tenter un flux RSS/Atom avant tout usage de navigateur ou d'IA.
-        opts_check = options or ExtractionOptions()
-        if getattr(opts_check, "try_rss_first", True):
+        # PALIER RSS : avant tout usage de navigateur ou d'IA. Avec
+        # rss_tier_root_only, il ne s'applique qu'a la racine du site ou a un
+        # flux : sinon le contenu serait la liste des derniers titres du site,
+        # attribuee a l'URL demandee.
+        rss_applicable = opts.try_rss_first and (
+            not opts.rss_tier_root_only or is_site_root_or_feed(url)
+        )
+        if rss_applicable:
             try:
-                rss_result = await self.rss_extractor.try_extract(url)
+                rss_result = await asyncio.wait_for(
+                    self.rss_extractor.try_extract(url), timeout=max(remaining(), 0.001)
+                )
                 if rss_result and rss_result.success:
                     logger.info(f"Extraction via flux RSS reussie pour {url}")
+                    rss_result.metadata["extraction_tier"] = "rss"
+                    self._cache_put(cache_key, rss_result)
                     return rss_result
             except Exception as e:
                 logger.debug(f"Palier RSS non concluant pour {url}: {e}")
+            if remaining() <= 0:
+                return self._budget_error(url, budget)
 
-        # Options par défaut
-        opts = options or ExtractionOptions()
+        use_agent = opts.use_agent
+        if not llm_client and use_agent:
+            try:
+                llm_client = await asyncio.wait_for(
+                    self._create_default_llm_client(), timeout=max(remaining(), 0.001)
+                )
+            except Exception as e:
+                logger.error(f"Impossible de creer le client LLM par defaut: {e}")
+                use_agent = False
+            if remaining() <= 0:
+                return self._budget_error(url, budget)
+
+        # Les paliers suivants recoivent le temps restant, pas le budget initial.
         extraction_options = {
-            "timeout": opts.timeout,
+            "timeout": remaining(),
             "headless": opts.headless,
-            "use_fallback": True
+            "use_fallback": True,
+            "single_llm_pass_enabled": opts.single_llm_pass_enabled,
         }
 
-        # Créer le client LLM par défaut si non fourni
-        if not llm_client and opts.use_agent:
-            try:
-                llm_client = await self._create_default_llm_client()
-            except Exception as e:
-                logger.error(f"Impossible de créer le client LLM par défaut: {e}")
-                # Fallback vers extraction directe
-                opts.use_agent = False
+        agent_used = bool(use_agent and llm_client)
+        try:
+            if agent_used:
+                logger.info("Utilisation de l'agent extractor")
+                result = await asyncio.wait_for(
+                    self.agent_extractor.extract(
+                        url=url,
+                        prompt=final_prompt,
+                        llm_client=llm_client,
+                        options=extraction_options
+                    ),
+                    timeout=remaining() + BUDGET_GRACE_SECONDS,
+                )
+            else:
+                logger.info("Utilisation de l'extractor direct")
+                result = await asyncio.wait_for(
+                    self.direct_extractor.extract(
+                        url=url,
+                        prompt=final_prompt,
+                        llm_client=None,
+                        options=extraction_options
+                    ),
+                    timeout=remaining() + BUDGET_GRACE_SECONDS,
+                )
+        except TimeoutError:
+            logger.warning(f"Budget d'extraction epuise pour {url}")
+            return self._budget_error(url, budget)
 
-        # Sélectionner l'extractor approprié
-        if opts.use_agent and llm_client:
-            logger.info("Utilisation de l'agent extractor")
-            result = await self.agent_extractor.extract(
-                url=url,
-                prompt=final_prompt,
-                llm_client=llm_client,
-                options=extraction_options
-            )
-        else:
-            logger.info("Utilisation de l'extractor direct")
-            result = await self.direct_extractor.extract(
-                url=url,
-                prompt=final_prompt,
-                llm_client=None,
-                options=extraction_options
-            )
-
-        # Ajouter le type de contenu au résultat
         if result.success and not result.content_type:
             result.content_type = extraction_type
+        if result.success:
+            result.metadata.setdefault("extraction_tier", "agent" if agent_used else "direct")
 
         logger.info(
-            f"Extraction terminée: success={result.success}, "
+            f"Extraction terminee: success={result.success}, "
             f"content_length={len(result.content) if result.content else 0}"
         )
 
-        # N'a mettre en cache que les succes : un echec transitoire (page
-        # temporairement indisponible) ne doit pas etre fige pour 5 minutes.
-        if result.success and self._cache_enabled:
-            self._cache[cache_key] = (result, time.time())
-
+        self._cache_put(cache_key, result)
         return result
 
     async def _create_default_llm_client(self) -> BaseLLMClient:
