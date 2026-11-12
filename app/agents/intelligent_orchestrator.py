@@ -1,13 +1,19 @@
 """
-Intelligent Orchestrator - Orchestrateur Intelligent Multi-Outils
+Intelligent Orchestrator - enchainement des etapes de la recherche profonde
 
-Pipeline de recherche profonde en phases :
-1. Exploration (SearXNG) et plan detaille par sections
-2. Recherche et extraction par section
-3. Enrichissement iteratif et assemblage final du rapport
+L'orchestrateur ne garde que l'enchainement (execute_intelligent_research,
+execute_with_deadline, _partial_report). Chaque etape est un module de
+app/research/stages/ qui recoit explicitement ses services (StageServices)
+et le contexte de la requete (ExecutionContext) :
 
-Dependances : client de recherche, ExtractorManager, GenericDataExtractor
-(extraction structuree) et client LLM.
+1. explore, plan : exploration (SearXNG) et plan detaille par sections
+2. search, extract, crossref, select, synthesize : recherche, extraction,
+   croisement et redaction par section (collect orchestre 2.1 a 2.2.5)
+3. coherence : revue inter-sections
+4. enrich, assemble : enrichissement iteratif et assemblage final
+
+Etat d'une requete : ExecutionContext uniquement. Aucun attribut de
+l'instance n'est ecrit pendant une requete.
 """
 
 import asyncio
@@ -23,6 +29,7 @@ from app.research.context import ExecutionContext
 from app.research.diagnostics import Diagnostics
 from app.research.pipeline_config import PipelineConfig
 from app.research.stages.services import StageServices
+from app.research.stages.boundaries import check_collected, check_drafts, check_plan, check_report
 from app.research.stages.assemble import add_complete_traces, apply_summary, convert_sources_to_bibliography, final_assembly, report_title, strip_source_markers
 from app.research.stages.coherence import analyze_intersections, apply_coherence_improvements
 from app.research.stages.collect import collect_section_data
@@ -173,6 +180,7 @@ class IntelligentOrchestrator:
 
         # Étape 1.2: Planification avec canvas détaillé basé sur exploration
         plan = await create_detailed_plan(self.services(), query, context, exploration_data, ctx=ctx)
+        check_plan(ctx, plan)  # frontiere typee : ecart note, jamais bloquant
         logger.info(f"  ✓ Canvas structure: {len(plan.get('sections', []))} sections")
         logger.info(f"  ✓ Profondeur: {plan.get('complexity_analysis', {}).get('target_length', 'N/A')}")
         logger.info(f"  ✓ Enchaînements définis: {len(plan.get('narrative_flow', []))} transitions")
@@ -204,9 +212,11 @@ class IntelligentOrchestrator:
         extracted_by_section = await collect_section_data(
             self.services(), ctx, query, plan, exploration_data
         )
+        check_collected(ctx, extracted_by_section)
 
         # Etapes 2.3 et 2.4 (stages.synthesize) : croisement puis redaction, sequentiels.
         await write_sections(self.services(), ctx, query, section_targets, extracted_by_section)
+        check_drafts(ctx)
 
         # ===================================================================
         # PHASE 3: COHÉRENCE GLOBALE PARTIE PAR PARTIE
@@ -235,6 +245,7 @@ class IntelligentOrchestrator:
 
         # Étape 4.1: Assemblage final
         final_answer = await final_assembly(self.services(), query, plan, ctx)
+        check_report(ctx, final_answer)
 
         # Étape 4.1.5 (nouveau) : enrichissement iteratif des sections faibles
         # ou trop courtes - mecanisme complet mais jusqu'ici jamais branche.
