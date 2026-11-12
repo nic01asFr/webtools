@@ -302,3 +302,18 @@ async def test_affirmation_contredite_par_ses_sources() -> None:
              "members": [_member("u1", "contredite"), _member("u2", "non_soutenue")]}
     result = await cli.evaluate_group(group, _Store({"u1": "a", "u2": "b"}), judge)
     assert (result["status"], result["via"]) == ("contredite", "reunion")
+
+
+def test_accord_des_juges() -> None:
+    def rows(statuses: list[str]) -> list[dict]:
+        return [{"key": f"k{i}", "task_id": "t", "claim": "c", "status": s} for i, s in enumerate(statuses)]
+
+    a = rows(["soutenue", "soutenue", "contredite", "partielle", "inverifiable"])
+    b = rows(["soutenue", "partielle", "contredite", "non_soutenue", "soutenue"])
+    result = cli.judges_agreement(a, b)
+    # k4 exclu (inverifiable pour le juge a) ; k1 en desaccord.
+    assert result["elements"] == 4
+    assert result["accord_binaire"] == 0.75
+    assert [d["key"] for d in result["desaccords"]] == ["k1"]
+    assert result["verdict_identique"] == 0.5
+    assert cli.judges_agreement(a, rows(["soutenue", "soutenue", "contredite", "partielle"]))["kappa"] == 1.0

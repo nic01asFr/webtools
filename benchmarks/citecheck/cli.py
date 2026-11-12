@@ -645,11 +645,61 @@ def cmd_compare(args: argparse.Namespace) -> int:
         print(f"ATTENTION : juges differents ({a.get('juge')} / {b.get('juge')}), comparaison invalide")
     for mode in sorted(set(a["par_mode"]) | set(b["par_mode"])):
         print(f"\n== {mode} ==")
-        for key in ("exactes", "exactes_ou_partielles", "contredites", "inverifiables",
+        for key in ("affirmations_soutenues", "affirmations_contredites", "exactes",
+                    "exactes_ou_partielles", "contredites", "inverifiables",
                     "fidelite_au_texte_du_pipeline", "reponses_exactes"):
             va = (a["par_mode"].get(mode) or {}).get(key)
             vb = (b["par_mode"].get(mode) or {}).get(key)
             print(f"  {key:<32} {_fmt_rate(va):<40} {_fmt_rate(vb)}")
+    return 0
+
+
+def judges_agreement(a: list[dict[str, Any]], b: list[dict[str, Any]]) -> dict[str, Any]:
+    """Accord de deux juges sur les memes elements (citations ou affirmations).
+
+    Binaire : soutenue ou non. Le kappa de Cohen corrige l'accord du hasard.
+    Les elements non juges par l'un des deux (page inaccessible, orpheline,
+    erreur) sont exclus.
+    """
+    by_key = {r["key"]: r for r in b}
+    pairs = [
+        (r, by_key[r["key"]]) for r in a
+        if r["key"] in by_key and r["status"] in JUDGED and by_key[r["key"]]["status"] in JUDGED
+    ]
+    n = len(pairs)
+    if not n:
+        return {"elements": 0}
+    agree = sum(1 for x, y in pairs if (x["status"] == "soutenue") == (y["status"] == "soutenue"))
+    pa = sum(1 for x, _ in pairs if x["status"] == "soutenue") / n
+    pb = sum(1 for _, y in pairs if y["status"] == "soutenue") / n
+    expected = pa * pb + (1 - pa) * (1 - pb)
+    observed = agree / n
+    kappa = (observed - expected) / (1 - expected) if expected < 1 else 1.0
+    return {
+        "elements": n,
+        "accord_binaire": round(observed, 4),
+        "kappa": round(kappa, 4),
+        "verdict_identique": round(sum(1 for x, y in pairs if x["status"] == y["status"]) / n, 4),
+        "desaccords": [
+            {"key": x["key"], "task_id": x["task_id"], "claim": x["claim"][:200],
+             "juge_a": x["status"], "juge_b": y["status"]}
+            for x, y in pairs if (x["status"] == "soutenue") != (y["status"] == "soutenue")
+        ],
+    }
+
+
+def cmd_judges(args: argparse.Namespace) -> int:
+    a_dir, b_dir = Path(args.a), Path(args.b)
+    result = {
+        "juge_a": a_dir.name, "juge_b": b_dir.name,
+        "citations": judges_agreement(read_jsonl(a_dir / "citations.jsonl"), read_jsonl(b_dir / "citations.jsonl")),
+        "affirmations": judges_agreement(
+            read_jsonl(a_dir / "affirmations.jsonl"), read_jsonl(b_dir / "affirmations.jsonl")
+        ),
+    }
+    write_json(a_dir.parent / f"accord-{a_dir.name}-{b_dir.name}.json", result)
+    print(json.dumps({k: ({kk: vv for kk, vv in v.items() if kk != "desaccords"} if isinstance(v, dict) else v)
+                      for k, v in result.items()}, ensure_ascii=False, indent=2))
     return 0
 
 
@@ -694,6 +744,10 @@ def build_parser() -> argparse.ArgumentParser:
     m = sub.add_parser("comparer")
     m.add_argument("a")
     m.add_argument("b")
+
+    j = sub.add_parser("accord-juges", help="accord de deux juges sur le meme run")
+    j.add_argument("a")
+    j.add_argument("b")
     return parser
 
 
@@ -709,6 +763,8 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None) ->
             return asyncio.run(cmd_calibrate(args, env))
         if args.commande == "auditer":
             return cmd_audit(args)
+        if args.commande == "accord-juges":
+            return cmd_judges(args)
         return cmd_compare(args)
     except ConfigError as exc:
         print(f"erreur : {exc}", file=sys.stderr)
