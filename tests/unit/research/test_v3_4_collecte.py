@@ -14,6 +14,7 @@ from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrc
 from app.research.pipeline_config import PipelineConfig
 from app.services.engine_catalog import EngineCatalog
 from app.research.stages.queries import build_search_query
+from app.research.stages.search import section_research_phase, targeted_search
 
 from tests.contract.test_pipeline_contract import QUERY, build_orchestrator, nominal
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch, make_result
@@ -87,8 +88,8 @@ async def test_langue_section_et_recherche_ciblee(flag: bool) -> None:
     ctx = ExecutionContext("q", config=config)
     ctx.search_language = "fr"
 
-    await orch._section_research_phase("q", "S", SECTION, {}, ctx)
-    await orch._targeted_search("q", "S", ["m"], ctx)
+    await section_research_phase(orch.services(), "q", "S", SECTION, {}, ctx)
+    await targeted_search(orch.services(), "q", "S", ["m"], ctx)
 
     expected = "fr" if flag else "all"
     assert [c.language for c in search.queries] == [expected, expected]
@@ -105,7 +106,7 @@ async def test_filtre_de_domaines_avant_la_troncature() -> None:
     ctx = ExecutionContext("q", config=orch.config)
     ctx.domains_exclusions = ["bad.com"]
 
-    data = await orch._section_research_phase("q", "S", SECTION, {}, ctx)
+    data = await section_research_phase(orch.services(), "q", "S", SECTION, {}, ctx)
 
     assert [s["url"] for s in data["sources"]] == [r.url for r in good]
 
@@ -113,7 +114,7 @@ async def test_filtre_de_domaines_avant_la_troncature() -> None:
 async def test_sans_contrainte_la_demande_reste_inchangee() -> None:
     orch, search, _pages = make_orch()
     ctx = ExecutionContext("q", config=orch.config)
-    await orch._section_research_phase("q", "S", SECTION, {}, ctx)
+    await section_research_phase(orch.services(), "q", "S", SECTION, {}, ctx)
     assert search.queries[0].max_results == 5
 
 
@@ -123,7 +124,7 @@ async def test_sans_contrainte_la_demande_reste_inchangee() -> None:
 async def test_recherche_ciblee_passe_par_la_cascade(cat: EngineCatalog) -> None:
     orch, search, _pages = make_orch()
     ctx = ExecutionContext("q", config=orch.config)
-    await orch._targeted_search("solar", "Costs", ["price"], ctx)
+    await targeted_search(orch.services(), "solar", "Costs", ["price"], ctx)
     assert search.queries[0].engines == ",".join(cat.cascade(per_axis=3))
     assert search.queries[0].engines
 
@@ -131,7 +132,7 @@ async def test_recherche_ciblee_passe_par_la_cascade(cat: EngineCatalog) -> None
 async def test_recherche_ciblee_sans_catalogue_ne_restreint_pas() -> None:
     orch, search, _pages = make_orch()
     ctx = ExecutionContext("q", config=orch.config)
-    await orch._targeted_search("solar", "Costs", ["price"], ctx)
+    await targeted_search(orch.services(), "solar", "Costs", ["price"], ctx)
     assert search.queries[0].engines is None
     assert ctx.diagnostics.count("collecte.catalogue_moteurs_indisponible") == 1
 
@@ -148,7 +149,7 @@ async def test_catalogue_recharge_avant_consultation(monkeypatch: pytest.MonkeyP
     orch, search, _pages = make_orch()
     ctx = ExecutionContext("q", config=orch.config)
 
-    await orch._section_research_phase("q", "S", SECTION, {}, ctx)
+    await section_research_phase(orch.services(), "q", "S", SECTION, {}, ctx)
 
     assert search.queries[0].engines == "wiby"
 
@@ -174,7 +175,7 @@ async def test_termes_de_recherche_separes(flag: bool, cat: EngineCatalog) -> No
     orch, search, _pages = make_orch(PipelineConfig(separate_search_terms=flag), search)
     ctx = ExecutionContext("q", config=orch.config)
 
-    data = await orch._section_research_phase("q", "S", TERMS_SECTION, {}, ctx)
+    data = await section_research_phase(orch.services(), "q", "S", TERMS_SECTION, {}, ctx)
 
     if flag:
         assert search.queries_text() == ["solar costs", '"grid parity" filetype:pdf']
@@ -198,7 +199,7 @@ async def test_terme_en_echec_n_annule_pas_les_autres() -> None:
     orch, search, _pages = make_orch(PipelineConfig(separate_search_terms=True), search)
     ctx = ExecutionContext("q", config=orch.config)
 
-    data = await orch._section_research_phase("q", "S", section, {}, ctx)
+    data = await section_research_phase(orch.services(), "q", "S", section, {}, ctx)
 
     assert [s["url"] for s in data["sources"]] == ["https://ex.org/ok"]
     assert ctx.diagnostics.count("collecte.recherche_terme_echec") == 1
@@ -271,7 +272,7 @@ async def test_recherche_ciblee_extraction_structuree(flag: bool) -> None:
     orch.data_extractor.extract_structured_data = fake_structured  # type: ignore[method-assign]
     ctx = ExecutionContext("q", config=orch.config)
 
-    result = await orch._targeted_search("solar", "Costs", ["price"], ctx)
+    result = await targeted_search(orch.services(), "solar", "Costs", ["price"], ctx)
 
     assert result is not None and result["sources"]
     assert calls == ([] if flag else [url])
@@ -300,7 +301,7 @@ async def test_chunking_v2_transmis(flag: bool, monkeypatch: pytest.MonkeyPatch)
     ctx = ExecutionContext("q", config=orch.config)
 
     await orch._section_extraction_phase("S", {"sources": [{"url": url}]}, ctx)
-    await orch._targeted_search("solar", "Costs", ["price"], ctx)
+    await targeted_search(orch.services(), "solar", "Costs", ["price"], ctx)
 
     assert seen == [flag, flag]
 
@@ -327,7 +328,7 @@ async def test_options_d_extraction_transmises(root_only: bool, single_pass: boo
     ctx = ExecutionContext("q", config=config)
 
     await orch._section_extraction_phase("S", {"sources": [{"url": url}]}, ctx)
-    await orch._targeted_search("solar", "Costs", ["price"], ctx)
+    await targeted_search(orch.services(), "solar", "Costs", ["price"], ctx)
 
     assert len(pages.calls) == 2
     for call in pages.calls:
