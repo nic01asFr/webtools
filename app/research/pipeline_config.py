@@ -64,6 +64,9 @@ def _convert(name: str, raw: str, tp: Any) -> Any:
 class PipelineConfig:
     """Drapeaux et parametres du pipeline. Aucun champ pour l'instant."""
 
+    # --- Lot V3-7 : plan de recherche ---
+    plan_prompt_v2: bool = False  # prompt de plan sans ancien JSON ni exemples, contexte reduit (C33)
+
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":
         """Construit la configuration depuis l'environnement.

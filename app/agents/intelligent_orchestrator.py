@@ -1474,10 +1474,14 @@ IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
         self,
         query: str,
         context: Dict,
-        exploration_data: Dict
+        exploration_data: Dict,
+        ctx: Optional["ExecutionContext"] = None
     ) -> Dict[str, Any]:
         """
         PHASE 1.2: Planification détaillée avec canvas complet.
+
+        ctx (optionnel) porte les diagnostics de la requete : sans lui, les
+        repli et troncatures du plan ne sont pas notes (appel historique).
 
         Utilise les données d'exploration pour créer un plan précis incluant:
         - Structure complète (sections, sous-sections)
@@ -1646,6 +1650,10 @@ Pour "Écosystème Rust 2024, adoption, roadmap":
 IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_found[:5])}
 """
 
+        def _note(event: str, **details: Any) -> None:
+            if ctx is not None:
+                ctx.diagnostics.note(event, **details)
+
         # Sortie structuree forcee : plus de clefs dynamiques (l'ancien format
         # section_targets = {nom_section: {...}} etait incompatible avec un
         # JSON Schema strict). "sections" devient une liste d'objets, chacun
@@ -1790,8 +1798,20 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             "search_strategy": {"total_sources_needed": 10, "sources_per_section": 3, "search_depth": "standard"}
         }
 
+        if self.config.plan_prompt_v2:
+            prompt = self._build_plan_prompt_v2(query, context, exploration_data)
+            if not self.llm_client.supports_structured:
+                # Sans sortie structuree, le schema devient la seule description
+                # du format attendu.
+                prompt += (
+                    "\nReponds uniquement par un objet JSON conforme a ce schema :\n"
+                    + json.dumps(plan_schema, ensure_ascii=False)
+                )
+
+        fallback_reason = ""
+        fallback_error = ""
         try:
-            if hasattr(self.llm_client, "generate_structured"):
+            if self.llm_client.supports_structured:
                 structured = await self.llm_client.generate_structured(
                     [{"role": "user", "content": prompt}],
                     schema=plan_schema, schema_name="research_plan",
@@ -1830,8 +1850,12 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                     "narrative_flow": structured["narrative_flow"],
                     "search_strategy": structured["search_strategy"]
                 }
-                logger.info(f"     → Plan créé (sortie structurée): {len(plan['sections'])} sections")
-                return plan
+                if plan["sections"]:
+                    logger.info(f"     → Plan créé (sortie structurée): {len(plan['sections'])} sections")
+                    return plan
+                # Toutes les sections ont ete filtrees comme meta : un plan
+                # vide donnerait un rapport vide, on prefere le repli.
+                fallback_reason = "sections_filtrees"
             else:
                 # Repli non-structure pour un client sans generate_structured (ex: Albert)
                 response = await self.llm_client.generate(
@@ -1849,12 +1873,94 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                                 plan = json.loads(response[start_idx:i + 1])
                                 logger.info(f"     → Plan créé (parsing manuel): {len(plan.get('sections', []))} sections")
                                 return plan
+                fallback_reason = "json_introuvable"
 
         except Exception as e:
+            from app.core.llm.base import LLMTruncatedError
             logger.error(f"  ❌ Erreur planification: {e}")
+            fallback_reason = "exception"
+            fallback_error = type(e).__name__
+            if isinstance(e, LLMTruncatedError):
+                # Cause historique d'un repli silencieux (voir max_tokens).
+                _note("plan.sortie_tronquee", error=str(e))
 
-        logger.warning("  ⚠️  Plan de repli generique utilise (echec generation structuree)")
-        return FALLBACK_PLAN
+        _note("plan.repli", cause=fallback_reason, error_type=fallback_error)
+        logger.warning(f"  ⚠️  Plan de repli generique utilise ({fallback_reason})")
+        import copy
+        fallback = copy.deepcopy(FALLBACK_PLAN)
+        # Marqueur lu par l'appelant pour rendre le rapport degraded.
+        fallback["fallback"] = True
+        fallback["fallback_reason"] = (
+            f"{fallback_reason}:{fallback_error}" if fallback_error else fallback_reason
+        )
+        return fallback
+
+    @staticmethod
+    def _build_plan_prompt_v2(query: str, context: dict, exploration_data: dict) -> str:
+        """
+        Prompt de planification v2 (drapeau plan_prompt_v2).
+
+        Les contraintes de forme (couverture des aspects demandes, operateurs,
+        source_axis, nombre de sections) vivent dans le schema de sortie et
+        n'y sont pas repetees. Le prompt ne porte ni format JSON ni exemples.
+        Il ne recoit que les champs utiles du contexte, pas le dictionnaire
+        entier.
+        """
+        ctx_in = context if isinstance(context, dict) else {}
+        topics = exploration_data.get("topics_found", [])
+        snippets = (exploration_data.get("data_preview") or {}).get("snippets") or []
+        lines = [
+            (
+                "Tu es un planificateur de rapports de recherche. Construis le plan "
+                "du rapport qui repond a la consigne ci-dessous."
+            ),
+            "",
+            f'CONSIGNE: "{query}"',
+        ]
+        objectives = ctx_in.get("objectives")
+        if objectives:
+            lines.append("OBJECTIFS: " + "; ".join(str(o) for o in objectives))
+        imposed = ctx_in.get("output_sections")
+        if imposed:
+            lines.append(
+                "SECTIONS IMPOSEES (a reprendre telles quelles): "
+                + "; ".join(str(x) for x in imposed)
+            )
+        for key, label in (
+            ("sources_required", "SOURCES OBLIGATOIRES"),
+            ("sources_suggested", "SOURCES SUGGEREES"),
+            ("sources_exclusions", "DOMAINES EXCLUS"),
+            ("domains_whitelist", "DOMAINES AUTORISES UNIQUEMENT"),
+        ):
+            value = ctx_in.get(key)
+            if value:
+                lines.append(f"{label}: " + ", ".join(str(v) for v in value))
+        lines += [
+            "",
+            "EXPLORATION:",
+            f"- Sources decouvertes: {len(exploration_data.get('sources', []))}",
+            f"- Richesse du champ: {exploration_data.get('field_assessment', 'moderate')}",
+            f"- Sous-themes identifies: {', '.join(str(t) for t in topics[:5]) or 'N/A'}",
+        ]
+        if snippets:
+            lines.append(f"- Apercu: {str(snippets[0])[:150]}")
+        lines += [
+            "",
+            "Regles:",
+            (
+                "- Les sections decrivent le SUJET, jamais ton travail : pas de "
+                "section du type Structure du rapport, Strategie de recherche, "
+                "Methodologie, Criteres de validation ou Plan de travail. Chaque "
+                "titre doit pouvoir figurer dans la table des matieres d'un "
+                "rapport publie."
+            ),
+            (
+                "- Adapte l'ampleur du plan a la complexite de la consigne et aux "
+                "sous-themes decouverts."
+            ),
+            "- Definis l'enchainement logique entre sections consecutives.",
+        ]
+        return "\n".join(lines)
 
     # Mots vides : retires lors de la reduction d'une consigne longue en
     # requete de recherche. FR + EN car les consignes arrivent dans les deux
