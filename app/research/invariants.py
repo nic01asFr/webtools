@@ -12,10 +12,13 @@ Codes de violation (stables, a reutiliser tels quels dans les tests) :
 - META_SECTION        : titre de section qui decrit le travail et non le sujet
 - TRUNCATED_SECTION   : derniere phrase de la section non terminee
 - CITATION_RESIDUE    : residu d'URL collee a une citation, ex. "[1]/b]"
+- REFUSAL_TEXT        : texte de refus du modele publie comme contenu ou resume
 """
 
 import re
 from typing import Any
+
+from app.research.refusal import is_refusal
 
 INTERNAL_MARKERS = ("[SOURCE:", "[SECTION_SANS_SOURCE]", "[SYNTHESE_ECHOUEE]")
 
@@ -93,6 +96,8 @@ def check_report(report: dict[str, Any]) -> dict[str, Any]:
             if marker in text:
                 add("INTERNAL_MARKER", f"{marker} dans {where}")
         if where.endswith(".content") or where == "summary":
+            if is_refusal(text):
+                add("REFUSAL_TEXT", f"refus du modele dans {where}")
             for match in _CITATION.finditer(text):
                 for number in re.split(r"\s*[,;]\s*", match.group(1)):
                     if int(number) not in known_ids:

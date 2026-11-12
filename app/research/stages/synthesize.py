@@ -348,6 +348,22 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
                         erreur=str(e),
                     )
 
+                # Un refus du modele (passages hors sujet) n'est pas du
+                # contenu : la section suit le chemin des sections sans
+                # source, retiree du rapport et signalee (app/research/refusal.py).
+                from app.research.refusal import is_refusal
+
+                if is_refusal(response):
+                    logger.warning(
+                        f"       ⛔ Section '{section_name}' : le modele refuse de rediger "
+                        f"sur les passages retenus — traitee comme sans source"
+                    )
+                    context.diagnostics.note("selection.refus_du_modele", section=section_name)
+                    return (
+                        "[SECTION_SANS_SOURCE] Les passages retenus ne traitent pas de "
+                        "cette section (refus du modele)."
+                    )
+
                 word_count = len(response.split())
                 if word_count < 50 and words_target >= 150:
                     logger.warning(
