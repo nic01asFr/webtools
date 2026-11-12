@@ -955,7 +955,7 @@ commit de fusion de sa branche `lot/<ID>`.
 | R2 | fusionné | `lot/R2` | `7ec3ee7` | Ajouté : correctifs de la relecture de la vague 3 |
 | D1 | fusionné | `lot/D1` | `ee0b50d` | Ajouté : image construite, déploiement vérifié localement |
 | E2E | fusionné | `lot/E2E` | `c10e886` | Ajouté : vérification de bout en bout avec LLM substitut (`scripts/`, `tests/e2e/`) |
-| V5-1 | réalisé, à fusionner | `lot/V5-1` | | Documentation, `docs/CONFIGURATION.md`, version 3.0.0 |
+| V5-1 | fusionné | `lot/V5-1` | `fea54cc` | Documentation, `docs/CONFIGURATION.md`, version 3.0.0 |
 | V5-2 | en attente des mesures | | | Dépend des campagnes M2 à M5 (section 8) |
 
 ## État d'avancement
@@ -963,7 +963,8 @@ commit de fusion de sa branche `lot/<ID>`.
 Au 12 novembre 2026, version 3.0.0.
 
 - **Fait** : les lots des vagues 0 à 4, plus V4-4, R1, R2, D1 et E2E, sont
-  fusionnés dans `fiabilisation` (annexe C). V5-1 est réalisé, à fusionner.
+  fusionnés dans `fiabilisation` (annexe C), ainsi que V5-1. `main` n'est pas
+  modifiée : la fusion attend la validation du responsable du projet.
 - **Aucun changement de type B n'est actif** : les 20 drapeaux sont à leur
   défaut (`docs/CONFIGURATION.md`).
 - **Reste, la mesure** : campagnes M0 à M6 (section 8), conduites par le
@@ -972,7 +973,13 @@ Au 12 novembre 2026, version 3.0.0.
 - **Points ouverts** : URL et commit de DeepResearch Bench à compléter dans
   `benchmarks/INSTALL.md` ; la configuration SearXNG du pod d'origine est
   perdue, M0 repart de `docker/searxng/settings.yml`.
-- **Où commencer** : fusionner `lot/V5-1`, construire l'image
+- **Vérifié hors mesure** : 600 tests de l'API et 30 du serveur MCP verts ;
+  image reconstruite au commit final, trois conteneurs sains, `/health`
+  correct (Playwright lancé, SearXNG et 58 moteurs), recherche, extraction,
+  authentification et refus des champs retirés vérifiés en conteneur ;
+  recherche approfondie de bout en bout sur données réelles avec un LLM
+  substitut (`scripts/smoke_deep.py`).
+- **Où commencer** : construire l'image
   (`WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build`), lancer les
   trois services, vérifier le harnais sur une tâche (`benchmarks/INSTALL.md`,
   section 4), puis M0 et M1 en mode `record` (`benchmarks/PROTOCOLE.md`).
