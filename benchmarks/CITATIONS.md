@@ -110,3 +110,62 @@ même texte, et une évaluation interrompue reprend sans rejuger.
 - Le contrôle des chiffres (`missing_numbers`) est un indicateur
   déterministe, pas un verdict : « 1,2 million » et « 1 200 000 » se
   correspondent, mais un chiffre écrit en lettres ne correspond à rien.
+
+## Résultats mesurés
+
+### Étalonnage des juges (59 cas, 26 exacts, 33 fautifs)
+
+| Juge | Verdict exact | Fausses acceptations | Faux rejets |
+|---|---|---|---|
+| `qwen3-8-27b` (juge principal) | 59/59 | 0/33 | 0/26 |
+| `gemma4-26b-moe` | 59/59 | 0/33 | 0/26 |
+| `qwen3-6-35b-moe` (modèle rédacteur du service) | 57/59 | 0/33 | 1/26 |
+
+Deux étiquettes du jeu ont été corrigées après relecture des pages (`mb-05`,
+`zfe-03`, note dans `etalonnage/cas.jsonl`). `gemma4-26b-moe` a cessé de
+répondre sur le proxy pendant la mesure : le second juge du run de
+référence est `qwen3-6-35b-moe`.
+
+### Run de référence `ref-dbbffef` (12 novembre 2026)
+
+Service au commit `dbbffef`, profil `sspcloud-modele-lent`, juge
+`qwen3-8-27b`, instrument au commit `5aa320d`. Affirmation soutenue : ses
+sources, ensemble, soutiennent chaque élément vérifiable.
+
+| | Recherche rapide (16) | Recherche approfondie (8) |
+|---|---|---|
+| Affirmations soutenues | 84,6 % (22/26), IC95 68–96 | 43,0 % (136/316), IC95 31–53 |
+| Soutenues au moins en partie | 92 % | 80 % |
+| Affirmations contredites | 2 | 14 (4,4 %) |
+| Affirmations dont une source est inaccessible | 0 | 17,7 % |
+| Phrases portant une citation | 93 % | 53 % |
+| Réponses exactes (motif attendu) | 16/16 | — |
+| Origine des fautes (rédaction / extraction) | 15 / 2 | 162 / 19 |
+
+Contrôles :
+
+- **Audit manuel** de 28 citations tirées au sort (7 par statut), relues
+  contre la page : accord binaire 96,4 %, aucune citation jugée soutenue à
+  tort (0/7), un faux rejet (juge trop strict). Le taux mesuré est donc
+  plutôt un plancher.
+- **Second juge** (`qwen3-6-35b-moe`) : accord binaire 85 % (kappa 0,69)
+  citation par citation, désaccords sur les cas limites (partielle ou
+  soutenue). Les taux globaux restent proches : 39,9 % contre 43,0 % en
+  recherche approfondie, 88,5 % contre 84,6 % en recherche rapide.
+- **Repli de sélection** : 25 % d'affirmations soutenues (19/76) dans les
+  sections rédigées sur des passages sous le seuil, contre 51 % (105/206)
+  après une sélection normale.
+
+### Défauts de l'instrument trouvés et corrigés pendant la mesure
+
+Chacun faussait le résultat et a son test :
+
+- Wikimedia refusait le récupérateur (403) : User-Agent déclaré.
+- Une page de vérification anti-robot de 226 caractères était comptée comme
+  lue : ses 8 citations sortaient non soutenues à tort.
+- Pages rendues en JavaScript lues vides : repli par navigateur.
+- PubMed bloque tout client programmatique : API officielle E-utilities.
+- Exposant HTML (`<sup>14</sup>C`) : l'extrait du juge n'était pas retrouvé.
+- Juge muet sur le proxy : chaque citation attendait 3 × 300 s ; contrôle
+  préalable du juge.
+- Lecture par navigateur sans fin : échéance globale de 120 s.
