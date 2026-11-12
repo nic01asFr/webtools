@@ -15,11 +15,19 @@ class Settings(BaseSettings):
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 
-    # Default LLM Configuration
+    # Default LLM Configuration : source unique des valeurs par defaut du
+    # fournisseur, du modele et de l'URL (LLM compatible OpenAI du SSPCloud,
+    # celui du deploiement reel). Le code, .env.example, start_all.sh et
+    # docker-compose.yml reprennent ces valeurs ; ne pas les redefinir ailleurs.
     default_llm_provider: str = "openai"
-    default_llm_model: str = "gpt-4o"
+    default_llm_model: str = "qwen3-6-35b-moe"
     default_llm_api_key: str = ""
-    default_llm_base_url: Optional[str] = None
+    default_llm_base_url: Optional[str] = "https://llm.lab.sspcloud.fr/api"
+
+    # SearXNG : URL de l'instance de recherche. Defaut adapte a
+    # docker-compose (service "searxng" sur le reseau interne) ; start_all.sh
+    # la surcharge pour une instance locale. Lire via get_searxng_base_url().
+    searxng_base_url: str = "http://searxng:8080"
 
     # Provider-specific configurations
     # Albert
@@ -61,3 +69,8 @@ class Settings(BaseSettings):
 
 # Instance globale de configuration
 settings = Settings()
+
+
+def get_searxng_base_url() -> str:
+    """URL de base de SearXNG, sans barre finale."""
+    return settings.searxng_base_url.rstrip("/")

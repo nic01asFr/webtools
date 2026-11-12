@@ -40,50 +40,55 @@ RUN useradd -m -u 1000 webextract && \
 # Définir le répertoire de travail
 WORKDIR /app
 
-# Copier les fichiers de dépendances et le code
+# Deux environnements Python dans une seule image : les dependances de l'API
+# (browser-use impose pydantic<2.11) et celles du serveur MCP (fastmcp exige
+# pydantic>=2.12) ne se resolvent pas ensemble (C81). Une image unique garde
+# un seul build et un seul tag ; le service choisit son interpreteur :
+#   API : /opt/venv-api/bin/python    (requirements.lock)
+#   MCP : /opt/venv-mcp/bin/python    (requirements-mcp.lock)
+# Les noms correspondent a WEBTOOLS_API_PYTHON et WEBTOOLS_MCP_PYTHON de
+# start_all.sh. Pour regenerer les verrous : voir GETTING_STARTED.md.
+COPY requirements.lock requirements-mcp.lock ./
+RUN python -m venv /opt/venv-api && \
+    /opt/venv-api/bin/pip install --no-cache-dir -r requirements.lock && \
+    python -m venv /opt/venv-mcp && \
+    /opt/venv-mcp/bin/pip install --no-cache-dir -r requirements-mcp.lock
+
+# Le code est lu depuis /app (WORKDIR) : aucune installation du paquet.
 COPY --chown=webextract:webextract pyproject.toml ./
 COPY --chown=webextract:webextract app ./app
-# mcp_server.py etait absent de l'image : elle ne pouvait donc pas servir le
-# MCP, d'ou deux modes de deploiement divergents (Docker incomplet vs
-# start_all.sh complet). Les deux voies convergent desormais.
-COPY --chown=webextract:webextract mcp_server.py ./
-COPY --chown=webextract:webextract start_all.sh ./
+COPY --chown=webextract:webextract mcp_server.py start_all.sh ./
 
-# Installer les dépendances Python
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -e .
+# Installer les dependances systeme de Playwright (doit etre root)
+RUN /opt/venv-api/bin/python -m playwright install-deps chromium
 
-# Installer les dépendances système de Playwright (doit être root)
-RUN python -m playwright install-deps chromium
-
-# Emplacement unique et explicite des navigateurs, partage par tous les
-# process (uvicorn ET mcp_server.py, qui peuvent tourner sous des
-# interpreteurs differents).
+# Emplacement unique et explicite des navigateurs (seule l'API en a besoin).
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN mkdir -p /ms-playwright && chown webextract:webextract /ms-playwright
 
-# Passer à l'utilisateur non-root
+# Etat des taches de fond du serveur MCP (WEBTOOLS_STATE_DIR)
+RUN mkdir -p /state && chown webextract:webextract /state
+
+# Passer a l'utilisateur non-root
 USER webextract
 
-# Installer Playwright en tant qu'utilisateur webextract
-RUN python -m playwright install chromium
-
-# PLAYWRIGHT_BROWSERS_PATH plutot que des symlinks au numero de build code
-# en dur (chromium-1187) : ce numero casse a la prochaine montee de
-# Playwright, avec une erreur qui ne ressemble pas a sa cause. start_all.sh
-# fait deja ce choix - les deux voies convergent.
+# Installer Chromium en tant qu'utilisateur webextract
+RUN /opt/venv-api/bin/python -m playwright install chromium
 
 # Variables d'environnement par défaut
 ENV PYTHONUNBUFFERED=1 \
-    LOG_LEVEL=INFO
+    LOG_LEVEL=INFO \
+    WEBTOOLS_API_PYTHON=/opt/venv-api/bin/python \
+    WEBTOOLS_MCP_PYTHON=/opt/venv-mcp/bin/python
 
-# Exposer le port de l'API
-EXPOSE 8000
+# Ports : API (8000) et serveur MCP (8090)
+EXPOSE 8000 8090
 
 # Healthcheck
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Commande de démarrage
-# On démarre directement uvicorn, Playwright gère le headless tout seul
-CMD ["python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Commande par defaut : l'API. Le service webtools-mcp de docker-compose.yml
+# remplace la commande par "/opt/venv-mcp/bin/python mcp_server.py".
+# SearXNG est un conteneur a part (service searxng).
+CMD ["/opt/venv-api/bin/python", "-m", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
