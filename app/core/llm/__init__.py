@@ -81,6 +81,12 @@ async def get_llm_client() -> BaseLLMClient:
             base_url=base_url
         )
         client.total_timeout = _parse_total_timeout(os.getenv("DEFAULT_LLM_TOTAL_TIMEOUT"))
+        # Flux active par defaut pour l'instance de service (voir
+        # OpenAILLMClient._complete : sans flux, une generation longue sur un
+        # modele a ~10 jetons/s depasse le delai par tentative et n'aboutit
+        # jamais). DEFAULT_LLM_STREAM=0 le desactive.
+        if hasattr(client, "stream"):
+            client.stream = os.getenv("DEFAULT_LLM_STREAM", "1").strip().lower() not in ("0", "false", "no", "off")
         client._shared = True
         _shared_clients[key] = client
     return client

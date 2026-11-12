@@ -5,6 +5,7 @@ Client LLM pour OpenAI API.
 import asyncio
 import json
 import logging
+from types import SimpleNamespace
 from typing import Any
 
 import httpx
@@ -60,6 +61,7 @@ class OpenAILLMClient(BaseLLMClient):
         timeout: float = DEFAULT_ATTEMPT_TIMEOUT,
         total_timeout: float | None = None,
         transport: httpx.AsyncBaseTransport | None = None,
+        stream: bool = False,
     ):
         """
         Initialise le client OpenAI.
@@ -73,11 +75,15 @@ class OpenAILLMClient(BaseLLMClient):
             total_timeout: echeance totale par appel, tentatives comprises
                 (None : pas d'echeance globale)
             transport: transport httpx injecte (tests sans reseau)
+            stream: generation en flux. Le delai par tentative s'applique
+                alors a l'inactivite entre deux morceaux et non a toute la
+                generation (voir _complete).
         """
         super().__init__(api_key=api_key, base_url=base_url, model=model)
         self.max_retries = max_retries
         self.attempt_timeout = timeout
         self.total_timeout = total_timeout
+        self.stream = stream
         self._transport = transport
 
         # Client OpenAI asynchrone. research_deep enchaine des dizaines
@@ -175,6 +181,47 @@ class OpenAILLMClient(BaseLLMClient):
         client = self.client.with_options(**options) if options else self.client
         return client, total_timeout
 
+    async def _complete(self, client: Any, **create_kwargs: Any) -> Any:
+        """
+        Appel chat.completions, en flux si self.stream.
+
+        Sans flux, le delai par tentative (90 s) borne toute la generation.
+        Mesure sur le proxy SSPCloud (qwen3-6-35b-moe, novembre 2026) : environ
+        10 jetons par seconde, premier jeton en 1,2 s. Un plan structure
+        d'environ 2 000 jetons demande donc ~200 s : chaque tentative expirait
+        a 90 s et etait relancee depuis zero, le plan n'aboutissait jamais et
+        tout le rapport partait sur le plan de repli. En flux, le delai ne
+        porte que sur l'inactivite entre deux morceaux ; l'echeance totale
+        (total_timeout) reste la garde globale.
+
+        Rend un objet de meme forme qu'une reponse non diffusee :
+        choices[0].message.content et choices[0].finish_reason.
+        """
+        if not self.stream:
+            return await client.chat.completions.create(**create_kwargs)
+
+        stream = await client.chat.completions.create(stream=True, **create_kwargs)
+        parts: list[str] = []
+        finish_reason = None
+        seen_choice = False
+        async for chunk in stream:
+            if not chunk.choices:
+                continue
+            seen_choice = True
+            choice = chunk.choices[0]
+            delta = getattr(choice, "delta", None)
+            text = getattr(delta, "content", None) if delta is not None else None
+            if text:
+                parts.append(text)
+            if getattr(choice, "finish_reason", None):
+                finish_reason = choice.finish_reason
+        if not seen_choice:
+            return SimpleNamespace(choices=[])
+        message = SimpleNamespace(content="".join(parts) if parts else None)
+        return SimpleNamespace(
+            choices=[SimpleNamespace(message=message, finish_reason=finish_reason)]
+        )
+
     async def _with_deadline(self, awaitable: Any, total_timeout: float | None) -> Any:
         """Applique l'echeance totale (retries du SDK compris)."""
         if not total_timeout:
@@ -237,11 +284,7 @@ class OpenAILLMClient(BaseLLMClient):
         try:
             client, total_timeout = self._prepare_call(kwargs)
             response = await self._with_deadline(
-                client.chat.completions.create(
-                    model=self.model,
-                    messages=messages,
-                    **kwargs
-                ),
+                self._complete(client, model=self.model, messages=messages, **kwargs),
                 total_timeout,
             )
 
@@ -328,7 +371,8 @@ class OpenAILLMClient(BaseLLMClient):
         try:
             client, total_timeout = self._prepare_call(kwargs)
             response = await self._with_deadline(
-                client.chat.completions.create(
+                self._complete(
+                    client,
                     model=self.model,
                     messages=messages,
                     response_format={
