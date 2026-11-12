@@ -105,7 +105,11 @@ async def analyze_image(request: VisionRequest):
 
     # Client partage, configure comme le reste du service ; il appartient a
     # l'application et n'est pas ferme ici.
-    llm_client = await get_llm_client()
+    try:
+        llm_client = await get_llm_client()
+    except ValueError:
+        # Aucune cle configuree : get_llm_client() leve avant de rendre un client.
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=MSG_NO_KEY)
     if not llm_client.api_key:
         raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=MSG_NO_KEY)
     if not llm_client.supports_vision:

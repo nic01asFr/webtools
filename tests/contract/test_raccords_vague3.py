@@ -46,9 +46,9 @@ async def test_conversion_des_citations_recoit_le_journal(monkeypatch: pytest.Mo
     received: list[Any] = []
     original = orch._convert_sources_to_bibliography
 
-    def spy(report: dict[str, Any], diagnostics: Any = None) -> dict[str, Any]:
+    def spy(report: dict[str, Any], diagnostics: Any = None, **kwargs: Any) -> dict[str, Any]:
         received.append(diagnostics)
-        return original(report, diagnostics)
+        return original(report, diagnostics, **kwargs)
 
     monkeypatch.setattr(orch, "_convert_sources_to_bibliography", spy)
     await orch.execute_intelligent_research(QUERY)

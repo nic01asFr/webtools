@@ -116,6 +116,11 @@ AXIS_PREFERENCE: Dict[str, List[str]] = {
 # catalogue s'appauvrirait silencieusement.
 FAILURE_COOLDOWN_SECONDS = 900
 
+# Intervalle minimal entre deux tentatives de rechargement d'un catalogue vide :
+# un SearXNG durablement absent ne doit pas ajouter l'attente de /config a
+# chaque recherche.
+CATALOG_RETRY_INTERVAL = 300.0
+
 
 class EngineCatalog:
     """Catalogue des moteurs reellement disponibles, decouvert a l'execution."""
@@ -128,6 +133,11 @@ class EngineCatalog:
         # Horloge injectable : les tests avancent le temps sans attendre.
         self._clock = clock
         self._base_url: str | None = None
+        # Derniere tentative de ensure_loaded, et verrou qui coalesce les
+        # appels concurrents (une seule tentative pour tous).
+        self._last_attempt: Optional[float] = None
+        self._retry_lock = asyncio.Lock()
+        self.retry_interval = CATALOG_RETRY_INTERVAL
 
     async def _fetch_config(self, base_url: str, timeout: float) -> dict:
         """Appel HTTP a /config, isole pour etre remplace dans les tests."""
@@ -192,12 +202,24 @@ class EngineCatalog:
         timeout: float = 10.0,
         sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
     ) -> bool:
-        """Retente un chargement si le catalogue est vide et qu'une URL est connue."""
+        """Retente un chargement si le catalogue est vide et qu'une URL est connue.
+
+        Au plus une tentative par `retry_interval` ; les appels concurrents sont
+        coalesces par un verrou : les suivants constatent le resultat du premier
+        sans refaire d'appel."""
         if self._loaded:
             return True
         if not self._base_url:
             return False
-        return await self.load(self._base_url, timeout=timeout, retries=1, sleep=sleep)
+        async with self._retry_lock:
+            if self._loaded:
+                return True
+            now = self._clock()
+            last = self._last_attempt
+            if last is not None and now - last < self.retry_interval:
+                return False
+            self._last_attempt = now
+            return await self.load(self._base_url, timeout=timeout, retries=1, sleep=sleep)
 
     @property
     def available(self) -> bool:

@@ -16,8 +16,9 @@ Format sur disque : un repertoire par tache, contenant
 
 Cles deterministes :
 - recherche : empreinte (sha256) des parametres normalises : requete (espaces
-  reduits, casse conservee), langue, moteurs, categories, plage temporelle,
-  nombre de resultats, nombre de pages.
+  reduits, casse conservee), langue, categories, plage temporelle, nombre de
+  resultats, nombre de pages. Les moteurs sont EXCLUS de la cle : la liste
+  depend de la disponibilite des moteurs au moment du run (cascade).
 - extraction : URL normalisee SEULE. Les options d'extraction (timeout,
   prompt, type, palier) varient d'un appel a l'autre sans changer la page.
 """
@@ -74,14 +75,14 @@ def search_key(
     max_results: int,
     language: str,
     categories: str | None,
-    engines: str | None,
     time_range: str | None,
     max_pages: int,
 ) -> dict[str, Any]:
+    """Cle de recherche. Sans `engines` : la selection de moteurs varie avec leur
+    disponibilite et ne change pas la requete rejouee."""
     return {
         "query": " ".join(query.split()),
         "language": language,
-        "engines": engines,
         "categories": categories,
         "time_range": time_range,
         "max_results": max_results,
@@ -128,7 +129,7 @@ class ReplaySearch:
         time_range: str | None = None,
         max_pages: int = 1,
     ) -> list[SearchResult]:
-        key = search_key(query, max_results, language, categories, engines, time_range, max_pages)
+        key = search_key(query, max_results, language, categories, time_range, max_pages)
         path = self.directory / "search" / f"{_fingerprint(key)}.json"
         if self.mode == MODE_RECORD:
             results = await self.inner.search(
@@ -212,3 +213,20 @@ def build_replay_clients(
         ReplaySearch(mode, path, search_client),
         ReplayExtractor(mode, path, extractor_manager),
     )
+
+
+def replay_summary(search_client: Any, extractor_manager: Any) -> dict[str, Any] | None:
+    """Bilan du rejeu pour diagnostics.replay, ou None si le rejeu est inactif.
+
+    Un run avec `missed` > 0 n'est pas un rejeu fidele : le pipeline avale les
+    erreurs de collecte, ce compteur est le seul signal visible dans la reponse.
+    """
+    wrappers = [c for c in (search_client, extractor_manager) if isinstance(c, (ReplaySearch, ReplayExtractor))]
+    if not wrappers:
+        return None
+    return {
+        "mode": wrappers[0].mode,
+        "served": sum(w.served for w in wrappers),
+        "missed": sum(w.missed for w in wrappers),
+        "recorded": sum(w.recorded for w in wrappers),
+    }

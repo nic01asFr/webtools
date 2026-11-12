@@ -8,7 +8,7 @@ import json
 import logging
 import time
 from collections import OrderedDict
-from typing import Optional, Dict, Any
+from typing import Optional
 from urllib.parse import urlparse, parse_qs
 
 from app.api.models import WebResult, ExtractionOptions

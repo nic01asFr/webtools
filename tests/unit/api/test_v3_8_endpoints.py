@@ -202,8 +202,27 @@ def test_vision_erreur_inattendue_sans_detail_brut(
     assert SECRET not in r.text
 
 
-def test_vision_sans_cle_api(client: TestClient, vision_llm: TrackedLLM) -> None:
-    vision_llm.api_key = ""
+async def _get_llm_reel() -> Any:
+    from app.core.llm import get_llm_client
+
+    return await get_llm_client()
+
+
+def _sans_cle(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Configuration reelle sans aucune cle : get_llm_client() leve ValueError."""
+    from app.core.config import settings
+
+    for champ in ("default_llm_api_key", "openai_api_key", "anthropic_api_key", "albert_api_key"):
+        monkeypatch.setattr(settings, champ, "")
+    monkeypatch.setattr("app.core.llm._shared_clients", {})
+
+
+def test_vision_sans_cle_api(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    async def no_check(url: str, resolver: Any = None) -> None:
+        return None
+
+    monkeypatch.setattr(vision, "assert_safe_url_async", no_check)
+    _sans_cle(monkeypatch)
     assert client.post("/api/v1/vision", json=VISION_BODY).status_code == 503
 
 
@@ -306,6 +325,28 @@ def test_extract_config_du_service_utilise_le_client_partage(
     assert extract_env["created"] == []
     assert extract_env["pages"].calls[0].llm_client is extract_env["shared"]
     assert extract_env["shared"].closed is False
+
+
+def test_extract_sans_cle_degrade_vers_l_extraction_directe(
+    client: TestClient, extract_env: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(extract, "get_llm_client", _get_llm_reel)
+    _sans_cle(monkeypatch)
+    r = client.post("/api/v1/extract", json=EXTRACT_BODY)
+    assert r.status_code == 200
+    assert r.json()["metadata"]["llm_disponible"] is False
+    assert extract_env["pages"].calls[0].llm_client is None
+
+
+def test_extract_sans_agent_ne_demande_pas_de_client(
+    client: TestClient, extract_env: dict[str, Any], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(extract, "get_llm_client", _get_llm_reel)
+    _sans_cle(monkeypatch)
+    body = {**EXTRACT_BODY, "options": {"use_agent": False}}
+    r = client.post("/api/v1/extract", json=body)
+    assert r.status_code == 200
+    assert "llm_disponible" not in r.json()["metadata"]
 
 
 def test_extract_entrees_bornees(client: TestClient, extract_env: dict[str, Any]) -> None:
