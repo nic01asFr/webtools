@@ -79,6 +79,9 @@ class PipelineConfig:
     bibliography_cited_only: bool = False  # bibliographie limitee aux sources citees (C45)
     bibliography_real_titles: bool = False  # titre reel de la page au lieu de "Source n" (C45)
 
+    # --- Lot V3-7 : plan de recherche ---
+    plan_prompt_v2: bool = False  # prompt de plan sans ancien JSON ni exemples, contexte reduit (C33)
+
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":
         """Construit la configuration depuis l'environnement.
