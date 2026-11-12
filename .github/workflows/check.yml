@@ -26,5 +26,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Verifier la resolution de l'extra mcp
+      - name: Verifier la resolution de la liste de l extra mcp
         run: make check-mcp

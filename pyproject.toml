@@ -56,8 +56,9 @@ dependencies = [
 [project.optional-dependencies]
 # Serveur MCP (mcp_server.py). Environnement distinct de l'API : les mcp
 # recents (via fastmcp>=3) exigent pydantic>=2.12, incompatible avec
-# browser-use==0.1.41. Ne jamais installer cet extra avec les dependances
-# principales ni avec "dev" : ".[mcp]" seul, dans son propre venv.
+# browser-use==0.1.41. Un extra s'ajoute aux dependances principales, donc
+# ".[mcp]" reintroduit browser-use et ne se resout pas : installer la liste
+# ci-dessous seule (make check-mcp la verifie), dans son propre venv.
 mcp = [
     "fastmcp>=3.0.0",
     "mcp>=1.0.0",
