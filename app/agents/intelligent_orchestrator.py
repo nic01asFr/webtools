@@ -23,15 +23,13 @@ from app.research.context import ExecutionContext
 from app.research.diagnostics import Diagnostics
 from app.research.pipeline_config import PipelineConfig
 from app.research.stages.services import StageServices
-from app.research.stages.assemble import add_complete_traces, apply_summary, convert_sources_to_bibliography, final_assembly, report_title
+from app.research.stages.assemble import add_complete_traces, apply_summary, convert_sources_to_bibliography, final_assembly, report_title, strip_source_markers
 from app.research.stages.coherence import analyze_intersections, apply_coherence_improvements
-from app.research.stages.crossref import cross_reference_data
+from app.research.stages.collect import collect_section_data
 from app.research.stages.enrich import iterative_enrichment
 from app.research.stages.explore import exploratory_phase
-from app.research.stages.extract import section_extraction_phase
 from app.research.stages.plan import create_detailed_plan
-from app.research.stages.search import section_research_phase, targeted_search
-from app.research.stages.synthesize import synthesize_single_section
+from app.research.stages.synthesize import write_sections
 
 logger = logging.getLogger(__name__)
 
@@ -200,162 +198,15 @@ class IntelligentOrchestrator:
         # ===================================================================
         logger.info("🏗️  PHASE 2: Construction itérative section par section")
 
-        # Étape 2.1+2.2 (recherche + extraction) : ces deux étapes sont
-        # independantes entre sections (chacune n'ecrit que dans sa propre
-        # cle de ctx.final_content), contrairement au croisement (2.3) qui
-        # lit l'etat des AUTRES sections deja traitees pour reperer les
-        # sources partagees. On parallelise donc uniquement 2.1+2.2, avec
-        # un plafond de concurrence explicite (semaphore) : sans lui, N
-        # sections x jusqu'a 5 extractions chacune pourrait lancer des
-        # dizaines de navigateurs Chromium simultanement et saturer la
-        # memoire du pod. 2.3+2.4 restent sequentiels ensuite pour
-        # preserver le signal de corroboration inter-sections.
+        # Etapes 2.1 a 2.2.5 (stages.collect) : recherche et extraction en parallele,
+        # puis complement des sections trop pauvres, avant toute redaction.
         section_targets = plan.get('section_targets', {})
-        from app.core.config import settings as _settings
-        extraction_semaphore = asyncio.Semaphore(_settings.max_concurrent_extractions)
-
-        async def _research_and_extract(section_name: str, section_config: Dict):
-            async with extraction_semaphore:
-                logger.info(f"  📝 Section (recherche+extraction): {section_name}")
-                section_data = await section_research_phase(self.services(),
-                    query=query, section_name=section_name,
-                    section_config=section_config, exploration_data=exploration_data,
-                    context=ctx
-                )
-                extracted_data = await section_extraction_phase(self.services(),
-                    section_name=section_name, section_data=section_data, context=ctx
-                )
-                logger.info(f"     ✓ {section_name}: {len(extracted_data)} contenus extraits")
-                return section_name, extracted_data
-
-        # return_exceptions=True : sans lui, UNE section qui leve annule tout
-        # le lot et fait echouer le rapport entier, alors que les autres
-        # sections avaient abouti. On isole l'echec a sa propre section.
-        # Budget de temps PAR SECTION, pas sur le lot entier.
-        #
-        # Une premiere version bornait tout le gather avec asyncio.wait_for.
-        # A l'expiration, wait_for annule le gather : toutes les extractions
-        # en cours sont interrompues en plein vol, avec leurs connexions
-        # Playwright et HTTP. Les appels LLM suivants heritaient d'un
-        # environnement asynchrone degrade et echouaient tous en
-        # "Connection error" — TOUTES les syntheses perdues, rapport vide
-        # rendu avec success=true. Le LLM etait hors de cause : teste
-        # isolement, 15 appels enchaines et jusqu'a 30 000 caracteres de
-        # prompt passaient sans un echec.
-        #
-        # Borner chaque section separement evite l'annulation collective :
-        # une section trop lente devient une section sans donnees (reprise
-        # par le complement pre-redaction ci-dessous), les autres aboutissent
-        # normalement. Coherent avec return_exceptions=True.
-        section_budget = max(
-            ctx.config.section_budget_min_seconds,
-            int(self.timeout * ctx.config.section_budget_timeout_ratio),
+        extracted_by_section = await collect_section_data(
+            self.services(), ctx, query, plan, exploration_data
         )
 
-        async def _research_and_extract_bounded(name: str, cfg: Dict):
-            try:
-                return await asyncio.wait_for(
-                    _research_and_extract(name, cfg), timeout=section_budget
-                )
-            except asyncio.TimeoutError:
-                logger.warning(
-                    f"  ⏱️  Section '{name}' : budget de {section_budget}s dépassé, "
-                    f"poursuite sans ses données"
-                )
-                return (name, [])
-
-        extraction_results = await asyncio.gather(*[
-            _research_and_extract_bounded(name, cfg)
-            for name, cfg in section_targets.items()
-        ], return_exceptions=True)
-
-        extracted_by_section = {}
-        for item in extraction_results:
-            if isinstance(item, Exception):
-                logger.error(f"  ❌ Une section a échoué pendant recherche/extraction: {item}")
-                continue
-            name, data = item
-            extracted_by_section[name] = data
-
-        # Les sections en echec restent presentes dans le plan avec zero
-        # donnee : elles beneficieront du complement pre-redaction ci-dessous
-        # plutot que de faire echouer tout le rapport.
-        for name in section_targets:
-            extracted_by_section.setdefault(name, [])
-
-        # Étape 2.2.5 (verification + complement) : verifie chaque section
-        # au regard d'un seuil calibre par le LLM DES LA PHASE 1 (plan.
-        # search_strategy.sources_per_section, deja calcule au regard de la
-        # requete et de l'exploration initiale - jamais exploite jusqu'ici),
-        # module localement par la profondeur (depth) deja decidee pour
-        # CETTE section. Aucun nouvel appel LLM pour la decision de seuil
-        # elle-meme - seule l'action de combler (recherche ciblee) declenche
-        # un appel, seulement si necessaire. Agit sur les DONNEES avant
-        # toute redaction, pas sur du texte deja ecrit (contrairement a
-        # l'ajustement local de words_target et a l'enrichissement Phase 4,
-        # qui restent les filets de securite en aval si ceci ne suffit pas).
-        _strategy = plan.get('search_strategy', {})
-
-        base_threshold = _strategy.get(
-            'sources_per_section', ctx.config.complement_default_sources_per_section
-        )
-        DEPTH_MODULATION = {
-            "light": ctx.config.complement_depth_light_delta,
-            "moderate": ctx.config.complement_depth_moderate_delta,
-            "deep": ctx.config.complement_depth_deep_delta,
-        }
-
-        for section_name, section_config in section_targets.items():
-            n_sources = len(extracted_by_section.get(section_name, []))
-            depth = section_config.get('depth', 'moderate')
-            threshold = max(
-                ctx.config.complement_min_threshold,
-                base_threshold + DEPTH_MODULATION.get(depth, 0),
-            )
-
-            if n_sources < threshold:
-                logger.info(f"  🔎 Complément pré-rédaction pour '{section_name}': {n_sources}/{threshold} sources")
-                key_questions = section_config.get('key_questions', [])
-                extra = await targeted_search(self.services(),
-                    query=query, section_title=section_name,
-                    missing=key_questions, ctx=ctx
-                )
-                if extra and extra.get('sources'):
-                    extracted_by_section[section_name] = extracted_by_section.get(section_name, []) + extra['sources']
-                    logger.info(f"     ✓ +{len(extra['sources'])} source(s), total: {len(extracted_by_section[section_name])}")
-
-        # Étape 2.3+2.4 (croisement + synthèse) : sequentiel, car le
-        # croisement doit voir les sections precedentes deja finalisees.
-        for section_name, section_config in section_targets.items():
-            logger.info(f"\n  ✍️  Section (croisement+synthèse): {section_name}")
-            extracted_data = extracted_by_section.get(section_name, [])
-
-            enriched_data = await cross_reference_data(self.services(),
-                section_name=section_name,
-                new_data=extracted_data,
-                context=ctx
-            )
-            logger.info(f"     ✓ {len(enriched_data)} données enrichies")
-
-            section_content = await synthesize_single_section(self.services(),
-                query=query,
-                section_name=section_name,
-                section_config=section_config,
-                enriched_data=enriched_data,
-                context=ctx
-            )
-            logger.info(f"     ✓ Contenu généré: {len(section_content.split())} mots")
-
-            # Stocker dans le canvas. setdefault plutot qu'un acces direct :
-            # le nom de section utilise ici peut diverger legerement (ponctuation,
-            # espaces) de celui pose par initialize_sections() plus tot dans le
-            # pipeline, provoquant sinon un KeyError qui fait echouer tout le
-            # rapport alors que le contenu de CETTE section a bien ete genere.
-            ctx.final_content['sections'].setdefault(section_name, {
-                "raw_data": [], "content": "", "metadata": {"data_count": 0, "sources": []}
-            })
-            ctx.final_content['sections'][section_name]['content'] = section_content
-            ctx.final_content['sections'][section_name]['raw_data'] = enriched_data
+        # Etapes 2.3 et 2.4 (stages.synthesize) : croisement puis redaction, sequentiels.
+        await write_sections(self.services(), ctx, query, section_targets, extracted_by_section)
 
         # ===================================================================
         # PHASE 3: COHÉRENCE GLOBALE PARTIE PAR PARTIE
@@ -424,19 +275,8 @@ class IntelligentOrchestrator:
             final_answer["degraded"] = True
             final_answer["plan_fallback_reason"] = plan.get("fallback_reason")
 
-        # Nettoyage FINAL des marqueurs residuels, apres toutes les etapes.
-        # Le filet pose dans _final_assembly ne suffit pas : l'enrichissement
-        # iteratif puis cette conversion s'executent APRES lui et peuvent
-        # reintroduire un resume non nettoye. Ici, plus rien ne s'execute
-        # ensuite — c'est le dernier point ou agir.
-        import re as _re_final
-        _marker = _re_final.compile(r'\s*\[SOURCE:[^\]]*\]?')
-        for _k in ("summary", "introduction", "conclusion"):
-            if isinstance(final_answer.get(_k), str):
-                final_answer[_k] = _marker.sub('', final_answer[_k]).strip()
-        for _s in (final_answer.get("sections") or []):
-            if isinstance(_s.get("content"), str) and "[SOURCE:" in _s["content"]:
-                _s["content"] = _marker.sub('', _s["content"]).strip()
+        # Nettoyage final des marqueurs residuels (stages.assemble) : dernier point ou agir.
+        strip_source_markers(final_answer)
 
         # Étape 4.3: Génération des traces complètes
         final_answer = add_complete_traces(final_answer, ctx, exploration_data, plan)

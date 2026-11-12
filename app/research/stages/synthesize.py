@@ -6,6 +6,7 @@ from typing import Dict, List
 
 from app.research.context import ExecutionContext
 from app.research.stages.services import StageServices
+from app.research.stages.crossref import cross_reference_data
 from app.research.stages.queries import build_search_query
 from app.research.stages.select import semantic_chunk_selection
 
@@ -374,3 +375,49 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
         f"       ❌ Synthèse '{section_name}' abandonnée après {max_attempts} essais: {last_error}"
     )
     return f"[SYNTHESE_ECHOUEE] Section '{section_name}' non générée ({last_error})."
+
+
+async def write_sections(
+    svc: StageServices,
+    ctx: ExecutionContext,
+    query: str,
+    section_targets: Dict[str, Dict],
+    extracted_by_section: Dict[str, List[Dict]],
+) -> None:
+    """Etapes 2.3 et 2.4 : croise puis redige chaque section, dans l'ordre du plan.
+
+    Le contenu et les donnees de chaque section sont ecrits dans
+    ctx.final_content["sections"].
+    """
+    # Étape 2.3+2.4 (croisement + synthèse) : sequentiel, car le
+    # croisement doit voir les sections precedentes deja finalisees.
+    for section_name, section_config in section_targets.items():
+        logger.info(f"\n  ✍️  Section (croisement+synthèse): {section_name}")
+        extracted_data = extracted_by_section.get(section_name, [])
+
+        enriched_data = await cross_reference_data(
+            svc, section_name=section_name, new_data=extracted_data, context=ctx
+        )
+        logger.info(f"     ✓ {len(enriched_data)} données enrichies")
+
+        section_content = await synthesize_single_section(
+            svc,
+            query=query,
+            section_name=section_name,
+            section_config=section_config,
+            enriched_data=enriched_data,
+            context=ctx,
+        )
+        logger.info(f"     ✓ Contenu généré: {len(section_content.split())} mots")
+
+        # Stocker dans le canvas. setdefault plutot qu'un acces direct :
+        # le nom de section utilise ici peut diverger legerement (ponctuation,
+        # espaces) de celui pose par initialize_sections() plus tot dans le
+        # pipeline, provoquant sinon un KeyError qui fait echouer tout le
+        # rapport alors que le contenu de CETTE section a bien ete genere.
+        ctx.final_content["sections"].setdefault(
+            section_name,
+            {"raw_data": [], "content": "", "metadata": {"data_count": 0, "sources": []}},
+        )
+        ctx.final_content["sections"][section_name]["content"] = section_content
+        ctx.final_content["sections"][section_name]["raw_data"] = enriched_data
