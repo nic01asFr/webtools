@@ -162,6 +162,17 @@ class IntelligentOrchestrator:
         self.extractor_manager = extractor_manager if extractor_manager is not None else ExtractorManager()
         self.data_extractor = GenericDataExtractor(llm_client)
 
+    def _set_search_language(self, ctx: "ExecutionContext", context: Any, lang: str) -> None:
+        """Pose la langue de la requete sur son contexte.
+
+        self._search_language reste synchronise pour les lectures des autres
+        etapes (synthese) qui ne sont pas encore migrees vers ctx.
+        """
+        ctx.search_language = lang
+        if isinstance(context, dict):
+            context['search_language'] = lang
+        self._search_language = lang
+
     async def execute_intelligent_research(
         self,
         query: str,
@@ -215,8 +226,16 @@ class IntelligentOrchestrator:
         # ===================================================================
         logger.info("🔍 PHASE 1: Exploration + Planification détaillée")
 
+        # Langue detectee AVANT la premiere recherche, portee par le contexte de
+        # la requete. La detection est deterministe (stopwords) : elle ne
+        # depend que de la consigne. Si elle ne tranche pas, la langue
+        # declaree par le plan est retenue plus bas.
+        from app.utils.language import detect_language
+        _detected = detect_language(query)
+        self._set_search_language(ctx, context, _detected)
+
         # Étape 1.1: Exploration initiale restreinte pour évaluer le champ
-        exploration_data = await self._exploratory_phase(query, context)
+        exploration_data = await self._exploratory_phase(query, context, ctx=ctx)
         logger.info(f"  ✓ Exploration: {len(exploration_data.get('sources', []))} sources découvertes")
         logger.info(f"  ✓ Champ évalué: {exploration_data.get('field_assessment', 'N/A')}")
 
@@ -225,6 +244,17 @@ class IntelligentOrchestrator:
         logger.info(f"  ✓ Canvas structure: {len(plan.get('sections', []))} sections")
         logger.info(f"  ✓ Profondeur: {plan.get('complexity_analysis', {}).get('target_length', 'N/A')}")
         logger.info(f"  ✓ Enchaînements définis: {len(plan.get('narrative_flow', []))} transitions")
+
+        # Le LLM ne sert que si la detection n'a pas tranche ("auto" fait
+        # tomber PubMed de 20 a 0 resultats : traite comme "all").
+        _declared = (plan.get('search_strategy', {}) or {}).get('language') or 'all'
+        if _declared == 'auto':
+            _declared = 'all'
+        _lang = _detected if _detected != 'all' else _declared
+        if _detected != 'all' and _declared not in ('all', _detected):
+            logger.debug(f"Langue: detectee '{_detected}', LLM disait '{_declared}' - detection retenue")
+        self._set_search_language(ctx, context, _lang)
+        logger.info(f"  🌐 Langue de recherche et rédaction : {_lang}")
 
         # Initialiser les sections du canvas
         if 'sections' in plan and plan['sections']:
@@ -327,43 +357,7 @@ class IntelligentOrchestrator:
         # toute redaction, pas sur du texte deja ecrit (contrairement a
         # l'ajustement local de words_target et a l'enrichissement Phase 4,
         # qui restent les filets de securite en aval si ceci ne suffit pas).
-        # Langue decidee par le plan (langue de la consigne), portee par le
-        # contexte plutot que propagee de signature en signature. Le defaut
-        # du client est "all" : ne restreint rien, contrairement a l'ancien
-        # "fr" en dur qui orientait vers des sources francaises meme sur une
-        # consigne anglaise.
         _strategy = plan.get('search_strategy', {})
-
-        # Detection deterministe prioritaire sur la declaration du LLM.
-        # Le prompt lui demandait la langue de la consigne, avec exemples
-        # explicites : teste deux fois sur une consigne anglaise, il a
-        # repondu 'fr' les deux fois. Le prompt du plan porte deja beaucoup
-        # et cette decision s'y perd. La langue d'un texte est une propriete
-        # objective - elle se mesure, elle n'a pas besoin d'etre jugee - et
-        # une detection deterministe est reproductible, ce qui compte pour
-        # un benchmark.
-        from app.utils.language import detect_language
-        _detected = detect_language(query)
-        _declared = _strategy.get('language') or 'all'
-        if _declared == 'auto':
-            # Verifie sur PubMed : 'auto' fait tomber les resultats de 20 a 0.
-            _declared = 'all'
-
-        # La declaration du LLM ne sert que si la detection n'a pas tranche.
-        _lang = _detected if _detected != 'all' else _declared
-        if _detected != 'all' and _declared not in ('all', _detected):
-            logger.debug(f"Langue: detectee '{_detected}', LLM disait '{_declared}' - detection retenue")
-        # context est tantot un ExecutionContext, tantot un dict selon le
-        # chemin d'appel : on gere les deux plutot que de supposer.
-        try:
-            if isinstance(context, dict):
-                context['search_language'] = _lang
-            else:
-                context.search_language = _lang
-        except Exception:
-            pass
-        self._search_language = _lang
-        logger.info(f"  🌐 Langue de recherche et rédaction : {_lang}")
 
         base_threshold = _strategy.get('sources_per_section', 2)
         DEPTH_MODULATION = {"light": -1, "moderate": 0, "deep": 1}
@@ -1007,9 +1001,16 @@ CRITÈRES:
 
         logger.info(f"    🔎 Recherche ciblée: {search_query}")
 
+        cfg = ctx.config
         try:
-            # Recherche SearXNG
-            results = await self.search_client.search(search_query, max_results=5)
+            # Meme cascade de moteurs que la recherche de section.
+            _engines = await self._cascade_engines(search_query, ctx=ctx)
+            results = await self.search_client.search(
+                search_query,
+                max_results=self._search_pool_size(5),
+                language=ctx.search_language if cfg.search_language_from_query else "all",
+                engines=",".join(_engines) if _engines else None,
+            )
 
             # Meme filtrage que la recherche de section : sans cela, le
             # complement pre-redaction reintroduisait des domaines exclus.
@@ -1033,17 +1034,22 @@ CRITÈRES:
                         options=ExtractionOptions(
                             timeout=30,
                             use_agent=False,
-                            headless=True
+                            headless=True,
+                            rss_tier_root_only=cfg.rss_tier_root_only,
+                            single_llm_pass_enabled=cfg.single_llm_pass_enabled,
                         )
                     )
 
                     if extract_result.success and extract_result.content:
-                        # Extraction données structurées (enrichissement ciblé)
-                        structured = await self.data_extractor.extract_structured_data(
-                            content=extract_result.content[:2000],
-                            source_url=url,
-                            topic_context=f"{query} - {section_title}"
-                        )
+                        # Extraction données structurées (enrichissement ciblé) :
+                        # son resultat ne sert qu'a un bonus de score.
+                        structured = None
+                        if not cfg.targeted_search_skip_structured:
+                            structured = await self.data_extractor.extract_structured_data(
+                                content=extract_result.content[:2000],
+                                source_url=url,
+                                topic_context=f"{query} - {section_title}"
+                            )
 
                         # Meme decoupage qu'a l'extraction de section : cette
                         # recherche ciblee est declenchee quand une section
@@ -1054,16 +1060,19 @@ CRITÈRES:
                             source=url,
                             title=extract_result.title or "",
                             content=extract_result.content,
+                            v2=cfg.chunking_v2,
                         )
                         for _it in _items:
                             _it["url"] = url  # ce chemin attend "url", pas "source"
-                            _it["structured_data"] = structured.to_dict()
+                            if structured is not None:
+                                _it["structured_data"] = structured.to_dict()
                         extracted_data.extend(_items)
                         # Ajouter aux sources découvertes (avec déduplication)
                         if url not in ctx.discovered_sources:
                             ctx.discovered_sources.append(url)
                 except Exception as e:
                     logger.warning(f"    ⚠️ Échec extraction {url}: {e}")
+                    ctx.diagnostics.note("collecte.recherche_ciblee_extraction_echec", url=url, error=str(e))
                     continue
 
             return {
@@ -1074,6 +1083,7 @@ CRITÈRES:
 
         except Exception as e:
             logger.error(f"Erreur recherche ciblée: {e}")
+            ctx.diagnostics.note("collecte.recherche_ciblee_echec", error=str(e))
             return None
 
     async def _regenerate_section(
@@ -1298,7 +1308,12 @@ IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
     # NOUVELLES MÉTHODES POUR ARCHITECTURE REFONDÉE
     # ========================================================================
 
-    async def _exploratory_phase(self, query: str, context: Dict) -> Dict[str, Any]:
+    async def _exploratory_phase(
+        self,
+        query: str,
+        context: Dict,
+        ctx: Optional["ExecutionContext"] = None,
+    ) -> Dict[str, Any]:
         """
         PHASE 1.1: Exploration initiale restreinte pour évaluer le champ.
 
@@ -1313,20 +1328,31 @@ IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
         """
         logger.info("  🔎 Exploration initiale (recherche restreinte)")
 
-        # Recherche exploratoire avec limite réduite
-        search_params = {
-            "query": query,
-            "max_results": 8,  # Restreint pour exploration rapide
-            "categories": ["general"],
-            "engines": ["google", "duckduckgo"]
-        }
+        cfg = ctx.config if ctx is not None else self.config
+        max_results = 8  # Restreint pour exploration rapide
+        search_query = query
+        engines_param: Optional[str] = "google,duckduckgo"
+        if cfg.exploration_uses_plan_query:
+            # La consigne entiere n'est pas une requete : meme reduction que
+            # pour les sections, et moteurs de la cascade plutot que les deux
+            # moteurs scrapes les plus fragiles.
+            search_query = self._build_search_query(query=query, section_name="")
+            _engines = await self._cascade_engines(search_query, ctx=ctx)
+            engines_param = ",".join(_engines) if _engines else None
+        language = "all"
+        if cfg.search_language_from_query:
+            if ctx is not None:
+                language = ctx.search_language
+            elif isinstance(context, dict):
+                language = context.get("search_language", "all")
 
         try:
             search_results = await self.search_client.search(
-                query=search_params["query"],
-                max_results=search_params["max_results"],
-                categories=",".join(search_params["categories"]),
-                engines=",".join(search_params["engines"])
+                query=search_query,
+                max_results=self._search_pool_size(max_results),
+                language=language,
+                categories="general",
+                engines=engines_param,
             )
 
             urls_found = []
@@ -1337,12 +1363,13 @@ IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
                         "title": r.title,
                         "snippet": r.content[:200] if r.content else ""
                     }
-                    for r in search_results[:search_params["max_results"]]
+                    for r in search_results
                 ]
                 # L'exploration alimente le PLAN : sans filtrage ici, des
                 # domaines exclus orienteraient la structure du rapport avant
-                # meme la phase de recherche par section.
-                urls_found = self._filter_by_constraints(urls_found)
+                # meme la phase de recherche par section. Le filtre precede la
+                # troncature, sinon des resultats exclus occupent des places.
+                urls_found = self._filter_by_constraints(urls_found)[:max_results]
 
             # Analyser les snippets pour identifier sous-thèmes
             topics_found = self._extract_topics_from_snippets(urls_found)
@@ -1365,12 +1392,79 @@ IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
 
         except Exception as e:
             logger.error(f"  ❌ Erreur exploration: {e}")
+            if ctx is not None:
+                ctx.diagnostics.note("collecte.exploration_echec", error=str(e))
             return {
                 "sources": [],
                 "field_assessment": "unknown",
                 "topics_found": [],
                 "data_preview": {}
             }
+
+    _SEARCH_OPERATORS = ("filetype:", "site:", "inurl:", "intitle:", '"')
+
+    def _search_pool_size(self, wanted: int) -> int:
+        """Nombre de resultats a demander au moteur pour en garder `wanted`.
+
+        Avec des contraintes de domaines, le filtre s'applique APRES la
+        recherche : demander exactement `wanted` resultats laisserait des
+        domaines exclus occuper les places avant le filtre (C35).
+        """
+        if getattr(self, "_domains_whitelist", None) or getattr(self, "_domains_exclusions", None):
+            return wanted * 3
+        return wanted
+
+    async def _cascade_engines(
+        self,
+        search_query: str,
+        axis: Optional[str] = None,
+        ctx: Optional["ExecutionContext"] = None,
+    ) -> List[str]:
+        """Moteurs de la cascade pour une requete ; liste vide si pas de selection.
+
+        Cascade de moteurs : sans selection, SearXNG interroge tous les
+        moteurs actifs de la categorie (74 sources par recherche, dont des
+        banques d'images et des torrents). La cascade retient les 3 meilleurs
+        DISPONIBLES de chaque axe. Si le catalogue n'a pas pu etre charge,
+        la liste est vide et le comportement est celui d'avant (best-effort).
+        """
+        from app.services.engine_catalog import engine_catalog
+
+        if not engine_catalog.available:
+            await engine_catalog.ensure_loaded()
+        if not engine_catalog.available:
+            if ctx is not None:
+                ctx.diagnostics.note("collecte.catalogue_moteurs_indisponible")
+            return []
+
+        selected_engines: List[str] = []
+        # Axe declare par le plan pour CETTE section : une section
+        # "projections demographiques" interroge l'axe academique, une
+        # section "reactions du marche" l'axe actualite.
+        if axis:
+            selected_engines = engine_catalog.cascade(per_axis=3, axes=[axis])
+            if selected_engines:
+                logger.info(f"       🎯 axe '{axis}' → {len(selected_engines)} moteur(s)")
+
+        # Repli elargi : si l'axe demande ne rend aucun moteur DISPONIBLE, on
+        # elargit plutot que de laisser la section sans source.
+        if not selected_engines:
+            selected_engines = engine_catalog.cascade(per_axis=3)
+            if axis:
+                logger.info(f"       ↪ axe '{axis}' indisponible, cascade complète")
+
+        # Une requete a OPERATEUR ne doit pas etre restreinte aux moteurs de
+        # l'axe. Mesure : "...report filetype:pdf" rend 61 resultats sans
+        # restriction, et 0 sur les 3 moteurs de l'axe generaliste
+        # (encyclopedies). Un dork cible deja par lui-meme : SearXNG
+        # interroge l'ensemble des moteurs, qui filtrent selon l'operateur.
+        if any(op in search_query for op in self._SEARCH_OPERATORS):
+            logger.info(
+                f"       🔍 requête à opérateur — moteurs avant exemption : "
+                f"{selected_engines or '(aucun)'}"
+            )
+            return []
+        return selected_engines
 
     def _extract_topics_from_snippets(self, urls_data: List[Dict]) -> List[str]:
         """Extrait les sous-thèmes des snippets de recherche."""
@@ -1928,6 +2022,47 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
 
         return result or query[:120]
 
+    def _section_search_queries(
+        self,
+        query: str,
+        section_name: str,
+        section_config: Dict,
+        config: PipelineConfig,
+    ) -> List[str]:
+        """Requetes de recherche d'une section.
+
+        Par defaut une seule requete (les termes du plan concatenes puis
+        coupes). Avec separate_search_terms, une requete par terme : un
+        operateur `filetype:pdf` ou une expression entre guillemets ne se
+        melange plus aux mots des autres termes (C34).
+        """
+        key_questions = section_config.get("key_questions", [])
+        terms = section_config.get("search_terms")
+        if config.separate_search_terms and terms:
+            cleaned = [str(t).strip() for t in terms if t and str(t).strip()]
+            queries: List[str] = []
+            for term in cleaned[:3]:
+                q = self._build_search_query(
+                    query=query,
+                    section_name=section_name,
+                    key_questions=key_questions,
+                    search_terms=[term],
+                )
+                if q and q not in queries:
+                    queries.append(q)
+            if queries:
+                return queries
+        # Requete bornee (voir _build_search_query) : la concatenation brute
+        # produisait des requetes de 400+ caracteres sur consigne longue.
+        return [
+            self._build_search_query(
+                query=query,
+                section_name=section_name,
+                key_questions=key_questions,
+                search_terms=terms,
+            )
+        ]
+
     async def _section_research_phase(
         self,
         query: str,
@@ -1943,93 +2078,28 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         """
         logger.info(f"       🔍 Recherches pour section '{section_name}'")
 
-        # Construire requête de recherche ciblée
-        key_questions = section_config.get("key_questions", [])
-        objectives = section_config.get("objectives", [])
+        queries = self._section_search_queries(query, section_name, section_config, context.config)
+        search_query = " | ".join(queries)
+        for q in queries:
+            logger.info(f"       ↳ requête: '{q}'")
 
-        # Requete bornee (voir _build_search_query) : la concatenation brute
-        # produisait des requetes de 400+ caracteres sur consigne longue.
-        search_query = self._build_search_query(
-            query=query,
-            section_name=section_name,
-            key_questions=key_questions,
-            search_terms=section_config.get("search_terms"),
-        )
-        logger.info(f"       ↳ requête: '{search_query}'")
-
-        # Nombre de sources selon profondeur
+        # Nombre de sources selon profondeur, sauf plafond impose par l'API
         depth = section_config.get("depth", "moderate")
         max_sources = {"light": 3, "moderate": 5, "deep": 8}.get(depth, 5)
+        _override = getattr(context.config, "max_sources_per_section", None)
+        if isinstance(_override, int) and _override > 0:
+            max_sources = _override
 
-        try:
-            # Cascade de moteurs : sans selection, SearXNG interroge tous les
-            # moteurs actifs de la categorie - 74 sources par recherche, dont
-            # des banques d'images, des torrents et la meteo. La cascade
-            # retient les 3 meilleurs DISPONIBLES de chaque axe (technique,
-            # academique, actualite, generaliste), soit ~12 moteurs :
-            # exhaustivite preservee, charge divisee par 6.
-            # Si le catalogue n'a pas pu etre charge, engines reste None et
-            # le comportement est celui d'avant (best-effort).
-            from app.services.engine_catalog import engine_catalog
-            selected_engines = []
-            if engine_catalog.available:
-                # Axe declare par le plan pour CETTE section : une section
-                # "projections demographiques" interroge l'axe academique,
-                # une section "reactions du marche" l'axe actualite. Double
-                # benefice : meilleures sources, et charge repartie entre
-                # moteurs au lieu de taper toujours les memes.
-                axis = section_config.get("source_axis")
-                if axis:
-                    selected_engines = engine_catalog.cascade(per_axis=3, axes=[axis])
-                    if selected_engines:
-                        logger.info(f"       🎯 axe '{axis}' → {len(selected_engines)} moteur(s)")
+        # La langue n'est transmise aux moteurs que si le drapeau l'autorise
+        language = context.search_language if context.config.search_language_from_query else "all"
+        axis = section_config.get("source_axis")
 
-                # Repli elargi : si l'axe demande ne rend aucun moteur
-                # DISPONIBLE (cas reel observe - l'axe generaliste est tombe
-                # a 1 moteur puis 0 quand les 5 generalistes ont ete
-                # suspendus), on elargit plutot que de laisser la section
-                # sans source. Une section vide est refusee en synthese, donc
-                # perdue : mieux vaut des sources moins ciblees que rien.
-                if not selected_engines:
-                    selected_engines = engine_catalog.cascade(per_axis=3)
-                    if axis:
-                        logger.info(f"       ↪ axe '{axis}' indisponible, cascade complète")
-
-            # Une requete a OPERATEUR ne doit pas etre restreinte aux moteurs
-            # de l'axe.
-            #
-            # Mesure : "...report filetype:pdf" rend 61 resultats sans
-            # restriction, et 0 sur les 3 moteurs de l'axe generaliste
-            # (wikipedia search, wiby, wikibooks). C'est logique — ce sont des
-            # encyclopedies, elles n'hebergent ni PDF institutionnels ni pages
-            # de meti.go.jp.
-            # L'elargissement de l'axe a mis les API robustes en tete pour la
-            # fiabilite ; c'est le bon choix pour une requete en mots-cles,
-            # mais il rend le dorking inoperant. Les deux mecanismes se
-            # contredisaient : les deux dorks generes ont rendu zero et
-            # declenche le repli.
-            # Un dork cible deja par lui-meme : on laisse SearXNG interroger
-            # l'ensemble des moteurs, qui filtreront selon l'operateur.
-            _has_operator = any(
-                op in search_query for op in ("filetype:", "site:", "inurl:", "intitle:", '"')
-            )
-            if _has_operator:
-                # Journalise dans les DEUX cas : le log restait muet quand
-                # selected_engines etait deja vide, ce qui empechait de
-                # distinguer "exemption appliquee" de "code jamais atteint".
-                logger.info(
-                    f"       🔍 requête à opérateur — moteurs avant exemption : "
-                    f"{selected_engines or '(aucun)'}"
-                )
-                selected_engines = []
-
-            engines_param = ",".join(selected_engines) if selected_engines else None
-
-            search_results = await self.search_client.search(
-                query=search_query,
-                max_results=max_sources,
-                language=getattr(self, "_search_language", "all"),
-                engines=engines_param
+        async def _search_one(q: str) -> List[Any]:
+            engines = await self._cascade_engines(q, axis=axis, ctx=context)
+            engines_param = ",".join(engines) if engines else None
+            pool = self._search_pool_size(max_sources)
+            found = await self.search_client.search(
+                query=q, max_results=pool, language=language, engines=engines_param
             )
 
             # Repli si un operateur de recherche n'a rien donne.
@@ -2037,23 +2107,47 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             # Un dork (filetype:, site:, "expression") restreint fortement :
             # si la source ciblee n'a rien sur le sujet, la requete rend zero
             # alors que les memes mots-cles sans operateur auraient trouve.
-            # Le benefice du ciblage ne doit pas se payer d'une section vide —
-            # on a mesure qu'une section sans source fait chuter tout le
-            # rapport (trois taches du run v8 : -0.26 a -0.33 de score).
-            _OPERATORS = ("filetype:", "site:", "inurl:", "intitle:", '"')
-            if not search_results and any(op in search_query for op in _OPERATORS):
+            # Le benefice du ciblage ne doit pas se payer d'une section vide.
+            if not found and any(op in q for op in self._SEARCH_OPERATORS):
                 import re as _re_op
-                _plain = _re_op.sub(r'\b(?:filetype|site|inurl|intitle):\S+', '', search_query)
+                _plain = _re_op.sub(r'\b(?:filetype|site|inurl|intitle):\S+', '', q)
                 _plain = _plain.replace('"', '').strip()
                 _plain = " ".join(_plain.split())
-                if _plain and _plain != search_query:
+                if _plain and _plain != q:
                     logger.info(f"       ↩️  opérateur infructueux, repli sans dork : '{_plain[:60]}'")
-                    search_results = await self.search_client.search(
-                        query=_plain,
-                        max_results=max_sources,
-                        language=getattr(self, "_search_language", "all"),
-                        engines=engines_param
+                    context.diagnostics.note("collecte.repli_sans_operateur", section=section_name, query=q)
+                    found = await self.search_client.search(
+                        query=_plain, max_results=pool, language=language, engines=engines_param
                     )
+            return list(found or [])
+
+        try:
+            per_query: List[List[Any]] = []
+            last_error: Optional[Exception] = None
+            for q in queries:
+                try:
+                    per_query.append(await _search_one(q))
+                except Exception as term_error:
+                    last_error = term_error
+                    if len(queries) == 1:
+                        raise
+                    logger.warning(f"       ⚠️ Recherche échouée pour '{q}': {term_error}")
+                    context.diagnostics.note(
+                        "collecte.recherche_terme_echec",
+                        section=section_name, query=q, error=str(term_error),
+                    )
+            if not per_query and last_error is not None:
+                raise last_error
+
+            # Fusion par alternance (un resultat de chaque terme tour a tour),
+            # dedoublonnee par URL : chaque terme garde sa part des places.
+            search_results: List[Any] = []
+            seen_urls: set = set()
+            for rank in range(max((len(r) for r in per_query), default=0)):
+                for results in per_query:
+                    if rank < len(results) and results[rank].url not in seen_urls:
+                        seen_urls.add(results[rank].url)
+                        search_results.append(results[rank])
 
             sources = []
             if search_results:
@@ -2063,19 +2157,17 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                         "title": r.title,
                         "snippet": r.content[:300] if r.content else "",
                         # Moteur d'origine : SearXNG l'expose sur chaque
-                        # resultat, notre client le conserve dans
-                        # SearchResult, mais il etait jete ici. Sans lui,
-                        # impossible de savoir quels moteurs alimentent
-                        # reellement un rapport - ni de detecter qu'un moteur
-                        # ne repond plus (une selection ciblant un moteur
-                        # suspendu rend zero resultat la ou une recherche
-                        # large aurait ete servie par les autres).
+                        # resultat ; sans lui, impossible de savoir quels
+                        # moteurs alimentent reellement un rapport ni de
+                        # detecter qu'un moteur ne repond plus.
                         "engine": getattr(r, "engine", "") or ""
                     }
-                    for r in search_results[:max_sources]
+                    for r in search_results
                 ]
 
-                sources = self._filter_by_constraints(sources)
+                # Le filtre de domaines precede la troncature : sinon des
+                # resultats exclus occupent les places demandees (C35).
+                sources = self._filter_by_constraints(sources)[:max_sources]
 
                 # Tracker la recherche
                 context.add_step(
@@ -2098,6 +2190,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
 
         except Exception as e:
             logger.error(f"       ❌ Erreur recherche section: {e}")
+            context.diagnostics.note("collecte.recherche_section_echec", section=section_name, error=str(e))
             context.add_step(
                 "searxng",
                 f"search_for_{section_name}",
@@ -2135,13 +2228,23 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             # extract_images, extract_links et clean_html etaient passes ici
             # sans exister dans ExtractionOptions : ignores en silence, puis
             # refuses depuis que le modele interdit les champs inconnus (C60).
-            options = ExtractionOptions(use_agent=True, headless=True)
+            cfg = context.config
+            options = ExtractionOptions(
+                use_agent=True,
+                headless=True,
+                rss_tier_root_only=cfg.rss_tier_root_only,
+                single_llm_pass_enabled=cfg.single_llm_pass_enabled,
+            )
 
             # Extraire chaque URL séquentiellement, en reutilisant le cache
             # partage si cette URL a deja ete extraite pour une autre section
             # (frequent : un meme article pertinent pour plusieurs sections).
             extracted_data = []
-            for url in urls[:5]:  # Limiter à 5 URLs max pour éviter timeout
+            # Plafond fixe de 5 URL (evite le timeout) ; avec le drapeau, le
+            # nombre d'URL extraites suit la profondeur deja appliquee a la
+            # recherche (3, 5 ou 8).
+            url_cap = len(urls) if cfg.extraction_cap_follows_depth else 5
+            for url in urls[:url_cap]:
                 try:
                     if url in context.extraction_cache:
                         result = context.extraction_cache[url]
@@ -2176,6 +2279,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                             source=url,
                             title=result.title or "",
                             content=result.content,
+                            v2=cfg.chunking_v2,
                         )
                         extracted_data.extend(_items)
                         if len(_items) > 1:
@@ -2204,6 +2308,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                         )
                 except Exception as url_error:
                     logger.warning(f"       ⚠️ Extraction failed for {url}: {url_error}")
+                    context.diagnostics.note("collecte.extraction_url_echec", section=section_name, url=url, error=str(url_error))
                     context.add_step(
                         "webextractor",
                         f"extract_content_for_{section_name}",
@@ -2218,6 +2323,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
 
         except Exception as e:
             logger.error(f"       ❌ Erreur extraction: {e}")
+            context.diagnostics.note("collecte.extraction_section_echec", section=section_name, error=str(e))
             return []
 
     async def _cross_reference_data(
