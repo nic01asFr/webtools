@@ -99,6 +99,11 @@ class PipelineConfig:
     single_llm_pass_enabled: bool = True  # transmis a ExtractionOptions : reecriture LLM unique du contenu direct
     # --- Lot V3-8 : recherche rapide ---
     quick_uses_chunk_selection: bool = False  # /research/quick: passages choisis par pertinence au lieu de 2000 car. de tete (C63)
+    # --- Lot V3-3 : contrat de l'API de recherche approfondie ---
+    # Plafond de sources par section, pour la recherche et pour l'extraction
+    # (C20). None : plafond selon la profondeur de la section (3, 5 ou 8) et
+    # 5 pages extraites au plus.
+    max_sources_per_section: int | None = None
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":

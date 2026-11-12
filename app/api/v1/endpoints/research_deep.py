@@ -1,60 +1,69 @@
 """
 /api/v1/research/deep - Recherche approfondie
 
-Produit un rapport complet, dossier d'étude ou synthèse exhaustive.
+Produit un rapport complet, dossier d'etude ou synthese exhaustive.
 Utilise Intelligent Orchestrator pour autonomie maximale.
+
+Contrat de la requete : chaque champ accepte a un effet reel sur le pipeline,
+et le modele refuse tout champ inconnu (422). Les champs qui n'avaient aucun
+effet (max_steps, max_results, min_sources, date_range, include_data,
+include_reports, include_academic, sources.suggested, include_charts,
+include_timeline, output_format.structure) ont ete retires du schema : une
+requete qui les envoie recoit 422 au lieu d'etre acceptee en silence.
 """
 
-from fastapi import APIRouter, HTTPException
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
-from typing import List, Dict, Any, Optional
+import dataclasses
 import logging
 import time
-import json
+from typing import Any, Dict, List, Optional
 
-from app.core.llm import get_llm_client
+from fastapi import APIRouter
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, ConfigDict, Field
+
 from app.agents.intelligent_orchestrator import IntelligentOrchestrator
-from app.core.execution_tracer import ExecutionTracer, ActionType
-from app.core.source_registry import SourceRegistry, SourceStatus, SourcePriority
+from app.core.execution_tracer import ExecutionTracer, StepStatus
+from app.core.llm import get_llm_client
 from app.core.output_formatter import OutputFormatter
+from app.core.source_registry import SourcePriority, SourceRegistry, SourceStatus
+from app.research.pipeline_config import PipelineConfig
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-# === REQUEST / RESPONSE MODELS ===
+# === MODELES DE REQUETE ===
 
-class DeepResearchContext(BaseModel):
-    language: str = Field(default="fr", description="Langue préférée")
-    date_range: Optional[str] = Field(default=None, description="week, month, year")
-    min_sources: int = Field(default=10, ge=1, le=100, description="Nombre minimum de sources")
-    include_data: bool = Field(default=True, description="Chercher datasets")
-    include_reports: bool = Field(default=True, description="Chercher rapports officiels")
-    include_academic: bool = Field(default=True, description="Chercher articles académiques")
+class _StrictModel(BaseModel):
+    """Refuse les champs inconnus : un champ ignore en silence est un mensonge."""
+
+    model_config = ConfigDict(extra="forbid")
 
 
-class SourcesConstraints(BaseModel):
-    required: List[str] = Field(default=[], description="URLs OBLIGATOIRES (bloquant si échec)")
-    suggested: List[str] = Field(default=[], description="URLs à prioriser")
-    exclusions: List[str] = Field(default=[], description="Domaines à EXCLURE (wildcards OK)")
+class DeepResearchContext(_StrictModel):
+    language: str = Field(
+        default="fr",
+        description="Langue preferee, transmise au modele qui planifie le rapport",
+    )
+
+
+class SourcesConstraints(_StrictModel):
+    required: List[str] = Field(
+        default=[], description="URLs a utiliser ; leur usage est reporte dans execution.summary.required_sources_status"
+    )
+    exclusions: List[str] = Field(default=[], description="Domaines a EXCLURE (wildcards OK)")
     domains_whitelist: List[str] = Field(default=[], description="Si fourni, UNIQUEMENT ces domaines")
 
 
-class OutputFormat(BaseModel):
-    structure: str = Field(
-        default="report",
-        description="report, summary, qa, data_analysis"
+class OutputFormat(_StrictModel):
+    sections: List[str] = Field(default=[], description="Sections du rapport (auto si vide)")
+    include_section_data: bool = Field(
+        default=False,
+        description="Joindre a chaque section les passages extraits (champ data, texte integral)",
     )
-    sections: List[str] = Field(
-        default=[],
-        description="Sections du rapport (auto si vide)"
-    )
-    include_charts: bool = Field(default=False, description="Générer graphiques si données")
-    include_timeline: bool = Field(default=False, description="Timeline des événements")
 
 
-class DeepResearchRequest(BaseModel):
+class DeepResearchRequest(_StrictModel):
     # 500 caracteres etait une limite arbitraire : une vraie consigne de
     # recherche est souvent detaillee et multi-dimensionnelle (les taches de
     # DeepResearch Bench vont jusqu'a ~1000 caracteres). Le pipeline les
@@ -69,58 +78,139 @@ class DeepResearchRequest(BaseModel):
     context: Optional[DeepResearchContext] = Field(default=None, description="Contexte de recherche")
     sources: Optional[SourcesConstraints] = Field(default=None, description="Contraintes sur les sources")
     output_format: Optional[OutputFormat] = Field(default=None, description="Format de sortie")
-    max_steps: int = Field(default=15, ge=1, le=30, description="Budget d'exploration")
-    timeout: int = Field(default=600, ge=60, le=1200, description="Timeout total en secondes")
+    timeout: int = Field(
+        default=600, ge=60, le=1200,
+        description="Delai global en secondes : passe ce delai, la reponse porte les sections deja redigees avec degraded=true",
+    )
+    max_sources_per_section: Optional[int] = Field(
+        default=None, ge=1, le=20,
+        description="Plafond de sources par section (recherche et extraction) ; absent = selon la profondeur de la section",
+    )
 
-    # Raccourcis pour rétrocompatibilité
+    # Raccourci pour retrocompatibilite
     output_sections: Optional[List[str]] = Field(default=None, description="Raccourci pour output_format.sections")
-    max_results: Optional[int] = Field(default=None, description="Raccourci pour max_steps")
 
 
-class ReportSection(BaseModel):
-    title: str
-    content: str
-    data: Optional[List[Dict[str, Any]]] = None
-    sources: Optional[List[Dict[str, Any]]] = None
+# === CONSTRUCTION DE LA REPONSE ===
+
+def build_report(answer: Dict[str, Any], include_section_data: bool) -> Dict[str, Any]:
+    """Rapport de la reponse : ce que l'orchestrateur a produit, sans valeur inventee.
+
+    Le champ data des sections (passages extraits, texte integral) n'est
+    joint que sur demande (C24).
+    """
+    sections: List[Dict[str, Any]] = []
+    for sec in answer.get("sections") or []:
+        if not isinstance(sec, dict):
+            continue
+        item: Dict[str, Any] = {
+            "title": sec.get("title", ""),
+            "content": sec.get("content", ""),
+        }
+        if sec.get("metadata") is not None:
+            item["metadata"] = sec["metadata"]
+        if include_section_data:
+            item["data"] = sec.get("data") or []
+        sections.append(item)
+
+    report: Dict[str, Any] = {
+        "title": answer.get("title", ""),
+        "summary": answer.get("summary", ""),
+        "sections": sections,
+        "bibliography": [b for b in (answer.get("bibliography") or []) if isinstance(b, dict)],
+        "metadata": answer.get("metadata") or {},
+    }
+    if answer.get("research_traces") is not None:
+        report["research_traces"] = answer["research_traces"]
+    return report
 
 
-class BibliographyItem(BaseModel):
-    title: str
-    url: str
-    type: str  # official_report, academic, api, website
-    date: Optional[str] = None
+def _degradation_error(
+    failed: List[str], unsourced: List[str], missing: List[str], timed_out: bool, deadline: int
+) -> Optional[str]:
+    """Message de l'erreur d'un rapport degrade, une cause par message.
+
+    Un echec LLM est un incident technique (a reessayer), une absence de
+    source est un constat sur le sujet (inutile de reessayer a l'identique),
+    un delai depasse se regle par le parametre timeout : les confondre ferait
+    chercher une panne la ou il n'y en a pas.
+    """
+    parts: List[str] = []
+    if timed_out:
+        parts.append(
+            f"delai global de {deadline} s depasse : rapport partiel, "
+            f"{len(missing)} section(s) non redigee(s)"
+        )
+    if failed:
+        parts.append(f"{len(failed)} section(s) non generee(s) : echec repete de l'appel LLM de synthese")
+    if unsourced:
+        parts.append(
+            f"{len(unsourced)} section(s) sans source exploitable : la collecte n'a rien remonte sur ce sujet"
+        )
+    return " ; ".join(parts) if parts else None
 
 
-class DatasetUsed(BaseModel):
-    name: str
-    url: str
-    records: int
-    processing: Optional[str] = None
+def _json_response(body: Dict[str, Any], processing_time: float) -> JSONResponse:
+    """Reponse JSON unique, pour le succes comme pour l'echec (C66).
+
+    JSONResponse plutot que StreamingResponse : le corps est entierement
+    construit avant l'envoi, le decouper en morceaux n'apportait rien et
+    donnait deux types de reponse selon le chemin. Le code HTTP reste 200 :
+    l'echec metier se lit dans success/error, avec la meme forme de corps.
+    """
+    return JSONResponse(
+        content=body,
+        headers={
+            "X-Processing-Time": f"{processing_time:.2f}s",
+            "Cache-Control": "no-cache",
+        },
+    )
 
 
-class Report(BaseModel):
-    summary: str
-    sections: List[ReportSection]
-    bibliography: List[BibliographyItem]
-    datasets_used: Optional[List[DatasetUsed]] = None
+async def create_orchestrator(config: PipelineConfig, section_budget_timeout: int) -> IntelligentOrchestrator:
+    """Construit l'orchestrateur de production (point d'injection des tests)."""
+    llm_client = await get_llm_client()
+    return IntelligentOrchestrator(llm_client, timeout=section_budget_timeout, config=config)
 
 
-class ExecutionSummary(BaseModel):
-    steps_executed: int
-    sources_consulted: int
-    apis_used: Optional[List[str]] = None
-    data_processing: Optional[Dict[str, Any]] = None
-    completeness: Optional[int] = None  # Percentage
-    confidence: str  # high, medium, low
+def _register_sources(
+    registry: SourceRegistry,
+    sources: SourcesConstraints,
+    exec_ctx: Dict[str, Any],
+    answer: Optional[Dict[str, Any]],
+) -> Dict[str, int]:
+    """Alimente le registre : sources requises, puis sources decouvertes.
 
+    Une source est utilisee (SUCCESS) quand elle figure dans la bibliographie
+    du rapport ; une source requise l'est aussi quand son URL apparait dans le
+    texte du rapport.
+    """
+    bibliography_urls = {
+        b.get("url") for b in ((answer or {}).get("bibliography") or []) if isinstance(b, dict)
+    }
+    report_text = str(answer) if answer else ""
 
-class DeepResearchResponse(BaseModel):
-    success: bool
-    topic: str
-    report: Optional[Report] = None
-    execution_summary: Optional[ExecutionSummary] = None
-    processing_time: float
-    error: Optional[str] = None
+    for url in sources.required:
+        used = url in bibliography_urls or (bool(report_text) and url in report_text)
+        registry.add_website(
+            url=url,
+            status=SourceStatus.SUCCESS if used else SourceStatus.DISCOVERED_NOT_USED,
+            priority=SourcePriority.REQUIRED,
+        )
+
+    discovered = exec_ctx.get("sources_discovered") or []
+    used_count = 0
+    for url in discovered:
+        if registry.has_source(url):
+            continue
+        used = url in bibliography_urls
+        used_count += 1 if used else 0
+        registry.add_website(
+            url=url,
+            status=SourceStatus.SUCCESS if used else SourceStatus.DISCOVERED_NOT_USED,
+            priority=SourcePriority.AUTO_DISCOVERED,
+        )
+    return {"discovered": len(discovered), "used": used_count, "required": len(sources.required)}
 
 
 # === ENDPOINT ===
@@ -131,409 +221,129 @@ async def research_deep(request: DeepResearchRequest):
     Recherche approfondie - Rapport complet
 
     Workflow:
-    1. ANALYSIS: Décompose topic en sous-questions
-    2. DISCOVERY: Multi-stratégies parallèles (web + APIs + datasets)
-    3. COLLECTION: Routing automatique (API/Site/Page)
-    4. PROCESSING: DataProcessor (filtres, agrégation, jointures)
-    5. ENRICHMENT: Boucle adaptative (complétude < 90%)
-    6. SYNTHESIS: Génération rapport structuré
+    1. EXPLORATION et plan detaille par sections
+    2. RECHERCHE et EXTRACTION par section (plafond: max_sources_per_section)
+    3. SYNTHESE, coherence, enrichissement et bibliographie
+
+    La reponse a toujours la meme forme (success, degraded, result,
+    execution, sources, diagnostics), y compris en cas d'echec ou de delai
+    depasse (timeout) : la trace et les sources sont alors conservees.
     """
     start_time = time.time()
+    logger.info(f"/research/deep: '{request.topic}'")
 
-    logger.info(f"📚 /research/deep: '{request.topic}'")
-    logger.info(f"   Objectives: {len(request.objectives)} provided")
-    if request.sources:
-        logger.info(f"   Sources constraints: required={len(request.sources.required)}, suggested={len(request.sources.suggested)}")
-
-    # Initialiser tracer et registry
     tracer = ExecutionTracer()
     registry = SourceRegistry()
+    sources = request.sources or SourcesConstraints()
+    context = request.context or DeepResearchContext()
+    output_format = request.output_format or OutputFormat()
+    sections = request.output_sections or output_format.sections
+
+    formatter_kwargs: Dict[str, Any] = {}
+    exec_ctx: Dict[str, Any] = {}
+    diagnostics: Optional[Dict[str, Any]] = None
+    answer: Optional[Dict[str, Any]] = None
+    timed_out = False
+    error: Optional[str] = None
 
     try:
-        llm_client = await get_llm_client()
+        config = PipelineConfig.from_env()
+        if request.max_sources_per_section is not None:
+            config = dataclasses.replace(
+                config, max_sources_per_section=request.max_sources_per_section
+            )
 
-        context = request.context or DeepResearchContext()
-        sources = request.sources or SourcesConstraints()
-        output_format = request.output_format or OutputFormat()
+        diagnostics = {
+            "config": config.to_dict(),
+            "events": {"counts": {}, "events": []},
+            "invariants": None,
+        }
 
-        # Appliquer raccourcis de rétrocompatibilité
-        if request.output_sections:
-            output_format.sections = request.output_sections
-        if request.max_results:
-            request.max_steps = request.max_results
-
-        # Préparer context pour Intelligent Orchestrator
         orchestrator_context = {
             "topic": request.topic,
             "objectives": request.objectives,
             "language": context.language,
-            "date_range": context.date_range,
-            "min_sources": context.min_sources,
-            "include_data": context.include_data,
-            "include_reports": context.include_reports,
-            "include_academic": context.include_academic,
             "sources_required": sources.required,
-            "sources_suggested": sources.suggested,
             "sources_exclusions": sources.exclusions,
             "domains_whitelist": sources.domains_whitelist,
-            "output_structure": output_format.structure,
-            "output_sections": output_format.sections,
-            "include_charts": output_format.include_charts,
-            "include_timeline": output_format.include_timeline
+            "output_sections": sections,
         }
-
-        # Utiliser Intelligent Orchestrator
-        logger.info("🤖 Launching Intelligent Orchestrator")
 
         with tracer.step("intelligent_orchestration", "intelligent_orchestrator") as step:
             step.set_input({
                 "topic": request.topic,
                 "objectives": request.objectives,
-                "max_steps": request.max_steps,
+                "timeout": request.timeout,
+                "max_sources_per_section": request.max_sources_per_section,
                 "sources_required": sources.required,
-                "sources_suggested": sources.suggested
             })
-
-            orchestrator = IntelligentOrchestrator(llm_client)
-
-            result = await orchestrator.execute_intelligent_research(
-                query=request.topic,
-                context=orchestrator_context,
-                max_steps=request.max_steps
+            # Le plafond par section ne depasse pas le comportement historique
+            # (240 s) et reste sous le delai global.
+            orchestrator = await create_orchestrator(config, min(300, int(request.timeout * 0.6)))
+            result = await orchestrator.execute_with_deadline(
+                request.topic, orchestrator_context, float(request.timeout)
             )
-
+            exec_ctx = result.get("execution_context") or {}
+            diagnostics = result.get("diagnostics") or diagnostics
+            answer = result.get("answer")
+            timed_out = bool(result.get("timed_out"))
+            error = result.get("error")
             step.set_output({
                 "success": result.get("success"),
-                "steps_executed": result.get("execution_context", {}).get("steps_executed", 0)
+                "timed_out": timed_out,
+                "steps_executed": exec_ctx.get("steps_executed", 0),
             })
+            if not result.get("success") or not isinstance(answer, dict):
+                step.status = StepStatus.FAILED
+                step.error = error or "reponse de l'orchestrateur inexploitable"
+                error = error or "Research failed"
+    except Exception as e:  # noqa: BLE001 - l'echec est rendu dans la reponse, avec trace et sources
+        logger.error(f"/research/deep error: {e}", exc_info=True)
+        error = f"{type(e).__name__}: {e}"
 
-            if not result.get("success"):
-                processing_time = time.time() - start_time
-                formatter = OutputFormatter(tracer, registry, processing_time)
-                return formatter.format_deep_research_output(
-                    topic=request.topic,
-                    report=None,
-                    execution_context=None,
-                    success=False,
-                    error=result.get("error", "Research failed")
-                )
+    with tracer.step("source_extraction", "context_parser") as step:
+        counts = _register_sources(registry, sources, exec_ctx, answer if isinstance(answer, dict) else None)
+        step.set_output(counts)
 
-            # Extraire réponse de l'orchestrator
-            answer = result.get("answer", {})
-            exec_ctx = result.get("execution_context", {})
+    processing_time = time.time() - start_time
 
-        # === EXTRACTION DES SOURCES DEPUIS ORCHESTRATOR ===
-        # L'orchestrator a déjà collecté les sources, on les extrait pour le registry
-        logger.info("📋 Extracting sources from execution context")
-
-        with tracer.step("source_extraction", "context_parser") as step:
-            # Extraire APIs
-            apis_used = exec_ctx.get("apis_used", [])
-            for api_url in apis_used:
-                registry.add_api(
-                    url=api_url,
-                    status=SourceStatus.SUCCESS,
-                    priority=SourcePriority.SUGGESTED
-                )
-
-            # Extraire datasets depuis execution context
-            datasets_count = exec_ctx.get("datasets_collected", 0)
-
-            # Extraire sources découvertes par l'orchestrateur (SearXNG)
-            sources_discovered = exec_ctx.get("sources_discovered", [])
-            logger.info(f"📊 Sources découvertes: {len(sources_discovered)}")
-
-            for url in sources_discovered:
-                registry.add_website(
-                    url=url,
-                    status=SourceStatus.DISCOVERED_NOT_USED,
-                    priority=SourcePriority.AUTO_DISCOVERED
-                )
-
-            # Extraire les données collectées pour identifier les sources réellement utilisées
-            # Parser answer pour trouver les URLs qui ont été utilisées dans la synthèse
-            answer_text = str(answer)
-            sources_used_count = 0
-
-            for url in sources_discovered:
-                # Si l'URL ou son domaine est mentionné dans la réponse, marquer comme SUCCESS
-                domain = url.split('/')[2] if len(url.split('/')) > 2 else url
-                if domain in answer_text or url in answer_text:
-                    registry.update_source_status(url, SourceStatus.SUCCESS)
-                    sources_used_count += 1
-
-            # Extraire sources requises/suggérées
-            for url in sources.required:
-                if url in answer_text:
-                    registry.add_website(
-                        url=url,
-                        status=SourceStatus.SUCCESS,
-                        priority=SourcePriority.REQUIRED
-                    )
-                else:
-                    registry.add_website(
-                        url=url,
-                        status=SourceStatus.DISCOVERED_NOT_USED,
-                        priority=SourcePriority.REQUIRED
-                    )
-
-            for url in sources.suggested:
-                if url in answer_text:
-                    registry.add_website(
-                        url=url,
-                        status=SourceStatus.SUCCESS,
-                        priority=SourcePriority.SUGGESTED
-                    )
-                else:
-                    registry.add_website(
-                        url=url,
-                        status=SourceStatus.DISCOVERED_NOT_USED,
-                        priority=SourcePriority.SUGGESTED
-                    )
-
-            logger.info(f"✅ Sources trackées: {len(sources_discovered)} découvertes, {sources_used_count} utilisées")
-
-            step.set_output({
-                "apis_extracted": len(apis_used),
-                "datasets_count": datasets_count,
-                "sources_discovered": len(sources_discovered),
-                "sources_used": sources_used_count,
-                "required_sources": len(sources.required),
-                "suggested_sources": len(sources.suggested)
-            })
-
-        # === PHASE FINALE: FORMAT REPORT ===
-        logger.info("📄 Formatting report")
-
-        # Si answer est déjà structuré, l'utiliser
-        if answer.get("type") == "report" and "sections" in answer:
-            # Report déjà structuré
-            sections = [
-                ReportSection(
-                    title=sec.get("title", ""),
-                    content=sec.get("content", ""),
-                    data=sec.get("data"),
-                    sources=sec.get("sources")
-                )
-                for sec in answer.get("sections", [])
-            ]
-
-            bibliography = [
-                BibliographyItem(
-                    title=bib.get("title", ""),
-                    url=bib.get("url", ""),
-                    type=bib.get("type", "website"),
-                    date=bib.get("date")
-                )
-                for bib in answer.get("bibliography", [])
-            ]
-
-            datasets_used = None
-            if answer.get("datasets_used"):
-                datasets_used = [
-                    DatasetUsed(
-                        name=ds.get("name", ""),
-                        url=ds.get("url", ""),
-                        records=ds.get("records", 0),
-                        processing=ds.get("processing")
-                    )
-                    for ds in answer["datasets_used"]
-                ]
-
-            report = Report(
-                summary=answer.get("summary", ""),
-                sections=sections,
-                bibliography=bibliography,
-                datasets_used=datasets_used
-            )
-
-        else:
-            # Générer report depuis summary/data
-            summary = answer.get("summary", str(answer.get("data", "")))
-            data = answer.get("data", [])
-
-            # Créer sections automatiquement
-            sections = []
-
-            # Section: Introduction
-            if request.objectives:
-                intro_content = f"Cette recherche vise à {', '.join(request.objectives).lower()}."
-                sections.append(ReportSection(
-                    title="Introduction",
-                    content=intro_content
-                ))
-
-            # Section: Résultats principaux
-            if isinstance(data, list) and len(data) > 0:
-                sections.append(ReportSection(
-                    title="Résultats principaux",
-                    content=summary,
-                    data=data[:100]  # Limiter
-                ))
-            else:
-                sections.append(ReportSection(
-                    title="Synthèse",
-                    content=summary
-                ))
-
-            # Section: Conclusion
-            sources_count = len(registry.websites) + len(registry.apis) + len(registry.datasets)
-            sources_success = len([w for w in registry.websites if w.status == SourceStatus.SUCCESS.value])
-            sections.append(ReportSection(
-                title="Conclusion",
-                content=f"Cette recherche approfondie sur '{request.topic}' a permis de consulter {sources_count} sources, dont {sources_success} ont été exploitées avec succès pour générer ce rapport."
-            ))
-
-            # Bibliographie depuis SourceRegistry
-            bibliography = []
-            seen_urls = set()  # Déduplication
-
-            for website in registry.websites:
-                if website.status == SourceStatus.SUCCESS.value and website.url not in seen_urls:
-                    # Extraire domaine propre (sans www)
-                    try:
-                        from urllib.parse import urlparse
-                        parsed = urlparse(website.url)
-                        domain = parsed.netloc.replace('www.', '')
-                        title = domain if domain else website.url.split('/')[2]
-                    except:
-                        title = website.url.split('/')[2] if len(website.url.split('/')) > 2 else website.url
-
-                    bibliography.append(BibliographyItem(
-                        title=title,
-                        url=website.url,
-                        type="website",
-                        date=None
-                    ))
-                    seen_urls.add(website.url)
-
-            for api in registry.apis:
-                if api.status == SourceStatus.SUCCESS.value and api.url not in seen_urls:
-                    try:
-                        from urllib.parse import urlparse
-                        parsed = urlparse(api.url)
-                        domain = parsed.netloc.replace('www.', '')
-                        title = f"API {domain}" if domain else api.url
-                    except:
-                        title = f"API {api.url.split('/')[2]}"
-
-                    bibliography.append(BibliographyItem(
-                        title=title,
-                        url=api.url,
-                        type="api",
-                        date=None
-                    ))
-                    seen_urls.add(api.url)
-
-            report = Report(
-                summary=summary,
-                sections=sections,
-                bibliography=bibliography
-            )
-
-        # Execution summary
-        execution_summary = ExecutionSummary(
-            steps_executed=exec_ctx.get("steps_executed", 0),
-            sources_consulted=exec_ctx.get("sources_consulted", 0),
-            apis_used=exec_ctx.get("apis_used", []),
-            data_processing=exec_ctx.get("data_processing"),
-            completeness=exec_ctx.get("completeness", 85),
-            confidence=answer.get("confidence", "medium")
-        )
-
-        processing_time = time.time() - start_time
-        logger.info(f"✅ /research/deep completed in {processing_time:.2f}s")
-        logger.info(f"   Steps: {execution_summary.steps_executed}, Sources: {execution_summary.sources_consulted}")
-        logger.info(f"   Confidence: {execution_summary.confidence}")
-
-        # Un rapport dont des sections n'ont pas pu etre redigees (echec LLM
-        # repete) est DEGRADE : l'annoncer explicitement plutot que de rendre
-        # success=true sur un rapport quasi vide. L'appelant doit pouvoir
-        # distinguer "sujet pauvre en sources" de "l'infra LLM n'a pas
-        # repondu" - ce sont deux situations sans rapport.
-        answer_dict = answer if isinstance(answer, dict) else {}
-        failed_sections = answer_dict.get("failed_sections", [])
-        unsourced_sections = answer_dict.get("unsourced_sections", [])
-        is_degraded = bool(answer_dict.get("degraded"))
-        if is_degraded:
-            logger.error(
-                f"⚠️  Rapport DEGRADE : {len(failed_sections)} échec(s) LLM, "
-                f"{len(unsourced_sections)} section(s) sans source"
-            )
-
-        # Utiliser OutputFormatter
+    if not isinstance(answer, dict):
         formatter = OutputFormatter(tracer, registry, processing_time)
-        result_dict = formatter.format_deep_research_output(
-            topic=request.topic,
-            report=report.dict(),
-            execution_context=exec_ctx,  # Passer le contexte original de l'orchestrator
-            success=not is_degraded
-        )
-        if is_degraded:
-            result_dict["degraded"] = True
-            result_dict["failed_sections"] = failed_sections
-            if unsourced_sections:
-                result_dict["unsourced_sections"] = unsourced_sections
-            # Deux causes distinctes, deux messages distincts : un echec LLM
-            # est un incident technique (a reessayer), une absence de source
-            # est un constat sur le sujet (inutile de reessayer a l'identique).
-            # Les confondre ferait chercher une panne la ou il n'y en a pas.
-            if failed_sections and unsourced_sections:
-                result_dict["error"] = (
-                    f"{len(failed_sections)} section(s) non générée(s) par échec LLM et "
-                    f"{len(unsourced_sections)} sans source exploitable"
-                )
-            elif failed_sections:
-                result_dict["error"] = (
-                    f"{len(failed_sections)} section(s) non générée(s) : échec répété "
-                    f"de l'appel LLM de synthèse"
-                )
-            else:
-                result_dict["error"] = (
-                    f"{len(unsourced_sections)} section(s) sans source exploitable : "
-                    f"la collecte n'a rien remonté sur ce sujet"
-                )
-
-        # Convertir en JSON et streamer pour éviter buffering
-        json_str = json.dumps(result_dict, ensure_ascii=False, indent=2)
-
-        async def generate():
-            # Envoyer le JSON par chunks pour éviter le buffering
-            chunk_size = 8192  # 8KB par chunk
-            for i in range(0, len(json_str), chunk_size):
-                yield json_str[i:i+chunk_size].encode('utf-8')
-
-        return StreamingResponse(
-            generate(),
-            media_type="application/json",
-            headers={
-                "X-Processing-Time": f"{processing_time:.2f}s",
-                "Cache-Control": "no-cache"
-            }
-        )
-
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"❌ /research/deep error: {e}", exc_info=True)
-        processing_time = time.time() - start_time
-        formatter = OutputFormatter(tracer, registry, processing_time)
-        result_dict = formatter.format_deep_research_output(
+        body = formatter.format_deep_research_output(
             topic=request.topic,
             report=None,
-            execution_context=None,
+            execution_context=exec_ctx,
             success=False,
-            error=str(e)
+            error=error or "Research failed",
+            diagnostics=diagnostics,
+        )
+        return _json_response(body, processing_time)
+
+    report = build_report(answer, output_format.include_section_data)
+    failed = list(answer.get("failed_sections") or [])
+    unsourced = list(answer.get("unsourced_sections") or [])
+    missing = list(answer.get("missing_sections") or [])
+    degraded = bool(answer.get("degraded")) or timed_out
+    if degraded:
+        formatter_kwargs["error"] = _degradation_error(failed, unsourced, missing, timed_out, request.timeout)
+        logger.error(
+            f"Rapport DEGRADE : {len(failed)} echec(s) LLM, {len(unsourced)} section(s) sans source, "
+            f"{len(missing)} manquante(s), delai depasse: {timed_out}"
         )
 
-        # Streamer même en cas d'erreur
-        json_str = json.dumps(result_dict, ensure_ascii=False, indent=2)
-
-        async def generate():
-            yield json_str.encode('utf-8')
-
-        return StreamingResponse(
-            generate(),
-            media_type="application/json",
-            headers={"X-Processing-Time": f"{processing_time:.2f}s"}
-        )
+    formatter = OutputFormatter(tracer, registry, processing_time)
+    body = formatter.format_deep_research_output(
+        topic=request.topic,
+        report=report,
+        execution_context=exec_ctx,
+        success=not degraded,
+        degraded=degraded,
+        timed_out=timed_out,
+        failed_sections=failed,
+        unsourced_sections=unsourced,
+        missing_sections=missing,
+        diagnostics=diagnostics,
+        **formatter_kwargs,
+    )
+    logger.info(f"/research/deep termine en {processing_time:.2f}s, degraded={degraded}")
+    return _json_response(body, processing_time)

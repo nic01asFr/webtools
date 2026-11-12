@@ -227,9 +227,23 @@ class SourceRegistry:
             "total_records_retrieved": sum(api.records_retrieved for api in self.apis) + sum(ds.records for ds in self.datasets)
         }
 
-    def has_required_sources_succeeded(self) -> bool:
-        """Vérifier si toutes les sources requises ont réussi"""
-        required_apis = [api for api in self.apis if api.priority == SourcePriority.REQUIRED.value]
-        if not required_apis:
-            return True
-        return all(api.status == SourceStatus.SUCCESS.value for api in required_apis)
+    def has_source(self, url: str) -> bool:
+        """Vrai si l'URL est deja enregistree (site, API ou dataset)."""
+        return any(src.url == url for src in (*self.websites, *self.apis, *self.datasets))
+
+    def required_sources_status(self) -> str:
+        """Etat des sources requises par l'appelant.
+
+        "none_required" : aucune source requise ; "all_success" : toutes ont
+        servi ; "partial_failure" : au moins une n'a pas servi.
+        """
+        required = [
+            src
+            for src in (*self.websites, *self.apis, *self.datasets)
+            if getattr(src, "priority", None) == SourcePriority.REQUIRED.value
+        ]
+        if not required:
+            return "none_required"
+        if all(src.status == SourceStatus.SUCCESS.value for src in required):
+            return "all_success"
+        return "partial_failure"
