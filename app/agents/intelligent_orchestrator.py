@@ -1166,132 +1166,25 @@ IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
     # Phase 5: Comblement des manques
     # ===================================================================
 
-    def _convert_sources_to_bibliography(self, report: Dict[str, Any]) -> Dict[str, Any]:
+    def _convert_sources_to_bibliography(
+        self, report: Dict[str, Any], diagnostics: Optional[Diagnostics] = None
+    ) -> Dict[str, Any]:
+        """Convertit [SOURCE:url] en [n] et construit la bibliographie.
+
+        Idempotente (la conversion est appelee deux fois sur le chemin
+        principal). La logique est dans app.research.citations.
         """
-        Convertit [SOURCE:url] en [n] et construit la bibliographie.
+        from app.research.citations import construire_bibliographie
 
-        IDEMPOTENCE : appelee deux fois sur le chemin principal (une fois dans
-        _final_assembly, une fois apres l'enrichissement iteratif, qui peut
-        regenerer des sections porteuses de nouveaux [SOURCE:]). Au second
-        passage il ne reste plus de marqueur : sans garde, la bibliographie
-        serait reconstruite VIDE et toutes les references perdues.
-        On conserve donc la bibliographie existante et on complete.
-        """
-        """
-        Convertit les citations [SOURCE:url] en références numérotées [1], [2], etc.
-        et génère une bibliographie ordonnée.
-
-        AMÉLIORATION: Inclut aussi TOUTES les sources des données structurées,
-        même si elles ne sont pas citées explicitement dans le texte.
-        """
-        import re
-
-        # Collecter toutes les URLs uniques citées dans le rapport
-        # Repartir de la bibliographie deja construite, s'il y en a une.
-        _existing = report.get("bibliography") or []
-        bibliography = list(_existing)
-        url_to_num = {b["url"]: b["id"] for b in _existing if b.get("url") and b.get("id")}
-        counter = (max([b.get("id", 0) for b in _existing]) + 1) if _existing else 1
-
-        # Motif de citation. Crochet fermant OPTIONNEL : quand la
-        # generation s'arrete en limite de tokens, l'URL reste ouverte
-        # ("[SOURCE:https://..." sans "]"). Defini ici et non dans la
-        # boucle car il sert aussi au resume.
-        pattern = r'\[SOURCE:\s*(https?://[^\s\]]+)\]?'
-
-        # ÉTAPE 1: Collecter les URLs citées dans le contenu avec [SOURCE:url]
-        for section in report.get('sections', []):
-            content = section.get('content', '')
-
-            # Trouver toutes les citations [SOURCE:url]
-            # Crochet fermant OPTIONNEL : quand la generation s'arrete en
-            # limite de tokens, l'URL reste ouverte ("[SOURCE:https://..."
-            # sans "]"). Le motif strict ne les reconnaissait pas, laissant
-            # des marqueurs bruts dans le rapport livre — observe sur 3
-            # rapports sur 4 du run v3.
-            # L'URL s'arrete au premier espace, saut de ligne ou crochet.
-            matches = re.findall(pattern, content)
-
-            for url in matches:
-                if url not in url_to_num:
-                    url_to_num[url] = counter
-                    # Extraire le domaine pour le titre
-                    domain = url.split('/')[2] if len(url.split('/')) > 2 else url
-                    bibliography.append({
-                        "id": counter,
-                        "url": url,
-                        "title": f"Source {counter} - {domain}",
-                        "accessed": datetime.now().strftime("%Y-%m-%d")
-                    })
-                    counter += 1
-
-        # ÉTAPE 1bis: le RESUME cite aussi des sources. Sans ce passage, une
-        # URL citee uniquement dans le resume n'entrait jamais dans la
-        # bibliographie — et son marqueur restait donc brut dans le texte.
-        for _key in ("summary", "introduction", "conclusion"):
-            _txt = report.get(_key)
-            if not isinstance(_txt, str):
-                continue
-            for url in re.findall(pattern, _txt):
-                if url not in url_to_num:
-                    url_to_num[url] = counter
-                    domain = url.split('/')[2] if len(url.split('/')) > 2 else url
-                    bibliography.append({
-                        "id": counter,
-                        "url": url,
-                        "title": f"Source {counter} - {domain}",
-                        "accessed": datetime.now().strftime("%Y-%m-%d")
-                    })
-                    counter += 1
-
-        # ÉTAPE 2: Ajouter les sources des données structurées (métriques, etc.)
-        # Ces sources ont été utilisées même si non citées explicitement dans le texte
-        for section in report.get('sections', []):
-            data_points = section.get('data', [])
-            for data_point in data_points:
-                source_url = data_point.get('source')
-                if source_url and source_url not in url_to_num:
-                    url_to_num[source_url] = counter
-                    domain = source_url.split('/')[2] if len(source_url.split('/')) > 2 else source_url
-                    bibliography.append({
-                        "id": counter,
-                        "url": source_url,
-                        "title": f"Source {counter} - {domain}",
-                        "accessed": datetime.now().strftime("%Y-%m-%d")
-                    })
-                    counter += 1
-
-        # Remplacer [SOURCE:url] par [numéro] dans toutes les sections
-        for section in report.get('sections', []):
-            content = section.get('content', '')
-
-            # Remplacer chaque citation par son numéro
-            for url, num in url_to_num.items():
-                # Les deux formes : avec crochet fermant, et sans (generation
-                # interrompue en limite de tokens). L'ordre compte — la forme
-                # complete d'abord, sinon la forme ouverte la consommerait.
-                content = content.replace(f'[SOURCE:{url}]', f'[{num}]')
-                content = content.replace(f'[SOURCE:{url}', f'[{num}]')
-
-            section['content'] = content
-
-        # Le RESUME echappait a la conversion : la boucle ne parcourait que
-        # report['sections']. Observe sur le run v4 — un "[SOURCE:http://
-        # arxiv.org/..." brut apparaissait dans le resume alors que l'URL
-        # figurait bien en [1] dans la bibliographie.
-        for _key in ("summary", "introduction", "conclusion"):
-            _txt = report.get(_key)
-            if isinstance(_txt, str) and "[SOURCE:" in _txt:
-                for url, num in url_to_num.items():
-                    _txt = _txt.replace(f'[SOURCE:{url}]', f'[{num}]')
-                    _txt = _txt.replace(f'[SOURCE:{url}', f'[{num}]')
-                report[_key] = _txt
-
-        # Ajouter la bibliographie au rapport
-        report['bibliography'] = bibliography
-
-        logger.info(f"  ✓ Bibliographie générée: {len(bibliography)} sources")
-
+        report = construire_bibliographie(
+            report,
+            accessed=datetime.now().strftime("%Y-%m-%d"),
+            validate_cited_urls=self.config.validate_cited_urls,
+            cited_only=self.config.bibliography_cited_only,
+            real_titles=self.config.bibliography_real_titles,
+            diagnostics=diagnostics,
+        )
+        logger.info(f"  Bibliographie generee: {len(report['bibliography'])} sources")
         return report
 
     # ========================================================================
