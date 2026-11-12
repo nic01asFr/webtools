@@ -11,6 +11,7 @@ from app.core.llm.base import LLMEmptyContentError
 from app.research.embedding_cache import content_key
 from app.research.pipeline_config import PipelineConfig
 from app.research.stages.crossref import cross_reference_data
+from app.research.stages.select import semantic_chunk_selection
 
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch
 
@@ -110,7 +111,7 @@ async def test_cache_partage_entre_croisement_et_selection() -> None:
 
     enriched = await cross_reference_data(orch.services(), SECTION, data, ctx)
     before = len(llm.calls_for(kind="embed"))
-    await orch._semantic_chunk_selection(enriched, QUERY, context=ctx)
+    await semantic_chunk_selection(orch.services(), enriched, QUERY, context=ctx)
     after = llm.calls_for(kind="embed")[before:]
 
     assert [c.texts for c in after] == [[QUERY]]
@@ -122,7 +123,7 @@ async def test_repli_mots_cles_note_si_embeddings_en_erreur() -> None:
             raise RuntimeError("service indisponible")
 
     orch, ctx = _orch(_Broken()), _ctx()
-    selected = await orch._semantic_chunk_selection([_item("https://s.org/a")], QUERY, context=ctx)
+    selected = await semantic_chunk_selection(orch.services(), [_item("https://s.org/a")], QUERY, context=ctx)
 
     assert len(selected) == 1
     assert ctx.diagnostics.count("selection.repli_mots_cles") == 1
@@ -134,7 +135,7 @@ async def test_sans_capacite_embeddings_pas_d_appel_et_repli_note() -> None:
     orch, ctx = _orch(llm), _ctx()
 
     await cross_reference_data(orch.services(), SECTION, [_item("https://s.org/a")], ctx)
-    await orch._semantic_chunk_selection([_item("https://s.org/a")], QUERY, context=ctx)
+    await semantic_chunk_selection(orch.services(), [_item("https://s.org/a")], QUERY, context=ctx)
 
     assert llm.calls_for(kind="embed") == []
     assert ctx.diagnostics.count("selection.repli_mots_cles") >= 1
@@ -151,7 +152,7 @@ def _long_doc_and_others() -> list[dict[str, Any]]:
 
 async def test_max_chunks_per_source_defaut_sans_plafond() -> None:
     orch, ctx = _orch(), _ctx()
-    selected = await orch._semantic_chunk_selection(
+    selected = await semantic_chunk_selection(orch.services(), 
         _long_doc_and_others(), QUERY, max_chars=100000, min_score_threshold=0.0, context=ctx
     )
     assert Counter(i["source"] for i in selected)["https://long.org/doc"] == 6
@@ -159,7 +160,7 @@ async def test_max_chunks_per_source_defaut_sans_plafond() -> None:
 
 async def test_max_chunks_per_source_actif_plafonne_chaque_source() -> None:
     orch, ctx = _orch(), _ctx(max_chunks_per_source=2)
-    selected = await orch._semantic_chunk_selection(
+    selected = await semantic_chunk_selection(orch.services(), 
         _long_doc_and_others(), QUERY, max_chars=100000, min_score_threshold=0.0, context=ctx
     )
     per_source = Counter(i["source"] for i in selected)
