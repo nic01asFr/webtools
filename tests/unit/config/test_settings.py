@@ -1,7 +1,6 @@
 """Valeurs par defaut et surcharge par l'environnement de Settings."""
 
 import pytest
-
 from app.core import config
 from app.core.config import Settings
 

@@ -5,11 +5,9 @@ Sans lui, la configuration SearXNG derive du code sans que rien ne le dise
 """
 
 from pathlib import Path
-from typing import Dict, Set
 
 import pytest
 import yaml
-
 from app.services.engine_catalog import (
     AXIS_PREFERENCE,
     CATEGORY_TO_AXIS,
@@ -33,11 +31,11 @@ def reglages() -> dict:
 
 
 @pytest.fixture(scope="module")
-def moteurs(reglages: dict) -> Dict[str, dict]:
+def moteurs(reglages: dict) -> dict[str, dict]:
     return {e["name"]: e for e in reglages["engines"]}
 
 
-def _attendus_par_axe() -> Set[str]:
+def _attendus_par_axe() -> set[str]:
     return {n for noms in AXIS_PREFERENCE.values() for n in noms}
 
 
@@ -51,7 +49,7 @@ def test_aucun_secret_versionne(reglages: dict) -> None:
     assert reglages["server"]["secret_key"] == "ultrasecretkey"
 
 
-def test_moteurs_de_axis_preference_actives(moteurs: Dict[str, dict]) -> None:
+def test_moteurs_de_axis_preference_actives(moteurs: dict[str, dict]) -> None:
     absents = sorted(n for n in _attendus_par_axe() if n not in moteurs)
     assert not absents, f"moteurs de AXIS_PREFERENCE absents de settings.yml : {absents}"
     inactifs = sorted(
@@ -62,7 +60,7 @@ def test_moteurs_de_axis_preference_actives(moteurs: Dict[str, dict]) -> None:
     assert not inactifs, f"moteurs de AXIS_PREFERENCE non actifs : {inactifs}"
 
 
-def test_moteurs_a_intervalle_actives(moteurs: Dict[str, dict]) -> None:
+def test_moteurs_a_intervalle_actives(moteurs: dict[str, dict]) -> None:
     manquants = sorted(
         n
         for n in SearXNGClient.ENGINE_INTERVALS
@@ -71,7 +69,7 @@ def test_moteurs_a_intervalle_actives(moteurs: Dict[str, dict]) -> None:
     assert not manquants, f"moteurs de ENGINE_INTERVALS non actifs : {manquants}"
 
 
-def test_moteurs_des_profils_de_repli_actives(moteurs: Dict[str, dict]) -> None:
+def test_moteurs_des_profils_de_repli_actives(moteurs: dict[str, dict]) -> None:
     attendus = {n for noms in FALLBACK_PROFILES.values() for n in noms} - FALLBACK_SANS_MOTEUR
     manquants = sorted(
         n
@@ -81,7 +79,7 @@ def test_moteurs_des_profils_de_repli_actives(moteurs: Dict[str, dict]) -> None:
     assert not manquants, f"moteurs de FALLBACK_PROFILES non actifs : {manquants}"
 
 
-def test_categories_coherentes_avec_les_axes(moteurs: Dict[str, dict]) -> None:
+def test_categories_coherentes_avec_les_axes(moteurs: dict[str, dict]) -> None:
     # Reproduit EngineCatalog.axis_of : categories triees, premiere connue.
     # Un moteur doit tomber sur un axe dont la liste de preference le cite.
     for axe, noms in AXIS_PREFERENCE.items():
