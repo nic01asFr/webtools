@@ -1,5 +1,12 @@
 # Protocole de benchmark — webtools sur DeepResearch Bench
 
+> Le pod qui hébergeait le benchmark n'existe plus. Pour réinstaller le
+> harnais depuis zéro (dépôt DeepResearch Bench, variables d'environnement,
+> vérification), voir `benchmarks/INSTALL.md`. Les sections « Résultats
+> mesurés » et « Métriques de référence » sont des données historiques,
+> mesurées sur l'ancien pod avec l'ancien harnais : elles ne se reproduisent
+> pas telles quelles.
+
 ## Ce qu'on mesure, et à quoi ça sert
 
 DeepResearch Bench : 100 tâches de niveau doctoral rédigées par des experts
@@ -52,21 +59,108 @@ Faire vérifier les citations de webtools par webtools serait juge et partie.
 
 ## Marche à suivre
 
-```bash
-# 1. Générer les rapports (long : 4-7 min par tâche)
-cd /home/onyxia/work/benchmarks/harness
-export WEBTOOLS_API_KEY="$(cat /tmp/webtools_api_key.txt)"
+Aucun chemin ni aucune clé n'est écrit en dur : tout passe par
+l'environnement (liste complète dans `benchmarks/INSTALL.md`).
 
-python3 generate.py --lang en --limit 10 --model-name webtools-v2     # pilote
-python3 generate.py --lang en --model-name webtools-v2                # complet
+```bash
+export DRB_HOME=<dépôt DeepResearch Bench>
+export WEBTOOLS_API=http://localhost:8000
+export WEBTOOLS_API_KEY=<clé du service>
+
+# 1. Générer les rapports (long : 4 à 7 minutes par tâche)
+python benchmarks/generate.py --lang en --limit 5  --model-name webtools-v3-pilote   # pilote
+python benchmarks/generate.py --lang en --limit 20 --model-name webtools-v3-ref20b   # mesure
+python benchmarks/generate.py --lang en --model-name webtools-v3-complet             # 50 tâches
+
+# Option : plafond de sources par section (absent : selon la profondeur)
+python benchmarks/generate.py --lang en --limit 20 --model-name webtools-v3-s5 --max-sources-per-section 5
 
 # Interruption sans risque : relancer la même commande reprend où ça s'est
 # arrêté (les tâches déjà faites sont sautées).
 
 # 2. Évaluer
-JUDGE=sovereign ./evaluate.sh webtools-v2 all      # itération
-JUDGE=official  ./evaluate.sh webtools-v2 all      # jalon (OPENROUTER_API_KEY requis)
+JUDGE=sovereign ./benchmarks/evaluate.sh webtools-v3-ref20b all   # itération (SOVEREIGN_LLM_API_KEY, JINA_API_KEY)
+JUDGE=official  ./benchmarks/evaluate.sh webtools-v3-ref20b all   # jalon (OPENROUTER_API_KEY, JINA_API_KEY)
+
+# 3. Comparer deux runs sur les tâches appariées
+python benchmarks/compare.py <résultats RACE du run A> <résultats RACE du run B>
 ```
+
+`--limit N` prend les N premières tâches du corpus dans l'ordre du fichier :
+deux runs avec la même limite portent donc sur les mêmes tâches. Les rapports
+vont dans `$DRB_HOME/data/test_data/raw_data/<nom>.jsonl`, les diagnostics
+dans `<nom>_diagnostics.jsonl` et le manifeste dans `<nom>_manifest.json`,
+un niveau au-dessus.
+
+### Le service doit servir le code que l'on mesure
+
+`generate.py` interroge `GET /health` et refuse de démarrer si le commit servi
+diffère de celui du dépôt, s'il est `unknown`, si l'arbre servi est modifié ou
+si le service ne publie pas son identité (`--allow-mismatch` lève le refus, et
+l'avertissement reste dans le manifeste). Après un changement de code ou de
+réglage, redémarrer le service et contrôler `started_at` dans `/health` : un
+service supervisé relance le processus, et l'on peut sinon tester pendant une
+heure du code non chargé.
+
+### Le manifeste de run
+
+`<nom>_manifest.json` fixe ce qui a été mesuré : commit du dépôt et commit
+servi (avec l'état modifié ou non), heure de démarrage du service, modèle LLM,
+juge prévu, langue, `max_sources_per_section`, identifiants des tâches, moteurs
+de recherche actifs, configuration effective du pipeline
+(`diagnostics_config`, lue dans la première réponse) et les reprises. Un run
+repris sur un autre commit est refusé. Ne jamais comparer deux runs sans avoir
+lu leurs deux manifestes : la configuration effective ne doit différer que par
+ce que la campagne change.
+
+### Réglages à mesurer : variables d'environnement du service
+
+Les drapeaux de `PipelineConfig` se posent par `WEBTOOLS_PIPELINE_<NOM>` dans
+l'environnement du **service**, pas du harnais. Les valeurs par défaut
+reproduisent l'état de référence. La liste complète, avec défaut et effet de
+chaque champ, est dans `docs/CONFIGURATION.md`. Vérifier la valeur effective
+dans `diagnostics_config` du manifeste.
+
+### Rejeu de la collecte
+
+Pour mesurer un changement de rédaction ou de citations sans refaire la
+collecte, le service enregistre une fois (`WEBTOOLS_REPLAY_MODE=record`,
+`WEBTOOLS_REPLAY_DIR=<dossier>`), puis rejoue (`WEBTOOLS_REPLAY_MODE=replay`).
+Poser aussi `WEBTOOLS_PIPELINE_PLAN_TEMPERATURE=0` pour l'enregistrement et
+les rejeux : le plan doit rester le même. Après chaque rejeu,
+`diagnostics.replay.missed` doit valoir 0. Un changement de collecte (paquets
+M2 et M5) invalide l'enregistrement et se mesure sur le web réel, avec un
+nouvel enregistrement. Détails : `benchmarks/replay.md`.
+
+## Campagnes de mesure
+
+Règles inchangées : juge souverain en itération, 20 tâches anglaises au
+minimum, comparaison contre une référence fixe (jamais contre le run
+précédent), changements groupés en paquets. Le détail et les décisions sont
+dans `PLAN_FIABILISATION.md`, section 8. Aucune campagne n'a encore eu lieu
+sur la version 3.0.
+
+| Campagne | Contenu | Drapeaux (valeur essayée) | Mode |
+|---|---|---|---|
+| **M0** Référence et bruit | `ref20b` (nouveau harnais, code inchangé), puis `ref20b-bis` au même commit ; recalcul de `ref20` contre `v11` | aucun | web réel |
+| **M1** Non-régression | 20 tâches contre `ref20b`, tous drapeaux à leur défaut | aucun | web réel, en `record` |
+| **M2** Attribution | Part des sources dont le contenu ne vient pas de la page citée | `rss_tier_root_only=true`, `single_llm_pass_enabled=false` | web réel |
+| **M3** Présentation | Titre, résumé, ajouts de cohérence, enrichissement | `clean_title=true`, `summary_mode=none`, `coherence_append_enabled=false`, `enrichment_enabled=false` ; ensuite `regenerate_v2=true` seul | rejeu |
+| **M4** Citations | Validité des URL citées, bibliographie, charge du prompt | `validate_cited_urls=true`, `bibliography_cited_only=true`, `bibliography_real_titles=true`, `prompt_payload_minimal=true` | rejeu |
+| **M5** Collecte | Requêtes, langue, plafonds, découpage | `separate_search_terms=true`, `extraction_cap_follows_depth=true`, `exploration_uses_plan_query=true`, `search_language_from_query=true`, `max_chunks_per_source` (valeur à fixer), `chunking_v2=true` | web réel (surveiller les suspensions de moteurs) |
+| **M6** Jalon | Paquets adoptés fusionnés, corpus anglais complet | selon les décisions | juge officiel |
+
+Trois drapeaux n'appartiennent à aucune campagne : `plan_prompt_v2`,
+`targeted_search_skip_structured`, `quick_uses_chunk_selection`.
+
+Règle de décision. L'écart-type des deltas entre `ref20b` et `ref20b-bis`
+donne le plancher de bruit ; tout seuil en découle. Un paquet dont le delta
+reste dans le bruit n'est ni adopté ni rejeté sur ce seul critère : on regarde
+les invariants (`diagnostics.invariants`), le taux de validité FACT et la
+durée. À qualité égale, on garde la version la plus simple. M0 compte aussi,
+dans les journaux du run, les lignes « Flux RSS trouve et exploite » et les
+extractions `direct_playwright_single_llm_pass` : c'est la part des sources
+dont le contenu ne vient pas de la page citée.
 
 ## Avant de croire un chiffre — vérifications obligatoires
 
@@ -78,11 +172,15 @@ JUDGE=official  ./evaluate.sh webtools-v2 all      # jalon (OPENROUTER_API_KEY r
    de sortie du pipeline.
 3. **Les échecs** : une tâche absente du `.jsonl` n'est pas une tâche ratée
    à zéro, c'est une tâche non mesurée. Distinguer les deux.
+4. **Le manifeste** : commit servi, configuration effective et tâches
+   identiques à celles de la référence, sauf ce que la campagne change.
+5. **Les invariants** : `diagnostics.invariants` de chaque réponse ; un taux
+   de violations qui monte invalide une amélioration apparente.
 
 ## Nommage des runs
 
-`webtools-<version>-<variante>` — par exemple `webtools-v2-stealth`,
-`webtools-v2-sources5`. Le nom devient le nom du fichier de résultats : il
+`webtools-<version>-<variante>` — par exemple `webtools-v3-ref20b`,
+`webtools-v3-sources5`. Le nom devient le nom du fichier de résultats : il
 doit dire ce qui a changé, sinon deux runs deviennent incomparables une
 semaine plus tard.
 
@@ -214,9 +312,9 @@ transformation déterministe après génération serait plus fiable.
   suffit pas, et on peut tester pendant une heure du code non chargé.
   **Toujours vérifier l'heure de démarrage du processus contre la date de
   modification du fichier** avant d'interpréter un test.
-- La configuration SearXNG (`searx/settings.yml`) vit sur le pod et **n'est
-  pas versionnée** : les moteurs activés seraient perdus à une
-  réinstallation.
+- La configuration SearXNG vivait sur le pod et n'était pas versionnée.
+  Depuis la 3.0, elle est dans `docker/searxng/settings.yml`. La copie
+  exacte de la configuration du pod d'origine (campagne M0) n'existe plus.
 - Un correctif en amont peut être annulé par une étape en aval. Rencontré
   cinq fois : plafonds de chunks, `selected_data[:12]`, conversion des
   citations non appelée, résumé construit avant conversion, `max_tokens`
