@@ -151,6 +151,7 @@ def _degradation_error(
     deadline: int,
     plan_fallback_reason: Optional[str] = None,
     required_failed: Optional[List[Dict[str, str]]] = None,
+    sections_imposed: bool = False,
 ) -> Optional[str]:
     """Message de l'erreur d'un rapport degrade, une cause par message.
 
@@ -172,10 +173,14 @@ def _degradation_error(
             f"{len(unsourced)} section(s) sans source exploitable : la collecte n'a rien remonte sur ce sujet"
         )
     if plan_fallback_reason:
-        parts.append(
-            f"plan generique de repli utilise ({plan_fallback_reason}) : "
-            f"la structure du rapport ne suit pas la consigne"
+        # Avec des sections imposees, le repli les conserve (V4-4) : seules
+        # leurs cibles (objectifs, requetes) sont generiques.
+        consequence = (
+            "les sections imposees sont conservees mais leurs objectifs et requetes sont generiques"
+            if sections_imposed
+            else "la structure du rapport ne suit pas la consigne"
         )
+        parts.append(f"plan generique de repli utilise ({plan_fallback_reason}) : {consequence}")
     if required_failed:
         listing = ", ".join(f"{f.get('url')} ({f.get('reason')})" for f in required_failed)
         parts.append(f"{len(required_failed)} source(s) requise(s) non extraite(s) : {listing}")
@@ -404,6 +409,7 @@ async def research_deep(request: DeepResearchRequest):
             failed, unsourced, missing, timed_out, request.timeout,
             plan_fallback_reason=answer.get("plan_fallback_reason"),
             required_failed=required_failed,
+            sections_imposed=bool(sections),
         )
         logger.error(
             f"Rapport DEGRADE : {len(failed)} echec(s) LLM, {len(unsourced)} section(s) sans source, "

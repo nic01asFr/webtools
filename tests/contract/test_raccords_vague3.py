@@ -39,6 +39,11 @@ def test_message_d_erreur_cite_le_plan_de_repli() -> None:
     message = _degradation_error([], [], [], False, 600, plan_fallback_reason="exception:FakeLLMError")
     assert message is not None and "plan generique de repli" in message
     assert _degradation_error([], [], [], False, 600) is None
+    imposed = _degradation_error(
+        [], [], [], False, 600, plan_fallback_reason="exception:X", sections_imposed=True
+    )
+    assert imposed is not None and "sections imposees sont conservees" in imposed
+    assert "ne suit pas la consigne" not in imposed
 
 
 async def test_conversion_des_citations_recoit_le_journal(monkeypatch: pytest.MonkeyPatch) -> None:
