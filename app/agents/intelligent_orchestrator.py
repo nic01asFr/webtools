@@ -3218,8 +3218,11 @@ Retourne JSON:
             }
         }
 
-        # Conversion sources → bibliographie
-        final_report = self._convert_sources_to_bibliography(final_report)
+        # Conversion sources → bibliographie (journal de la requete transmis :
+        # sans lui les notes citations.* sont perdues)
+        final_report = self._convert_sources_to_bibliography(
+            final_report, getattr(context, "diagnostics", None)
+        )
 
         # Comptabiliser les sections perdues par echec LLM. Sans cela, un
         # rapport dont TOUTES les sections ont echoue sortait avec
