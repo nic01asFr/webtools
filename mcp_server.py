@@ -232,8 +232,29 @@ mcp = FastMCP(
 _TRANSPORT: httpx.AsyncBaseTransport | None = None
 
 _QUICK_TIMEOUT = 120.0
-_DEEP_TIMEOUT = 900.0
 _SHORT_TIMEOUT = 60.0
+
+
+def _deep_deadline() -> int:
+    """
+    Delai global demande a l'API pour une recherche approfondie (60 a 1200 s).
+
+    Sans lui, l'API appliquait son defaut de 600 s. Mesure en production sur
+    le proxy SSPCloud (~10 jetons/s) : une recherche complete demande environ
+    900 s, et 600 s la coupaient a mi-redaction. Defaut 1200 s, le maximum
+    accepte par l'API ; WEBTOOLS_DEEP_TIMEOUT le change.
+    """
+    try:
+        value = int(os.environ.get("WEBTOOLS_DEEP_TIMEOUT", "1200"))
+    except ValueError:
+        value = 1200
+    return max(60, min(1200, value))
+
+
+def _deep_http_timeout() -> float:
+    # Le client HTTP attend un peu plus que le delai demande a l'API, qui rend
+    # son rapport partiel juste apres expiration.
+    return float(_deep_deadline() + 60)
 
 
 def _api_base() -> str:
@@ -481,7 +502,7 @@ def _running_count() -> int:
 
 def _deep_request_body(topic: str, max_sources_per_section: int | None) -> dict[str, Any]:
     """Corps de la requete /research/deep : seuls les parametres donnes sont envoyes."""
-    body: dict[str, Any] = {"topic": topic}
+    body: dict[str, Any] = {"topic": topic, "timeout": _deep_deadline()}
     if max_sources_per_section is not None:
         body["max_sources_per_section"] = max_sources_per_section
     return body
@@ -495,7 +516,7 @@ async def _run_research_deep_background(
         payload = await _api_post(
             "/api/v1/research/deep",
             _deep_request_body(topic, max_sources_per_section),
-            _DEEP_TIMEOUT,
+            _deep_http_timeout(),
         )
         outcome = deep_result(payload)
         if outcome["success"]:
@@ -669,7 +690,7 @@ async def webtools_research_deep(
     if ctx:
         await ctx.report_progress(progress=0, total=100, message=f"Demarrage de la recherche sur '{topic}'...")
     payload = await _api_post(
-        "/api/v1/research/deep", _deep_request_body(topic, max_sources_per_section), _DEEP_TIMEOUT
+        "/api/v1/research/deep", _deep_request_body(topic, max_sources_per_section), _deep_http_timeout()
     )
     if ctx:
         await ctx.report_progress(progress=100, total=100, message="Recherche terminee")

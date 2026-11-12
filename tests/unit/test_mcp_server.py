@@ -140,12 +140,22 @@ async def test_research_deep_mapping_sans_data(api):
     out = await _fn(mcp_server.webtools_research_deep)(topic="Sujet test", ctx=None)
     request = api["requests"][0]
     assert request.url.path == "/api/v1/research/deep"
-    assert json.loads(request.content) == {"topic": "Sujet test"}
+    assert json.loads(request.content) == {"topic": "Sujet test", "timeout": 1200}
     assert out["success"] is True
     assert "Texte A." in out["report_markdown"]
     assert "TEXTE INTEGRAL SECRET" not in json.dumps(out)
     assert out["diagnostics"]["degraded"] is True
     assert out["diagnostics"]["failed_sections"] == ["Section B"]
+
+
+async def test_delai_de_recherche_approfondie_reglable(api, monkeypatch):
+    # Sans delai transmis, l'API appliquait 600 s : trop court en production.
+    api["handler"] = lambda r: httpx.Response(200, json=DEEP_PAYLOAD)
+    monkeypatch.setenv("WEBTOOLS_DEEP_TIMEOUT", "900")
+    await _fn(mcp_server.webtools_research_deep)(topic="Sujet test", ctx=None)
+    assert json.loads(api["requests"][0].content)["timeout"] == 900
+    monkeypatch.setenv("WEBTOOLS_DEEP_TIMEOUT", "99999")
+    assert mcp_server._deep_deadline() == 1200
 
 
 def test_max_sources_retire_des_outils():

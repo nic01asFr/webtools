@@ -110,11 +110,12 @@ async def test_parametre_synchrone_transmis(api):
     await tool(topic="Sujet test", max_sources_per_section=3, ctx=None)
     assert json.loads(api["requests"][0].content) == {
         "topic": "Sujet test",
+        "timeout": 1200,
         "max_sources_per_section": 3,
     }
 
     await tool(topic="Sujet test", ctx=None)
-    assert json.loads(api["requests"][1].content) == {"topic": "Sujet test"}
+    assert json.loads(api["requests"][1].content) == {"topic": "Sujet test", "timeout": 1200}
 
 
 async def test_parametre_en_tache_de_fond_transmis(api):
@@ -125,6 +126,7 @@ async def test_parametre_en_tache_de_fond_transmis(api):
     await asyncio.gather(*list(mcp_server._BACKGROUND))
     assert json.loads(api["requests"][0].content) == {
         "topic": "Sujet test",
+        "timeout": 1200,
         "max_sources_per_section": 6,
     }
     out = await _fn(mcp_server.webtools_research_deep_status)(task_id=started["task_id"])

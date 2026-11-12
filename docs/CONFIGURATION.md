@@ -316,6 +316,7 @@ Variables déclarées dans `Settings` mais que le code ne lit pas :
 | `WEBTOOLS_API` | `http://localhost:8000` | URL de l'API vue du serveur MCP (`http://webtools:8000` sous Docker) |
 | `WEBTOOLS_API_KEY` | vide | Clé envoyée à l'API |
 | `MCP_PUBLIC_URL` | `http://localhost:8090` | URL publique, base du flux OAuth |
+| `WEBTOOLS_DEEP_TIMEOUT` | `1200` | Délai global (60 à 1 200 s) que les outils de recherche approfondie demandent à l'API ; 600 s, le défaut de l'API, coupait les rapports en production |
 | `MCP_PUBLIC_HOST` | `localhost` | Nom d'hôte de l'étiquette Traefik (`docker-compose.yml` seulement) |
 | `MCP_MAX_CONCURRENT_DEEP` | `2` | Recherches approfondies simultanées en tâche de fond ; au-delà, `webtools_research_deep_start` répond `busy` |
 | `WEBTOOLS_STATE_DIR` | `<tmp>/webtools_mcp_state` | Dossier de l'état des tâches (un fichier JSON par tâche) |
