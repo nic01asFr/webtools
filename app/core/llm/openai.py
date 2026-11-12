@@ -43,6 +43,18 @@ def _cause_chain(error: BaseException) -> str:
     return " <- ".join(chain) if chain else "aucune cause sous-jacente"
 
 
+def _closed_client_error(error: BaseException) -> bool:
+    """Vrai si l'erreur vient d'un client HTTP ferme ("client has been closed")."""
+    seen: BaseException | None = error
+    for _ in range(6):
+        if seen is None:
+            return False
+        if "client has been closed" in str(seen):
+            return True
+        seen = seen.__cause__ or seen.__context__
+    return False
+
+
 class OpenAILLMClient(BaseLLMClient):
     """
     Client pour l'API OpenAI (GPT-4, GPT-4o, etc.)
@@ -222,6 +234,32 @@ class OpenAILLMClient(BaseLLMClient):
             choices=[SimpleNamespace(message=message, finish_reason=finish_reason)]
         )
 
+    async def _call(self, kwargs: dict[str, Any], make: Any) -> Any:
+        """
+        Prepare puis execute un appel ; le rejoue une fois si le client HTTP a
+        ete ferme pendant l'appel.
+
+        Observe en production (12/11/2026) : le client partage etait trouve
+        ferme a la fin de chaque tache de l'agent navigateur browser-use, qui
+        appelle gc.collect() en se terminant. _ensure_open le reconstruit avant
+        chaque appel, mais un appel deja en vol echouait ("Cannot send a
+        request, as the client has been closed"), par exemple les embeddings
+        d'une section. La cause exacte de la fermeture n'est pas etablie ; le
+        rejeu unique rend le service insensible a elle.
+        """
+        saved = dict(kwargs)
+        client, total_timeout = self._prepare_call(kwargs)
+        try:
+            return await self._with_deadline(make(client, kwargs), total_timeout)
+        except Exception as e:
+            if not _closed_client_error(e):
+                raise
+            logger.warning("Client LLM ferme pendant l'appel : reconstruction et rejeu unique")
+            self._build_client()
+            retry_kwargs = dict(saved)
+            client, total_timeout = self._prepare_call(retry_kwargs)
+            return await self._with_deadline(make(client, retry_kwargs), total_timeout)
+
     async def _with_deadline(self, awaitable: Any, total_timeout: float | None) -> Any:
         """Applique l'echeance totale (retries du SDK compris)."""
         if not total_timeout:
@@ -282,10 +320,9 @@ class OpenAILLMClient(BaseLLMClient):
         """
         self._record_finish_reason(None)
         try:
-            client, total_timeout = self._prepare_call(kwargs)
-            response = await self._with_deadline(
-                self._complete(client, model=self.model, messages=messages, **kwargs),
-                total_timeout,
+            response = await self._call(
+                kwargs,
+                lambda client, kw: self._complete(client, model=self.model, messages=messages, **kw),
             )
 
             if not response.choices:
@@ -322,10 +359,9 @@ class OpenAILLMClient(BaseLLMClient):
         correspondance de mots-cles (qui rate synonymes/reformulations).
         """
         try:
-            self._ensure_open()
-            response = await self._with_deadline(
-                self.client.embeddings.create(model=model, input=texts),
-                self.total_timeout,
+            response = await self._call(
+                {},
+                lambda client, kw: client.embeddings.create(model=model, input=texts),
             )
         except LLMClientError:
             raise
@@ -369,23 +405,15 @@ class OpenAILLMClient(BaseLLMClient):
         """
         self._record_finish_reason(None)
         try:
-            client, total_timeout = self._prepare_call(kwargs)
-            response = await self._with_deadline(
-                self._complete(
-                    client,
-                    model=self.model,
-                    messages=messages,
-                    response_format={
-                        "type": "json_schema",
-                        "json_schema": {
-                            "name": schema_name,
-                            "strict": True,
-                            "schema": schema
-                        }
-                    },
-                    **kwargs
+            response_format = {
+                "type": "json_schema",
+                "json_schema": {"name": schema_name, "strict": True, "schema": schema},
+            }
+            response = await self._call(
+                kwargs,
+                lambda client, kw: self._complete(
+                    client, model=self.model, messages=messages, response_format=response_format, **kw
                 ),
-                total_timeout,
             )
         except LLMClientError:
             raise

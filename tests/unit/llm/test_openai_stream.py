@@ -113,3 +113,46 @@ async def test_client_partage_en_flux_par_defaut(monkeypatch: pytest.MonkeyPatch
     monkeypatch.setattr(llm, "_shared_clients", {})
     monkeypatch.setenv("DEFAULT_LLM_STREAM", "0")
     assert (await llm.get_llm_client()).stream is False
+
+
+async def test_client_ferme_pendant_l_appel_reconstruit_et_rejoue() -> None:
+    # Observe en production : le client HTTP partage etait ferme a la fin d'une
+    # tache browser-use, et l'appel en vol echouait.
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("Cannot send a request, as the client has been closed.")
+        return httpx.Response(
+            200, content=_sse(["apres ", "rejeu"]), headers={"content-type": "text/event-stream"}
+        )
+
+    client = OpenAILLMClient(
+        api_key="cle-test",
+        base_url="https://llm.test/api",
+        model="gpt-test",
+        max_retries=0,
+        transport=httpx.MockTransport(handler),
+        stream=True,
+    )
+    assert await client.generate(MESSAGES) == "apres rejeu"
+    assert calls["n"] == 2
+    await client.force_close()
+
+
+async def test_autre_erreur_non_rejouee() -> None:
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(400, json={"error": {"message": "mauvaise requete"}})
+
+    client = OpenAILLMClient(
+        api_key="cle-test", base_url="https://llm.test/api", model="gpt-test",
+        max_retries=0, transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(Exception):
+        await client.generate(MESSAGES)
+    assert calls["n"] == 1
+    await client.force_close()
