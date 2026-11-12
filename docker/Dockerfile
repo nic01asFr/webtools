@@ -75,6 +75,12 @@ USER webextract
 # Installer Chromium en tant qu'utilisateur webextract
 RUN /opt/venv-api/bin/python -m playwright install chromium
 
+# Identite du code : l'image n'a ni git ni depot, /health.commit lit cette
+# variable (app/core/build_info.py). A fournir au build :
+#   docker build --build-arg WEBTOOLS_COMMIT=$(git rev-parse HEAD) ...
+ARG WEBTOOLS_COMMIT=unknown
+ENV WEBTOOLS_COMMIT=${WEBTOOLS_COMMIT}
+
 # Variables d'environnement par défaut
 ENV PYTHONUNBUFFERED=1 \
     LOG_LEVEL=INFO \
@@ -84,7 +90,8 @@ ENV PYTHONUNBUFFERED=1 \
 # Ports : API (8000) et serveur MCP (8090)
 EXPOSE 8000 8090
 
-# Healthcheck
+# Healthcheck de l'API. Le service webtools-mcp (meme image, port 8090) le
+# remplace dans docker-compose.yml.
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 

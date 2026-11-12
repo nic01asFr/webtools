@@ -2,9 +2,12 @@
 Application principale FastAPI pour Webtools Service.
 """
 
+import asyncio
 import logging
+import time
 from contextlib import asynccontextmanager
 
+from dotenv import find_dotenv, load_dotenv
 from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -376,8 +379,25 @@ app.include_router(
 _lifespan_applicatif = app.router.lifespan_context
 
 
+def load_environment() -> bool:
+    """
+    Charge le .env du repertoire courant (ou d'un parent) dans os.environ,
+    sans ecraser une variable deja definie. pydantic-settings lit .env pour
+    `settings` seulement : les lecteurs directs de l'environnement (cle de
+    l'API REST, WEBTOOLS_COMMIT...) ne le voient pas sans ceci.
+
+    Returns:
+        True si un fichier .env a ete trouve
+    """
+    chemin = find_dotenv(usecwd=True)
+    if not chemin:
+        return False
+    return load_dotenv(chemin, override=False)
+
+
 @asynccontextmanager
 async def _lifespan_avec_controle_auth(application: FastAPI):
+    load_environment()
     verify_auth_configuration()
     async with _lifespan_applicatif(application) as etat:
         yield etat
@@ -405,17 +425,18 @@ LLM_PROBE_TIMEOUT_SECONDS = 10.0
 # (horodatage monotone, resultat) du dernier appel reel au LLM.
 _llm_probe_cache: tuple[float, dict] | None = None
 
+# Une seule sonde a la fois : a l'expiration du cache, des /health simultanes
+# attendent la sonde en cours au lieu de partir tous vers le LLM.
+_llm_probe_lock = asyncio.Lock()
+
 
 async def _probe_llm() -> dict:
     """Appel minimal (1 token) au LLM ; ne leve jamais."""
-    import asyncio
-    import os
+    from app.core.llm import LLMEmptyContentError, get_llm_client, resolve_llm_config
 
-    if not os.getenv("DEFAULT_LLM_API_KEY", ""):
+    if not resolve_llm_config()[2]:
         return {"configured": False, "ok": False, "detail": "cle LLM absente"}
     try:
-        from app.core.llm import get_llm_client
-
         client = await get_llm_client()
         await asyncio.wait_for(
             client.generate(
@@ -424,21 +445,28 @@ async def _probe_llm() -> dict:
             timeout=LLM_PROBE_TIMEOUT_SECONDS,
         )
         return {"configured": True, "ok": True, "detail": "ok"}
+    except LLMEmptyContentError:
+        # max_tokens=1 peut ne rendre aucun contenu : le LLM a repondu, ce
+        # que la sonde cherche a savoir.
+        return {"configured": True, "ok": True, "detail": "reponse vide (le LLM repond)"}
     except Exception as exc:  # noqa: BLE001 - la sonde ne doit jamais lever
         return {"configured": True, "ok": False, "detail": f"{type(exc).__name__}: {exc}"[:200]}
 
 
 async def _llm_status() -> dict:
     """Etat du LLM, mis en cache 60 s pour ne pas consommer de quota."""
-    import time
-
     global _llm_probe_cache
-    now = time.monotonic()
-    if _llm_probe_cache and now - _llm_probe_cache[0] < LLM_PROBE_TTL_SECONDS:
-        return _llm_probe_cache[1]
-    result = await _probe_llm()
-    _llm_probe_cache = (now, result)
-    return result
+    cache = _llm_probe_cache
+    if cache and time.monotonic() - cache[0] < LLM_PROBE_TTL_SECONDS:
+        return cache[1]
+    async with _llm_probe_lock:
+        # Une sonde terminee pendant l'attente du verrou vaut la notre.
+        cache = _llm_probe_cache
+        if cache and time.monotonic() - cache[0] < LLM_PROBE_TTL_SECONDS:
+            return cache[1]
+        result = await _probe_llm()
+        _llm_probe_cache = (time.monotonic(), result)
+        return result
 
 
 def _engine_catalog_status() -> dict:
@@ -475,7 +503,12 @@ async def health_check():
     llm = await _llm_status()
     catalog = _engine_catalog_status()
 
-    overall_status = "healthy" if (playwright_ok and searxng_ok and llm["ok"]) else "degraded"
+    # Un catalogue vide : les recherches se font sans selection de moteurs.
+    overall_status = (
+        "healthy"
+        if (playwright_ok and searxng_ok and llm["ok"] and catalog["ok"])
+        else "degraded"
+    )
 
     return HealthResponse(
         status=overall_status,
@@ -483,6 +516,7 @@ async def health_check():
         playwright_available=playwright_ok,
         searxng_available=searxng_ok,
         llm_configured=llm["configured"],
+        llm_model=settings.default_llm_model,
         commit=build_info.COMMIT,
         commit_dirty=build_info.COMMIT_DIRTY,
         started_at=build_info.STARTED_AT,

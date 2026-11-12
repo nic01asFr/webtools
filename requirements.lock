@@ -1,5 +1,6 @@
 # Verrou de l'API (dependances principales de pyproject.toml, browser-use inclus).
-# Genere par pip-compile ; ne pas editer a la main. Regeneration : GETTING_STARTED.md.
+# Compile pour Linux x86_64, Python 3.11 (uv pip compile) ; ne pas editer a la main.
+# Regeneration : GETTING_STARTED.md.
 annotated-doc==0.0.6
     # via
     #   fastapi
@@ -8,8 +9,8 @@ annotated-types==0.8.0
     # via pydantic
 anthropic==0.125.0
     # via
-    #   langchain-anthropic
     #   webtools-service (pyproject.toml)
+    #   langchain-anthropic
 anyio==4.16.0
     # via
     #   anthropic
@@ -25,8 +26,8 @@ backoff==2.2.1
     # via posthog
 beautifulsoup4==4.15.0
     # via
-    #   markdownify
     #   webtools-service (pyproject.toml)
+    #   markdownify
 boto3==1.44.1
     # via langchain-aws
 botocore==1.44.1
@@ -56,16 +57,18 @@ click==8.5.1
     #   uvicorn
 cloudpickle==3.1.2
     # via joblib
-colorama==0.4.6
-    # via
-    #   tqdm
-    #   typer
 courlan==1.4.0
     # via trafilatura
 cryptography==50.0.2
     # via
     #   google-auth
     #   pdfminer-six
+cuda-bindings==13.5.0
+    # via torch
+cuda-pathfinder==1.8.6
+    # via cuda-bindings
+cuda-toolkit==13.2.2
+    # via torch
 dateparser==1.5.0
     # via htmldate
 defusedxml==0.7.1
@@ -83,9 +86,9 @@ fastapi==0.162.5
     # via webtools-service (pyproject.toml)
 filelock==3.12.2
     # via
+    #   webtools-service (pyproject.toml)
     #   huggingface-hub
     #   torch
-    #   webtools-service (pyproject.toml)
 filetype==1.2.0
     # via langchain-google-genai
 fsspec==2026.9.0
@@ -136,13 +139,13 @@ httptools==0.9.0
     # via uvicorn
 httpx==0.28.1
     # via
+    #   webtools-service (pyproject.toml)
     #   anthropic
     #   browser-use
     #   langsmith
     #   ollama
     #   openai
     #   qdrant-client
-    #   webtools-service (pyproject.toml)
 httpx2==2.16.0
     # via huggingface-hub
 huggingface-hub==2.4.0
@@ -180,12 +183,13 @@ langchain==0.3.22
     # via browser-use
 langchain-anthropic==0.3.3
     # via
-    #   browser-use
     #   webtools-service (pyproject.toml)
+    #   browser-use
 langchain-aws==0.2.19
     # via browser-use
 langchain-core==0.3.49
     # via
+    #   webtools-service (pyproject.toml)
     #   browser-use
     #   langchain
     #   langchain-anthropic
@@ -195,7 +199,6 @@ langchain-core==0.3.49
     #   langchain-ollama
     #   langchain-openai
     #   langchain-text-splitters
-    #   webtools-service (pyproject.toml)
 langchain-deepseek==0.1.3
     # via browser-use
 langchain-google-genai==2.1.2
@@ -204,9 +207,9 @@ langchain-ollama==0.3.0
     # via browser-use
 langchain-openai==0.3.11
     # via
+    #   webtools-service (pyproject.toml)
     #   browser-use
     #   langchain-deepseek
-    #   webtools-service (pyproject.toml)
 langchain-text-splitters==0.3.7
     # via langchain
 langsmith==0.3.45
@@ -248,13 +251,54 @@ numpy==1.26.4
     #   scipy
     #   sentence-transformers
     #   transformers
+nvidia-cublas==13.4.1.3
+    # via
+    #   cuda-toolkit
+    #   nvidia-cudnn-cu13
+    #   nvidia-cusolver
+nvidia-cuda-cccl==13.3.5.0.6
+    # via nvidia-nvshmem-cu13
+nvidia-cuda-cupti==13.2.86
+    # via cuda-toolkit
+nvidia-cuda-nvrtc==13.2.86
+    # via
+    #   cuda-toolkit
+    #   nvidia-cublas
+nvidia-cuda-runtime==13.2.86
+    # via cuda-toolkit
+nvidia-cudnn-cu13==9.26.0.51
+    # via torch
+nvidia-cufft==12.2.0.57
+    # via cuda-toolkit
+nvidia-cufile==1.17.1.22
+    # via cuda-toolkit
+nvidia-cusolver==12.2.0.11
+    # via cuda-toolkit
+nvidia-cusparse==12.7.10.12
+    # via
+    #   cuda-toolkit
+    #   nvidia-cusolver
+nvidia-cusparselt-cu13==0.8.1
+    # via torch
+nvidia-nccl-cu13==2.30.7
+    # via torch
+nvidia-nvjitlink==13.5.37
+    # via
+    #   cuda-toolkit
+    #   nvidia-cufft
+    #   nvidia-cusolver
+    #   nvidia-cusparse
+nvidia-nvshmem-cu13==3.7.2
+    # via torch
+nvidia-nvtx==13.2.86
+    # via cuda-toolkit
 ollama==0.6.3
     # via langchain-ollama
 openai==1.109.1
     # via
+    #   webtools-service (pyproject.toml)
     #   langchain-openai
     #   mem0ai
-    #   webtools-service (pyproject.toml)
 opentelemetry-api==1.45.2
     # via
     #   fastapi
@@ -276,8 +320,8 @@ pillow==13.0.0
     # via pdfplumber
 playwright==1.65.1
     # via
-    #   browser-use
     #   webtools-service (pyproject.toml)
+    #   browser-use
 portalocker==4.4.2
     # via qdrant-client
 posthog==3.25.0
@@ -308,6 +352,7 @@ pycparser==3.12
     # via cffi
 pydantic==2.10.6
     # via
+    #   webtools-service (pyproject.toml)
     #   anthropic
     #   browser-use
     #   fastapi
@@ -323,7 +368,6 @@ pydantic==2.10.6
     #   pydantic-settings
     #   qdrant-client
     #   typer
-    #   webtools-service (pyproject.toml)
 pydantic-core==2.27.2
     # via pydantic
 pydantic-settings==2.3.4
@@ -344,6 +388,7 @@ python-dateutil==2.9.0.post0
     #   posthog
 python-dotenv==1.2.4
     # via
+    #   webtools-service (pyproject.toml)
     #   browser-use
     #   pydantic-settings
     #   uvicorn
@@ -394,6 +439,8 @@ screeninfo==0.8.1
     # via browser-use
 sentence-transformers==6.3.0
     # via browser-use
+setuptools==84.2.1
+    # via torch
 shellingham==1.5.4
     # via typer
 six==1.17.0
@@ -405,7 +452,7 @@ sniffio==1.3.1
     # via
     #   anthropic
     #   openai
-soupsieve==4.1
+soupsieve==2.10
     # via beautifulsoup4
 sqlalchemy==2.1.8
     # via
@@ -417,8 +464,8 @@ sympy==1.14.0
     # via torch
 tenacity==8.2.3
     # via
-    #   langchain-core
     #   webtools-service (pyproject.toml)
+    #   langchain-core
 threadpoolctl==3.8.0
     # via scikit-learn
 tiktoken==0.14.0
@@ -441,6 +488,8 @@ trafilatura==2.3.1
     # via webtools-service (pyproject.toml)
 transformers==5.22.2
     # via sentence-transformers
+triton==3.9.0
+    # via torch
 truststore==0.10.5
     # via
     #   httpcore2
@@ -469,8 +518,6 @@ typing-extensions==4.16.0
     #   typing-inspection
 typing-inspection==0.4.5
     # via fastapi
-tzdata==2026.6
-    # via tzlocal
 tzlocal==5.4.5
     # via dateparser
 urllib3==2.8.0
@@ -483,12 +530,11 @@ urllib3==2.8.0
     #   trafilatura
 uvicorn==0.54.0
     # via webtools-service (pyproject.toml)
+uvloop==0.23.0
+    # via uvicorn
 watchfiles==1.3.0
     # via uvicorn
 websockets==17.4
     # via uvicorn
 zstandard==0.23.0
     # via langsmith
-
-# The following packages are considered to be unsafe in a requirements file:
-# setuptools

@@ -2,12 +2,15 @@
 Client LLM pour Anthropic API (Claude).
 """
 
+import asyncio
+from typing import Any
+
 import httpx
 from anthropic import AsyncAnthropic
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
 
-from .base import BaseLLMClient, LLMClientError, LLMEmptyContentError
+from .base import BaseLLMClient, LLMClientError, LLMEmptyContentError, LLMTimeoutError
 
 
 class AnthropicLLMClient(BaseLLMClient):
@@ -47,13 +50,30 @@ class AnthropicLLMClient(BaseLLMClient):
 
         self.client = AsyncAnthropic(**kwargs)
 
+    async def _with_deadline(self, awaitable: Any, total_timeout: float | None) -> Any:
+        """
+        Applique l'echeance totale (tentatives comprises), comme le client OpenAI.
+        asyncio.timeout et non wait_for : wait_for execute l'appel dans une
+        tache a part, et la raison d'arret (ContextVar) y serait perdue.
+        """
+        if not total_timeout:
+            return await awaitable
+        try:
+            async with asyncio.timeout(total_timeout):
+                return await awaitable
+        except TimeoutError:
+            raise LLMTimeoutError(
+                f"Echeance totale de {total_timeout:g}s depassee (modele {self.model})"
+            )
+
     async def generate(
         self,
         messages: list[dict[str, str]],
         **kwargs
     ) -> str:
         """
-        Génère une réponse avec Claude.
+        Génère une réponse avec Claude, dans l'echeance totale
+        (kwarg `total_timeout`, sinon self.total_timeout ; None = sans limite).
 
         Args:
             messages: Liste de messages au format {"role": "...", "content": "..."}
@@ -62,6 +82,15 @@ class AnthropicLLMClient(BaseLLMClient):
         Returns:
             Contenu de la réponse générée
         """
+        total_timeout = kwargs.pop("total_timeout", self.total_timeout)
+        return await self._with_deadline(self._generate_once(messages, **kwargs), total_timeout)
+
+    async def _generate_once(
+        self,
+        messages: list[dict[str, str]],
+        **kwargs
+    ) -> str:
+        """Appel unique a l'API ; l'echeance totale est appliquee par generate."""
         self._record_finish_reason(None)
         try:
             # Anthropic nécessite un message système séparé

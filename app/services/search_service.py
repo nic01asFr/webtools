@@ -99,6 +99,31 @@ class SearXNGClient:
     }
     DEFAULT_ENGINE_INTERVAL = 0.5  # API publiques : Wikipedia, PubMed, arXiv...
 
+    # --- Rechargement du catalogue de moteurs ---------------------------
+    #
+    # Si SearXNG n'etait pas pret au demarrage, le catalogue reste vide et
+    # les recherches se font sans selection. Une recherche retente le
+    # chargement, au plus une fois par intervalle : SearXNG durablement
+    # absent ne doit pas ajouter l'attente de /config a chaque recherche.
+    CATALOG_RETRY_INTERVAL = 300.0
+    _catalog_last_attempt: Optional[float] = None
+
+    @classmethod
+    async def _retry_catalog_load(cls) -> None:
+        from app.services.engine_catalog import engine_catalog
+
+        if engine_catalog.available:
+            return
+        now = time.monotonic()
+        last = cls._catalog_last_attempt
+        if last is not None and now - last < cls.CATALOG_RETRY_INTERVAL:
+            return
+        cls._catalog_last_attempt = now
+        try:
+            await engine_catalog.ensure_loaded()
+        except Exception as e:  # noqa: BLE001 - le rechargement est best-effort
+            logger.warning(f"Rechargement du catalogue de moteurs impossible ({e})")
+
     @classmethod
     async def _respect_rate_limit(cls, engines: Optional[str] = None):
         """
@@ -212,6 +237,8 @@ class SearXNGClient:
                 logger.info(f"Cache hit recherche: '{query[:60]}' ({len(payload)} résultats)")
                 return payload
             del self._cache[cache_key]
+
+        await self._retry_catalog_load()
 
         base_params = {
             "q": query,

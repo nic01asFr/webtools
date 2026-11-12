@@ -30,7 +30,11 @@ def _brancher(monkeypatch: pytest.MonkeyPatch, searxng_ok: bool, llm_ok: bool) -
         return {"configured": True, "ok": llm_ok, "detail": "ok" if llm_ok else "panne"}
 
     import app.services.search_service as ss
+    from app.services.engine_catalog import engine_catalog
 
+    # Catalogue charge : un catalogue vide rend /health degrade.
+    monkeypatch.setattr(engine_catalog, "_engines", {"arxiv": {"categories": ["science"]}})
+    monkeypatch.setattr(engine_catalog, "_loaded", True)
     monkeypatch.setattr(ss, "searxng_client", _Searxng(searxng_ok))
     monkeypatch.setattr(main, "_probe_llm", sonde)
     return appels
@@ -96,14 +100,15 @@ def test_sonde_llm_mise_en_cache(monkeypatch: pytest.MonkeyPatch) -> None:
 
 @pytest.mark.asyncio
 async def test_sonde_sans_cle_ne_fait_aucun_appel(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("DEFAULT_LLM_API_KEY", raising=False)
+    monkeypatch.setattr(main.settings, "default_llm_api_key", "")
+    monkeypatch.setattr(main.settings, "openai_api_key", "")
     resultat = await main._probe_llm()
     assert resultat["configured"] is False and resultat["ok"] is False
 
 
 @pytest.mark.asyncio
 async def test_sonde_avec_client_factice(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("DEFAULT_LLM_API_KEY", "x")
+    monkeypatch.setattr(main.settings, "default_llm_api_key", "x")
 
     class Faux:
         def __init__(self, panne: bool) -> None:

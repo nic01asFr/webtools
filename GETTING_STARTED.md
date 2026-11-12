@@ -91,24 +91,50 @@ moteur nomme dans `AXIS_PREFERENCE`, `ENGINE_INTERVALS` et
 
 ### Regenerer les fichiers de verrou
 
-Toujours dans un venv jetable hors du depot, jamais dans un venv partage :
+Les verrous visent l'image : Linux x86_64, Python 3.11, quel que soit le poste
+qui les compile (un verrou compile sous Windows contient pywin32 et colorama,
+qui ne s'installent pas sous Linux). Toujours dans un venv jetable hors du
+depot, jamais dans un venv partage :
 
 ```bash
-T="$(mktemp -d)" && python3.11 -m venv "$T/venv" && "$T/venv/bin/pip" install pip-tools
-# API : dependances principales de pyproject.toml
-"$T/venv/bin/python" -m piptools compile --no-header --strip-extras -o requirements.lock pyproject.toml
+R="$PWD"; T="$(mktemp -d)" && python -m venv "$T/venv" && "$T/venv/bin/pip" install uv
+# (sous Windows : "$T/venv/Scripts/pip" et "$T/venv/Scripts/uv")
+UV="$T/venv/bin/uv"
+CIBLE="--python-platform x86_64-unknown-linux-gnu --python-version 3.11 --no-header"
+# API : dependances principales de pyproject.toml. Un verrou existant sert de
+# preference : seules les lignes qui doivent changer changent.
+"$UV" pip compile $CIBLE -o requirements.lock pyproject.toml
 # MCP : liste de l'extra mcp de pyproject.toml, plus httpx
 printf 'fastmcp>=3.0.0
 mcp>=1.0.0
 starlette>=0.37.0
 httpx>=0.27.2
 ' > "$T/mcp.in"
-"$T/venv/bin/python" -m piptools compile --no-header --strip-extras -o requirements-mcp.lock "$T/mcp.in"
+(cd "$T" && "$UV" pip compile $CIBLE -o "$R/requirements-mcp.lock" mcp.in)
 ```
 
-Puis remettre les deux lignes de commentaire d'en-tete des verrous (voir
-`git diff`). Utiliser Python 3.11, comme l'image. Variante sans pip-tools :
-`pip install --dry-run --ignore-installed --report rapport.json -r <liste>`.
+Puis remettre les commentaires d'en-tete des verrous (voir `git diff`) et
+verifier que les annotations `# via -r` ne contiennent pas de chemin local
+(elles doivent dire `-r mcp.in`). Controle sans installer, depuis un venv
+quelconque (les roues CUDA de torch pesent plus de 3 Go) :
+
+```bash
+pip download -r requirements-mcp.lock --platform manylinux2014_x86_64   --python-version 3.11 --implementation cp --only-binary=:all: --no-deps -d "$T/dl"
+```
+
+Pour requirements.lock, ajouter une option `--platform manylinux_2_N_x86_64`
+par version de glibc utile (de `manylinux_2_17` a `manylinux_2_39` ; les roues
+nvidia-* utilisent `manylinux_2_18`, `manylinux_2_25`...).
+
+### Construire l'image
+
+L'image n'a pas de depot git : le commit charge est passe au build, sinon
+`/health.commit` vaut `unknown` et le harnais de benchmark refuse de demarrer.
+
+```bash
+WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build
+# ou : docker build -f docker/Dockerfile --build-arg WEBTOOLS_COMMIT=$(git rev-parse HEAD) .
+```
 
 ### Mettre a jour l'image SearXNG
 

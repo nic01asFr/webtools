@@ -40,7 +40,9 @@ def read_build_info() -> tuple[str, bool]:
     """
     commit = _git("rev-parse", "HEAD")
     if commit:
-        statut = _git("status", "--porcelain")
+        # Meme critere que benchmarks/generate.py (repo_state) : les fichiers
+        # non suivis ne modifient pas le code charge.
+        statut = _git("status", "--porcelain", "--untracked-files=no")
         return commit, bool(statut)
     return os.environ.get("WEBTOOLS_COMMIT", "").strip() or UNKNOWN_COMMIT, False
 
