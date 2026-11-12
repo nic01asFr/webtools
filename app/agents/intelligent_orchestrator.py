@@ -36,6 +36,7 @@ from app.research.stages.collect import collect_section_data
 from app.research.stages.enrich import iterative_enrichment
 from app.research.stages.explore import exploratory_phase
 from app.research.stages.plan import create_detailed_plan
+from app.research.stages.required import apply_required_sources, extract_required_sources
 from app.research.stages.synthesize import write_sections
 
 logger = logging.getLogger(__name__)
@@ -178,6 +179,9 @@ class IntelligentOrchestrator:
         logger.info(f"  ✓ Exploration: {len(exploration_data.get('sources', []))} sources découvertes")
         logger.info(f"  ✓ Champ évalué: {exploration_data.get('field_assessment', 'N/A')}")
 
+        # Sources requises (V4-4) : extraites avant le plan, qui les voit.
+        await extract_required_sources(self.services(), ctx, context, exploration_data)
+
         # Étape 1.2: Planification avec canvas détaillé basé sur exploration
         plan = await create_detailed_plan(self.services(), query, context, exploration_data, ctx=ctx)
         check_plan(ctx, plan)  # frontiere typee : ecart note, jamais bloquant
@@ -289,6 +293,9 @@ class IntelligentOrchestrator:
         # Nettoyage final des marqueurs residuels (stages.assemble) : dernier point ou agir.
         strip_source_markers(final_answer)
 
+        # Bilan des sources requises (echecs : rapport degrade ; non citees : signalees).
+        apply_required_sources(final_answer, ctx)
+
         # Étape 4.3: Génération des traces complètes
         final_answer = add_complete_traces(final_answer, ctx, exploration_data, plan)
 
@@ -388,6 +395,7 @@ class IntelligentOrchestrator:
         for section in report["sections"]:
             section["content"] = marker.sub('', section["content"]).strip()
         apply_summary(report, ctx)
+        apply_required_sources(report, ctx)
         return report
 
     async def execute_with_deadline(

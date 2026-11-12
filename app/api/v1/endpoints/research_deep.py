@@ -49,14 +49,32 @@ class DeepResearchContext(_StrictModel):
 
 class SourcesConstraints(_StrictModel):
     required: List[str] = Field(
-        default=[], description="URLs a utiliser ; leur usage est reporte dans execution.summary.required_sources_status"
+        default=[],
+        description=(
+            "URLs OBLIGATOIRES. Chacune est extraite avant la redaction (meme hors de "
+            "domains_whitelist ou dans exclusions : la demande explicite prime), decoupee en "
+            "passages et proposee a toutes les sections ; la pertinence decide ou elle sert. "
+            "Une URL non extraite rend le rapport degraded et est listee dans "
+            "required_sources_failed (url, reason). Une URL extraite mais absente de la "
+            "bibliographie est listee dans required_sources_uncited, sans degrader le rapport. "
+            "Bilan global : execution.summary.required_sources_status (none_required, "
+            "all_success, partial_failure)."
+        ),
     )
     exclusions: List[str] = Field(default=[], description="Domaines a EXCLURE (wildcards OK)")
     domains_whitelist: List[str] = Field(default=[], description="Si fourni, UNIQUEMENT ces domaines")
 
 
 class OutputFormat(_StrictModel):
-    sections: List[str] = Field(default=[], description="Sections du rapport (auto si vide)")
+    sections: List[str] = Field(
+        default=[],
+        description=(
+            "Sections IMPOSEES : le rapport contient exactement ces sections, avec ces titres "
+            "et dans cet ordre (comparaison des titres insensible a la casse et aux espaces). "
+            "Une section sans matiere exploitable est retiree et signalee dans "
+            "unsourced_sections, comme toute section. Vide = sections choisies par le modele."
+        ),
+    )
     include_section_data: bool = Field(
         default=False,
         description="Joindre a chaque section les passages extraits (champ data, texte integral)",
@@ -132,6 +150,7 @@ def _degradation_error(
     timed_out: bool,
     deadline: int,
     plan_fallback_reason: Optional[str] = None,
+    required_failed: Optional[List[Dict[str, str]]] = None,
 ) -> Optional[str]:
     """Message de l'erreur d'un rapport degrade, une cause par message.
 
@@ -157,6 +176,9 @@ def _degradation_error(
             f"plan generique de repli utilise ({plan_fallback_reason}) : "
             f"la structure du rapport ne suit pas la consigne"
         )
+    if required_failed:
+        listing = ", ".join(f"{f.get('url')} ({f.get('reason')})" for f in required_failed)
+        parts.append(f"{len(required_failed)} source(s) requise(s) non extraite(s) : {listing}")
     return " ; ".join(parts) if parts else None
 
 
@@ -217,8 +239,22 @@ def _register_sources(
         b.get("url") for b in ((answer or {}).get("bibliography") or []) if isinstance(b, dict)
     }
 
+    failed_reasons = {
+        f.get("url"): f.get("reason")
+        for f in ((answer or {}).get("required_sources_failed") or [])
+        if isinstance(f, dict)
+    }
+    uncited = set((answer or {}).get("required_sources_uncited") or [])
     for url in sources.required:
-        used = url in bibliography_urls
+        if url in failed_reasons:
+            registry.add_website(
+                url=url,
+                status=SourceStatus.FAILED,
+                priority=SourcePriority.REQUIRED,
+                reason=failed_reasons[url],
+            )
+            continue
+        used = url in bibliography_urls and url not in uncited
         registry.add_website(
             url=url,
             status=SourceStatus.SUCCESS if used else SourceStatus.DISCOVERED_NOT_USED,
@@ -358,11 +394,16 @@ async def research_deep(request: DeepResearchRequest):
     failed = list(answer.get("failed_sections") or [])
     unsourced = list(answer.get("unsourced_sections") or [])
     missing = list(answer.get("missing_sections") or [])
+    required_failed = [
+        f for f in (answer.get("required_sources_failed") or []) if isinstance(f, dict)
+    ]
+    required_uncited = list(answer.get("required_sources_uncited") or [])
     degraded = bool(answer.get("degraded")) or timed_out
     if degraded:
         formatter_kwargs["error"] = _degradation_error(
             failed, unsourced, missing, timed_out, request.timeout,
             plan_fallback_reason=answer.get("plan_fallback_reason"),
+            required_failed=required_failed,
         )
         logger.error(
             f"Rapport DEGRADE : {len(failed)} echec(s) LLM, {len(unsourced)} section(s) sans source, "
@@ -381,6 +422,8 @@ async def research_deep(request: DeepResearchRequest):
         unsourced_sections=unsourced,
         missing_sections=missing,
         diagnostics=diagnostics,
+        required_sources_failed=required_failed,
+        required_sources_uncited=required_uncited,
         **formatter_kwargs,
     )
     logger.info(f"/research/deep termine en {processing_time:.2f}s, degraded={degraded}")

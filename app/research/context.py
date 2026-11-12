@@ -54,6 +54,12 @@ class ExecutionContext:
         # de domaines et par le calcul de la taille du pool de recherche.
         self.domains_whitelist: List[str] = []
         self.domains_exclusions: List[str] = []
+        # Sources requises par l'appelant (V4-4) : URL demandees, passages
+        # extraits (proposes a toutes les sections), echecs {url, reason}.
+        self.required_urls: List[str] = []
+        self.required_chunks: List[Dict[str, Any]] = []
+        self.required_extracted: List[str] = []
+        self.required_failed: List[Dict[str, str]] = []
         self.steps: List[Dict] = []
         self.datasets: Dict[str, List[Dict]] = {}
         self.discovered_sources: List[str] = []

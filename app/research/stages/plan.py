@@ -6,7 +6,17 @@ from typing import Any, Dict, Optional
 
 from app.research.context import ExecutionContext
 from app.research.stages.services import StageServices
-from app.research.stages.plan_prompt import build_plan_prompt_v2, is_meta_section
+from app.research.stages.imposed import (
+    enforce_imposed_sections,
+    imposed_sections_from_context,
+    normalize_title,
+)
+from app.research.stages.plan_prompt import (
+    build_plan_prompt_v2,
+    imposed_sections_block,
+    is_meta_section,
+    required_sources_block,
+)
 from app.research.stages.plan_schema import build_fallback_plan, build_plan_schema
 
 logger = logging.getLogger(__name__)
@@ -34,6 +44,17 @@ async def create_detailed_plan(
     logger.info("  📋 Création du plan détaillé avec canvas")
 
     cfg = ctx.config if ctx is not None else svc.config
+
+    # Sections imposees par l'appelant : vides = plan libre, comportement inchange.
+    imposed = imposed_sections_from_context(context)
+    imposed_keys = {normalize_title(t) for t in imposed}
+
+    def _keep(name: str) -> bool:
+        # Une section imposee ne passe pas par le filtre des sections meta.
+        return normalize_title(name) in imposed_keys or not is_meta_section(name)
+
+    def _finish(result: Dict[str, Any]) -> Dict[str, Any]:
+        return enforce_imposed_sections(svc, ctx, query, result, imposed)
 
     # Construire le contexte enrichi
     topics_found = exploration_data.get("topics_found", [])
@@ -198,12 +219,18 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {", ".join(topics_f
         if ctx is not None:
             ctx.diagnostics.note(event, **details)
 
-    plan_schema = build_plan_schema(cfg)
+    plan_schema = build_plan_schema(cfg, imposed_sections=imposed)
 
     FALLBACK_PLAN = build_fallback_plan(cfg)
 
+    if not svc.config.plan_prompt_v2:
+        prompt += (imposed_sections_block(imposed) if imposed else "") + required_sources_block(
+            exploration_data
+        )
+
     if svc.config.plan_prompt_v2:
         prompt = build_plan_prompt_v2(query, context, exploration_data, cfg)
+        prompt += required_sources_block(exploration_data)
         if not svc.llm_client.supports_structured:
             # Sans sortie structuree, le schema devient la seule description
             # du format attendu.
@@ -236,9 +263,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {", ".join(topics_f
             # changement requis ailleurs dans le fichier.
             plan = {
                 "complexity_analysis": structured["complexity_analysis"],
-                "sections": [
-                    s["name"] for s in structured["sections"] if not is_meta_section(s["name"])
-                ],
+                "sections": [s["name"] for s in structured["sections"] if _keep(s["name"])],
                 "section_targets": {
                     s["name"]: {
                         "words_target": s["words_target"],
@@ -253,7 +278,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {", ".join(topics_f
                         "source_axis": s.get("source_axis"),
                     }
                     for s in structured["sections"]
-                    if not is_meta_section(s["name"])
+                    if _keep(s["name"])
                 },
                 "narrative_flow": structured["narrative_flow"],
                 "search_strategy": structured["search_strategy"],
@@ -262,7 +287,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {", ".join(topics_f
                 logger.info(
                     f"     → Plan créé (sortie structurée): {len(plan['sections'])} sections"
                 )
-                return plan
+                return _finish(plan)
             # Toutes les sections ont ete filtrees comme meta : un plan
             # vide donnerait un rapport vide, on prefere le repli.
             fallback_reason = "sections_filtrees"
@@ -286,7 +311,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {", ".join(topics_f
                             logger.info(
                                 f"     → Plan créé (parsing manuel): {len(plan.get('sections', []))} sections"
                             )
-                            return plan
+                            return _finish(plan)
             fallback_reason = "json_introuvable"
 
     except Exception as e:
@@ -309,4 +334,4 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {", ".join(topics_f
     fallback["fallback_reason"] = (
         f"{fallback_reason}:{fallback_error}" if fallback_error else fallback_reason
     )
-    return fallback
+    return _finish(fallback)
