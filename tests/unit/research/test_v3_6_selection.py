@@ -12,6 +12,7 @@ from app.research.embedding_cache import content_key
 from app.research.pipeline_config import PipelineConfig
 from app.research.stages.crossref import cross_reference_data
 from app.research.stages.select import semantic_chunk_selection
+from app.research.stages.synthesize import synthesize_single_section
 
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch
 
@@ -82,7 +83,7 @@ async def test_chaque_passage_est_embedde_une_seule_fois() -> None:
     data = [_item(f"https://s{i}.org/a", tail=f"variante {i}") for i in range(4)]
 
     enriched = await cross_reference_data(orch.services(), SECTION, data, ctx)
-    await orch._synthesize_single_section(QUERY, SECTION, SECTION_CONFIG, enriched, ctx)
+    await synthesize_single_section(orch.services(), QUERY, SECTION, SECTION_CONFIG, enriched, ctx)
 
     counts = Counter(_embedded_contents(llm))
     assert len(counts) == 4
@@ -185,7 +186,7 @@ async def _synthese_prompt(**flags: Any) -> str:
     llm = FakeLLM()
     llm.on_text(SYNTH, "Texte redige. " * 20)
     orch, ctx = _orch(llm), _ctx(**flags)
-    await orch._synthesize_single_section(QUERY, SECTION, SECTION_CONFIG, [_rich_item()], ctx)
+    await synthesize_single_section(orch.services(), QUERY, SECTION, SECTION_CONFIG, [_rich_item()], ctx)
     return llm.calls_for(kind="generate")[0].prompt
 
 
@@ -218,7 +219,7 @@ async def test_synthese_tronquee_est_notee() -> None:
 
     llm.on_text(SYNTH, _truncated)
     orch, ctx = _orch(llm), _ctx()
-    await orch._synthesize_single_section(
+    await synthesize_single_section(orch.services(), 
         QUERY, SECTION, SECTION_CONFIG, [_item("https://s.org/a")], ctx
     )
 
@@ -233,7 +234,7 @@ async def test_synthese_non_tronquee_ne_note_rien() -> None:
     llm = FakeLLM()
     llm.on_text(SYNTH, "Texte complet. " * 20)
     orch, ctx = _orch(llm), _ctx()
-    await orch._synthesize_single_section(
+    await synthesize_single_section(orch.services(), 
         QUERY, SECTION, SECTION_CONFIG, [_item("https://s.org/a")], ctx
     )
     assert ctx.diagnostics.count("selection.synthese_tronquee") == 0
@@ -243,7 +244,7 @@ async def test_contenu_vide_est_un_essai_rate_puis_reessaye() -> None:
     llm = FakeLLM()
     llm.on_text(SYNTH, [LLMEmptyContentError("vide"), "Texte redige. " * 20])
     orch, ctx = _orch(llm), _ctx()
-    text = await orch._synthesize_single_section(
+    text = await synthesize_single_section(orch.services(), 
         QUERY, SECTION, SECTION_CONFIG, [_item("https://s.org/a")], ctx
     )
 
@@ -255,7 +256,7 @@ async def test_contenu_vide_trois_fois_donne_le_marqueur_d_echec() -> None:
     llm = FakeLLM()
     llm.on_text(SYNTH, LLMEmptyContentError("vide"))
     orch, ctx = _orch(llm), _ctx()
-    text = await orch._synthesize_single_section(
+    text = await synthesize_single_section(orch.services(), 
         QUERY, SECTION, SECTION_CONFIG, [_item("https://s.org/a")], ctx
     )
     assert text.startswith("[SYNTHESE_ECHOUEE]")
@@ -267,7 +268,7 @@ async def test_chiffres_absents_notes_sans_changer_le_texte() -> None:
     written = "En 2020, la proportion atteignait 28,7 percent [SOURCE:https://s.org/a]. " * 3
     llm.on_text(SYNTH, written)
     orch, ctx = _orch(llm), _ctx()
-    text = await orch._synthesize_single_section(
+    text = await synthesize_single_section(orch.services(), 
         QUERY, SECTION, SECTION_CONFIG, [_item("https://s.org/a")], ctx
     )
 
