@@ -165,8 +165,7 @@ class IntelligentOrchestrator:
     async def execute_intelligent_research(
         self,
         query: str,
-        context: Optional[Dict[str, Any]] = None,
-        max_steps: int = 10
+        context: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """
         Recherche intelligente adaptative - ARCHITECTURE REFONDÉE.
@@ -192,6 +191,9 @@ class IntelligentOrchestrator:
         start_time = datetime.now()
 
         ctx = ExecutionContext(query, config=self.config)
+        # Contexte vivant de cette requete : execute_with_deadline y lit ce qui
+        # est deja redige quand le delai global expire.
+        self._active_ctx = ctx
         context = context or {}
         self.current_context = context
 
@@ -495,13 +497,141 @@ class IntelligentOrchestrator:
             "success": True,
             "query": query,
             "answer": final_answer,
-            "execution_context": {
-                "steps_executed": len(ctx.steps),
-                "datasets_collected": len(ctx.datasets),
-                "sources_discovered": ctx.discovered_sources,  # Liste complète, pas len()
-                "tool_performance": ctx.tool_success_rate
-            },
+            "execution_context": self._execution_summary(ctx),
+            "diagnostics": self._diagnostics_block(ctx, final_answer),
             "processing_time": processing_time
+        }
+
+    @staticmethod
+    def _execution_summary(ctx: ExecutionContext) -> Dict[str, Any]:
+        """Compteurs d'execution d'une requete, pour la reponse de l'API."""
+        return {
+            "steps_executed": len(ctx.steps),
+            "datasets_collected": len(ctx.datasets),
+            "sources_discovered": ctx.discovered_sources,  # Liste complète, pas len()
+            "tool_performance": ctx.tool_success_rate
+        }
+
+    @staticmethod
+    def _diagnostics_block(
+        ctx: ExecutionContext, report: Optional[Dict[str, Any]]
+    ) -> Dict[str, Any]:
+        """Bloc diagnostics de la reponse : configuration, evenements, invariants.
+
+        Lu tel quel par le harnais de benchmark (diagnostics.config) et par le
+        serveur MCP.
+        """
+        from app.research.invariants import check_report
+
+        invariants: Optional[Dict[str, Any]] = None
+        if isinstance(report, dict):
+            try:
+                invariants = check_report(report)
+            except Exception as exc:  # noqa: BLE001 - un controle ne doit pas perdre le rapport
+                ctx.diagnostics.note("api.invariants_failed", error=f"{type(exc).__name__}: {exc}")
+        return {
+            "config": ctx.config.to_dict(),
+            "events": ctx.diagnostics.to_dict(),
+            "invariants": invariants,
+        }
+
+    def _partial_report(self, query: str, ctx: ExecutionContext) -> Dict[str, Any]:
+        """Rapport construit avec les sections deja redigees (delai global depasse)."""
+        import re as _re_partial
+
+        sections: List[Dict[str, Any]] = []
+        missing: List[str] = []
+        for name, data in ctx.final_content["sections"].items():
+            content = (data.get("content") or "").strip()
+            if (
+                not content
+                or "[SECTION_SANS_SOURCE]" in content
+                or "[SYNTHESE_ECHOUEE]" in content
+            ):
+                missing.append(name)
+                continue
+            raw = data.get("raw_data", [])
+            sections.append({
+                "title": name,
+                "content": content,
+                "data": raw,
+                "metadata": {"word_count": len(content.split()), "sources_count": len(raw)},
+            })
+        report: Dict[str, Any] = {
+            "type": "report",
+            "title": f"Analyse: {query.title()}",
+            "summary": "",
+            "sections": sections,
+            "metadata": {
+                "sections_count": len(sections),
+                "partial": True,
+                "missing_sections_count": len(missing),
+            },
+            "degraded": True,
+            "missing_sections": missing,
+        }
+        report = self._convert_sources_to_bibliography(report)
+        marker = _re_partial.compile(r'\s*\[SOURCE:[^\]]*\]?')
+        for section in report["sections"]:
+            section["content"] = marker.sub('', section["content"]).strip()
+        return report
+
+    async def execute_with_deadline(
+        self,
+        query: str,
+        context: Optional[Dict[str, Any]] = None,
+        deadline_seconds: float = 600.0,
+    ) -> Dict[str, Any]:
+        """Execute la recherche avec un delai global (C48).
+
+        Passe le delai, le pipeline est interrompu et la reponse porte les
+        sections deja redigees avec degraded=True. Toute exception du pipeline
+        devient une reponse success=False qui garde les diagnostics : la forme
+        du resultat est la meme dans tous les cas.
+        """
+        self._active_ctx = None
+        started = datetime.now()
+        task = asyncio.ensure_future(self.execute_intelligent_research(query, context))
+        try:
+            done, _ = await asyncio.wait({task}, timeout=deadline_seconds)
+        except asyncio.CancelledError:
+            task.cancel()
+            raise
+        ctx: Optional[ExecutionContext] = self._active_ctx
+        if ctx is None:
+            ctx = ExecutionContext(query, config=self.config)
+
+        if task in done:
+            try:
+                return task.result()
+            except Exception as exc:  # noqa: BLE001 - l'echec est rendu dans la reponse
+                ctx.diagnostics.note(
+                    "api.orchestrator_exception", error=f"{type(exc).__name__}: {exc}"
+                )
+                logger.error(f"Pipeline en echec: {exc}", exc_info=True)
+                return {
+                    "success": False,
+                    "query": query,
+                    "answer": None,
+                    "error": f"{type(exc).__name__}: {exc}",
+                    "execution_context": self._execution_summary(ctx),
+                    "diagnostics": self._diagnostics_block(ctx, None),
+                    "processing_time": (datetime.now() - started).total_seconds(),
+                }
+
+        task.cancel()
+        await asyncio.gather(task, return_exceptions=True)
+        ctx.diagnostics.note("api.deadline_exceeded", deadline_seconds=deadline_seconds)
+        logger.warning(f"Delai global de {deadline_seconds}s depasse : rapport partiel")
+        report = self._partial_report(query, ctx)
+        return {
+            "success": True,
+            "query": query,
+            "answer": report,
+            "timed_out": True,
+            "execution_context": self._execution_summary(ctx),
+            "diagnostics": self._diagnostics_block(ctx, report),
+            "processing_time": (datetime.now() - started).total_seconds(),
         }
 
     def _score_relevance(self, content: str, query: str, structured_data: Optional[Dict] = None) -> float:
@@ -1960,6 +2090,8 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         # Nombre de sources selon profondeur
         depth = section_config.get("depth", "moderate")
         max_sources = {"light": 3, "moderate": 5, "deep": 8}.get(depth, 5)
+        if self.config.max_sources_per_section is not None:
+            max_sources = self.config.max_sources_per_section
 
         try:
             # Cascade de moteurs : sans selection, SearXNG interroge tous les
@@ -2141,7 +2273,8 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             # partage si cette URL a deja ete extraite pour une autre section
             # (frequent : un meme article pertinent pour plusieurs sections).
             extracted_data = []
-            for url in urls[:5]:  # Limiter à 5 URLs max pour éviter timeout
+            extraction_cap = self.config.max_sources_per_section or 5
+            for url in urls[:extraction_cap]:  # Plafond contre les timeouts
                 try:
                     if url in context.extraction_cache:
                         result = context.extraction_cache[url]

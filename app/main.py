@@ -175,42 +175,52 @@ Exemple :
 **Input** : Sujet de recherche
 **Output** : Rapport structuré en sections + bibliographie
 
-Selon le mode :
-- `stream: false` → JSON complet à la fin (30-90s)
-- `stream: true` → Progression temps réel (SSE)
+Réponse JSON unique (pas de flux), de même forme en succès, en rapport dégradé
+et en échec : `success`, `degraded`, `timed_out`, `error`, `result`
+(`title`, `summary`, `sections`, `bibliography`, `metadata`), `execution`,
+`sources` et `diagnostics` (`config`, `events`, `invariants`). La trace et les
+sources sont conservées même en échec.
 
-Selon la profondeur :
-- Sujet simple → 3-5 sections, 10-15 sources
-- Sujet complexe → 7-12 sections, 20-30 sources
-- `max_sources: 50` → Recherche exhaustive
+Paramètres :
+- `timeout` (60-1200 s, défaut 600) → délai global ; passé ce délai, la réponse
+  porte les sections déjà rédigées avec `degraded: true`
+- `max_sources_per_section` (1-20) → plafond de sources par section ; absent :
+  selon la profondeur de la section
+- `output_format.include_section_data` → joint à chaque section les passages
+  extraits (`data`, texte intégral) ; absent de la réponse sinon
+- `objectives`, `context.language`, `output_format.sections` (ou `output_sections`)
+  → transmis au modèle qui planifie le rapport
 
-Options de contrainte :
-- `sources.required` → URLs OBLIGATOIRES
-- `sources.suggested` → URLs prioritaires
-- `domains_whitelist` → Limiter à ces domaines
-- `exclusions` → Exclure ces domaines
+Contraintes de sources :
+- `sources.required` → URLs à utiliser ; `execution.summary.required_sources_status`
+  dit si elles ont servi
+- `sources.domains_whitelist` → Limiter à ces domaines
+- `sources.exclusions` → Exclure ces domaines
 
-Exemple :
+Les champs inconnus sont refusés (422). Ont été retirés car sans effet :
+`max_steps`, `max_results`, `context.min_sources`, `context.date_range`,
+`context.include_data`, `context.include_reports`, `context.include_academic`,
+`sources.suggested`, `output_format.structure`, `output_format.include_charts`,
+`output_format.include_timeline`.
+
+Exemple (réponse abrégée) :
 ```json
 {
-  "query": "Impact IA sur emploi",
-  "report": {
-    "title": "Analyse de l'impact de l'IA...",
+  "success": true,
+  "degraded": false,
+  "topic": "Impact IA sur emploi",
+  "result": {
+    "title": "Analyse: Impact Ia Sur Emploi",
+    "summary": "...",
     "sections": [
-      {
-        "title": "1. État actuel",
-        "content": "L'IA transforme... [1][3]",
-        "subsections": [...]
-      }
-    ]
+      {"title": "1. État actuel", "content": "L'IA transforme... [1][3]"}
+    ],
+    "bibliography": [
+      {"id": 1, "title": "AI Study 2024", "url": "https://..."}
+    ],
+    "metadata": {"sections_count": 5}
   },
-  "bibliography": [
-    {"id": 1, "title": "AI Study 2024", "url": "https://..."}
-  ],
-  "metadata": {
-    "sources_analyzed": 25,
-    "research_time": "45s"
-  }
+  "diagnostics": {"config": {}, "events": {"counts": {}, "events": []}, "invariants": {"ok": true, "violations": []}}
 }
 ```
 
@@ -228,8 +238,7 @@ Tous les endpoints de **recherche** acceptent des URLs pour guider/contraindre:
 - `complement`: Ajouter aux résultats web
 
 **`/research/deep`**: Contraintes avancées
-- `required`: URLs OBLIGATOIRES
-- `suggested`: URLs prioritaires
+- `required`: URLs à utiliser
 - `domains_whitelist`: Limiter à domaines
 - `exclusions`: Exclure domaines
 
@@ -270,7 +279,7 @@ curl -X POST "http://localhost:8000/api/v1/research/deep" \\
     "sources": {
       "required": ["https://api.insee.fr", "https://geo.api.gouv.fr"]
     },
-    "output_format": {"structure": "data_analysis", "include_charts": true}
+    "max_sources_per_section": 5
   }'
 ```
 

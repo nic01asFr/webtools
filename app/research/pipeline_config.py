@@ -62,7 +62,13 @@ def _convert(name: str, raw: str, tp: Any) -> Any:
 
 @dataclass(frozen=True)
 class PipelineConfig:
-    """Drapeaux et parametres du pipeline. Aucun champ pour l'instant."""
+    """Drapeaux et parametres du pipeline."""
+
+    # --- Lot V3-3 : contrat de l'API de recherche approfondie ---
+    # Plafond de sources par section, pour la recherche et pour l'extraction
+    # (C20). None : plafond selon la profondeur de la section (3, 5 ou 8) et
+    # 5 pages extraites au plus.
+    max_sources_per_section: int | None = None
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":

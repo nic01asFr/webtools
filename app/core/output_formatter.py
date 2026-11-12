@@ -5,7 +5,7 @@ Crée des structures de réponse cohérentes mais adaptées à chaque endpoint.
 """
 
 import logging
-from typing import Dict, Any, Optional
+from typing import Dict, Any, List, Optional
 from app.core.execution_tracer import ExecutionTracer
 from app.core.source_registry import SourceRegistry
 
@@ -55,62 +55,53 @@ class OutputFormatter:
         report: Optional[Dict[str, Any]],
         execution_context: Optional[Dict[str, Any]] = None,
         success: bool = True,
-        error: Optional[str] = None
+        error: Optional[str] = None,
+        *,
+        degraded: bool = False,
+        timed_out: bool = False,
+        failed_sections: Optional[List[str]] = None,
+        unsourced_sections: Optional[List[str]] = None,
+        missing_sections: Optional[List[str]] = None,
+        diagnostics: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         """
-        Formater output pour /api/v1/research/deep
+        Formater output pour /api/v1/research/deep.
+
+        Une seule forme, succes ou echec : les memes cles sont toujours
+        presentes. La trace d'execution et les sources sont jointes meme quand
+        la recherche echoue (C65), puisque c'est alors qu'on en a besoin.
 
         Returns:
             {
-                success, topic (not query), processing_time,
-                execution: {workflow, summary + completeness},
-                sources: {apis, websites, datasets},
-                result: {summary, sections, bibliography}
+                success, degraded, timed_out, topic, processing_time, error,
+                result: {title, summary, sections, bibliography, ...} | None,
+                failed_sections, unsourced_sections, missing_sections,
+                execution: {workflow, summary}, sources: {...},
+                diagnostics: {config, events, invariants}
             }
         """
-        output = {
-            "success": success,
-            "topic": topic,  # Note: topic, pas query
-            "processing_time": round(self.processing_time, 2)
-        }
-
-        if error:
-            output["error"] = error
-            return output
-
-        # Ajouter trace d'exécution
-        execution_trace = self.tracer.get_trace()
-
-        # Enrichir avec infos du contexte d'exécution si fourni
+        trace = self.tracer.get_trace()
+        summary = trace["summary"]
         if execution_context:
-            execution_trace["summary"].update({
-                "completeness_achieved": execution_context.get("completeness", 0),
-                "steps_executed": execution_context.get("steps_executed", 0)
-            })
+            summary["steps_executed"] = execution_context.get("steps_executed", 0)
+            summary["datasets_collected"] = execution_context.get("datasets_collected", 0)
+            summary["sources_discovered"] = len(execution_context.get("sources_discovered") or [])
+        summary["required_sources_status"] = self.registry.required_sources_status()
 
-            # Ajouter info sur data processing si disponible
-            if execution_context.get("data_processing"):
-                execution_trace["summary"]["data_processing"] = execution_context["data_processing"]
-
-        output["execution"] = execution_trace
-
-        # Ajouter sources
-        all_sources = self.registry.get_all_sources()
-        output["sources"] = all_sources
-
-        # Ajouter statistiques dans execution summary
-        stats = self.registry.get_statistics()
-
-        # Vérifier status des sources requises
-        required_status = "all_success" if self.registry.has_required_sources_succeeded() else "partial_failure"
-
-        output["execution"]["summary"].update({
-            "required_sources_status": required_status,
-            "total_records_processed": stats.get("total_records_retrieved", 0)
-        })
-
-        # Ajouter résultat (le rapport)
-        if report:
-            output["result"] = report
-
-        return output
+        return {
+            "success": success,
+            "degraded": degraded,
+            "timed_out": timed_out,
+            "topic": topic,
+            "processing_time": round(self.processing_time, 2),
+            "error": error,
+            "result": report,
+            "failed_sections": list(failed_sections or []),
+            "unsourced_sections": list(unsourced_sections or []),
+            "missing_sections": list(missing_sections or []),
+            "execution": trace,
+            "sources": self.registry.get_all_sources(),
+            "diagnostics": diagnostics if diagnostics is not None else {
+                "config": {}, "events": {"counts": {}, "events": []}, "invariants": None
+            },
+        }
