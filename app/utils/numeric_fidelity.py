@@ -34,6 +34,7 @@ _NUMBER_RE = re.compile(
     r"(?:[.,]\d+)?"
     r"(?!\d)"
 )
+_SOURCE_MARKER_RE = re.compile(r"\[SOURCE:[^\]]*\]?")
 _THOUSANDS_COMMA_RE = re.compile(r"^\d{1,3}(?:,\d{3})+(?:\.\d+)?$")
 
 
@@ -86,7 +87,8 @@ def check_numeric_fidelity(written: str, sources_text: str) -> Dict:
     n'est pas forcement faux (il peut etre calcule), mais un taux eleve de
     chiffres non retrouves signale une reformulation approximative.
     """
-    in_text = extract_numbers(written)
+    # Les URL des marqueurs [SOURCE:url] ne sont pas des donnees chiffrees.
+    in_text = extract_numbers(_SOURCE_MARKER_RE.sub(" ", written or ""))
     in_src = set(extract_numbers(sources_text))
 
     if not in_text:

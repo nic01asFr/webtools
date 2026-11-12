@@ -166,6 +166,18 @@ vraie cle : c'est normal avec une valeur factice. Le reseau `proxy` de
 `docker-compose.yml` est externe (Traefik) : hors production, le creer avec
 `docker network create proxy`.
 
+Sans cle LLM, `scripts/smoke_deep.py` verifie le pipeline de recherche
+approfondie de bout en bout avec une collecte reelle (SearXNG, recherche web,
+extraction de vraies pages) ; seul le LLM est remplace par un substitut
+deterministe (`scripts/stub_llm.py`, fournisseur `stub`). Lancer l'API en mode
+stub (`python scripts/run_stub_api.py --port 18000 --searxng http://localhost:18081`,
+`WEBTOOLS_API_KEY` de test), puis `python scripts/smoke_deep.py --api
+http://localhost:18000 --key <cle>` : le script appelle `/health`, `/search`,
+`/extract` et `/research/deep`, imprime sections, bibliographie, citations,
+invariants et compteurs d'evenements, et sort en erreur si un invariant est
+viole ou si aucune source reelle n'est extraite. Le test `live`
+`tests/e2e/test_live_pipeline.py` fait de meme si `WEBTOOLS_E2E_API` est defini.
+
 ### Mettre a jour l'image SearXNG
 
 `docker buildx imagetools inspect searxng/searxng:latest` donne le condensat ;
