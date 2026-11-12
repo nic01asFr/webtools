@@ -991,6 +991,35 @@ Au 12 novembre 2026, version 3.0.0.
     dans les requêtes de recherche. À traiter par une contrainte de schéma.
   - C84, ouvert : une source hors sujet (page de supermarchés) a franchi la
     sélection. À examiner avec les seuils de pertinence (M5).
+- **Mesure de la fiabilité des citations (12 novembre 2026)** : outil
+  `benchmarks/citecheck`, méthode dans `benchmarks/CITATIONS.md`. Chaque
+  affirmation citée est confrontée à la page citée, lue indépendamment du
+  service, par un juge LLM contrôlé par l'extrait qu'il cite. Juges étalonnés
+  sur 59 cas au verdict connu : `qwen3-8-27b` et `gemma4-26b-moe` 59/59, aucune
+  fausse acceptation. Run de référence `ref-dbbffef` : 16 questions rapides,
+  8 recherches approfondies. Constats :
+  - C85, corrigé (instrument) : Wikimedia renvoie 403 à tout client sans
+    contact dans le User-Agent ; PubMed et une page Springer servent une page
+    anti-robot. User-Agent déclaré pour Wikimedia, API E-utilities pour
+    PubMed, détection des pages de vérification, repli par navigateur.
+  - C86, corrigé (collecte) : 21 recherches de section sur 79 rendaient zéro
+    résultat et 22 collectes de section sur 49 n'extrayaient rien. L'axe
+    « actualité » était routé vers trois moteurs indisponibles, l'axe
+    « technique » vers github, stackoverflow et pypi pour un règlement
+    européen. Repli sur la cascade complète puis sur une requête raccourcie
+    (`search_zero_result_fallback`).
+  - C87, corrigé : un refus du modèle était publié comme section. Les
+    marqueurs `[SOURCE:url]` repoussaient la formule de refus hors de la
+    fenêtre examinée.
+  - C88, ouvert (sélection) : pour « recul du trait de côte », trois sources
+    sur le recul de l'emploi industriel ont été retenues. Le modèle a refusé
+    à juste titre ; la sélection n'a pas vu le contresens.
+  - C89, ouvert (rédaction) : erreurs de lecture mesurées en recherche
+    rapide, la source sous les yeux : « quarantième jour » pour
+    « quatre-vingt-dixième », donnée déclarée absente alors que présente,
+    « douze pays » tiré des connaissances du modèle contre la source.
+  - Débit du proxy LLM mesuré à ~39 jetons/s en charge, et non 10 : le
+    profil « modèle lent » repose sur une mesure prise en forte charge.
 - **Où commencer** : construire l'image
   (`WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build`), lancer les
   trois services, vérifier le harnais sur une tâche (`benchmarks/INSTALL.md`,
