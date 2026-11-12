@@ -8,6 +8,7 @@ from typing import Any
 
 from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrchestrator
 from app.research.pipeline_config import PipelineConfig
+from app.research.stages.queries import build_search_query, search_pool_size
 
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch
 
@@ -179,9 +180,9 @@ def test_surcharge_par_variable_d_environnement() -> None:
 
 def test_la_requete_de_recherche_lit_sa_configuration() -> None:
     query = "un deux trois quatre cinq six sept huit neuf dix onze douze treize"
-    default = _orch(PipelineConfig())._build_search_query(query=query, section_name="")
-    short = _orch(PipelineConfig(search_query_max_words=3))._build_search_query(
-        query=query, section_name=""
+    default = build_search_query(_orch(PipelineConfig()).services(), query=query, section_name="")
+    short = build_search_query(
+        _orch(PipelineConfig(search_query_max_words=3)).services(), query=query, section_name=""
     )
     assert len(default.split()) > 3
     assert len(short.split()) == 3
@@ -189,7 +190,7 @@ def test_la_requete_de_recherche_lit_sa_configuration() -> None:
 
 def test_la_taille_du_pool_lit_sa_configuration() -> None:
     orch = _orch(PipelineConfig(search_pool_multiplier=7))
-    assert orch._search_pool_size(5) == 5
+    assert search_pool_size(orch.services(), 5) == 5
     ctx = ExecutionContext("q", config=orch.config)
     ctx.domains_whitelist = ["example.org"]
-    assert orch._search_pool_size(5, ctx) == 35
+    assert search_pool_size(orch.services(), 5, ctx) == 35

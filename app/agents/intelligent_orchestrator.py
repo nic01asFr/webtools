@@ -25,6 +25,7 @@ from app.research.context import ExecutionContext, cosine_similarity, extract_do
 from app.research.diagnostics import Diagnostics
 from app.research.pipeline_config import PipelineConfig
 from app.research.stages.services import StageServices
+from app.research.stages.queries import SEARCH_OPERATORS, build_search_query, cascade_engines, filter_by_constraints, search_pool_size, section_search_queries
 
 logger = logging.getLogger(__name__)
 
@@ -1217,7 +1218,7 @@ CRITÈRES:
         """Recherche ciblée pour combler les manques d'une section."""
 
         # Construire une requête spécifique pour les manques
-        search_query = self._build_search_query(
+        search_query = build_search_query(self.services(),
             query=query, section_name=section_title, key_questions=missing
         )
 
@@ -1226,10 +1227,10 @@ CRITÈRES:
         cfg = ctx.config
         try:
             # Meme cascade de moteurs que la recherche de section.
-            _engines = await self._cascade_engines(search_query, ctx=ctx)
+            _engines = await cascade_engines(self.services(), search_query, ctx=ctx)
             results = await self.search_client.search(
                 search_query,
-                max_results=self._search_pool_size(cfg.targeted_search_pool_size, ctx),
+                max_results=search_pool_size(self.services(), cfg.targeted_search_pool_size, ctx),
                 language=ctx.search_language if cfg.search_language_from_query else "all",
                 engines=",".join(_engines) if _engines else None,
             )
@@ -1238,7 +1239,7 @@ CRITÈRES:
             # complement pre-redaction reintroduisait des domaines exclus.
             if results:
                 _as_dicts = [{"url": r.url, "title": r.title} for r in results]
-                _kept = {d["url"] for d in self._filter_by_constraints(_as_dicts, ctx)}
+                _kept = {d["url"] for d in filter_by_constraints(_as_dicts, ctx)}
                 results = [r for r in results if r.url in _kept]
 
             if not results:
@@ -1595,8 +1596,8 @@ Consignes:
             # La consigne entiere n'est pas une requete : meme reduction que
             # pour les sections, et moteurs de la cascade plutot que les deux
             # moteurs scrapes les plus fragiles.
-            search_query = self._build_search_query(query=query, section_name="")
-            _engines = await self._cascade_engines(search_query, ctx=ctx)
+            search_query = build_search_query(self.services(), query=query, section_name="")
+            _engines = await cascade_engines(self.services(), search_query, ctx=ctx)
             engines_param = ",".join(_engines) if _engines else None
         language = "all"
         if cfg.search_language_from_query:
@@ -1608,7 +1609,7 @@ Consignes:
         try:
             search_results = await self.search_client.search(
                 query=search_query,
-                max_results=self._search_pool_size(max_results, ctx),
+                max_results=search_pool_size(self.services(), max_results, ctx),
                 language=language,
                 categories="general",
                 engines=engines_param,
@@ -1628,7 +1629,7 @@ Consignes:
                 # domaines exclus orienteraient la structure du rapport avant
                 # meme la phase de recherche par section. Le filtre precede la
                 # troncature, sinon des resultats exclus occupent des places.
-                urls_found = self._filter_by_constraints(urls_found, ctx)[:max_results]
+                urls_found = filter_by_constraints(urls_found, ctx)[:max_results]
 
             # Analyser les snippets pour identifier sous-thèmes
             topics_found = self._extract_topics_from_snippets(urls_found, config=cfg)
@@ -1662,72 +1663,6 @@ Consignes:
                 "topics_found": [],
                 "data_preview": {}
             }
-
-    _SEARCH_OPERATORS = ("filetype:", "site:", "inurl:", "intitle:", '"')
-
-    def _search_pool_size(self, wanted: int, ctx: Optional[ExecutionContext] = None) -> int:
-        """Nombre de resultats a demander au moteur pour en garder `wanted`.
-
-        Avec des contraintes de domaines, le filtre s'applique APRES la
-        recherche : demander exactement `wanted` resultats laisserait des
-        domaines exclus occuper les places avant le filtre (C35).
-        """
-        if ctx is not None and (ctx.domains_whitelist or ctx.domains_exclusions):
-            return wanted * self.config.search_pool_multiplier
-        return wanted
-
-    async def _cascade_engines(
-        self,
-        search_query: str,
-        axis: Optional[str] = None,
-        ctx: Optional["ExecutionContext"] = None,
-    ) -> List[str]:
-        """Moteurs de la cascade pour une requete ; liste vide si pas de selection.
-
-        Cascade de moteurs : sans selection, SearXNG interroge tous les
-        moteurs actifs de la categorie (74 sources par recherche, dont des
-        banques d'images et des torrents). La cascade retient les 3 meilleurs
-        DISPONIBLES de chaque axe. Si le catalogue n'a pas pu etre charge,
-        la liste est vide et le comportement est celui d'avant (best-effort).
-        """
-        from app.services.engine_catalog import engine_catalog
-
-        cfg = ctx.config if ctx is not None else self.config
-        if not engine_catalog.available:
-            await engine_catalog.ensure_loaded()
-        if not engine_catalog.available:
-            if ctx is not None:
-                ctx.diagnostics.note("collecte.catalogue_moteurs_indisponible")
-            return []
-
-        selected_engines: List[str] = []
-        # Axe declare par le plan pour CETTE section : une section
-        # "projections demographiques" interroge l'axe academique, une
-        # section "reactions du marche" l'axe actualite.
-        if axis:
-            selected_engines = engine_catalog.cascade(per_axis=cfg.cascade_engines_per_axis, axes=[axis])
-            if selected_engines:
-                logger.info(f"       🎯 axe '{axis}' → {len(selected_engines)} moteur(s)")
-
-        # Repli elargi : si l'axe demande ne rend aucun moteur DISPONIBLE, on
-        # elargit plutot que de laisser la section sans source.
-        if not selected_engines:
-            selected_engines = engine_catalog.cascade(per_axis=cfg.cascade_engines_per_axis)
-            if axis:
-                logger.info(f"       ↪ axe '{axis}' indisponible, cascade complète")
-
-        # Une requete a OPERATEUR ne doit pas etre restreinte aux moteurs de
-        # l'axe. Mesure : "...report filetype:pdf" rend 61 resultats sans
-        # restriction, et 0 sur les 3 moteurs de l'axe generaliste
-        # (encyclopedies). Un dork cible deja par lui-meme : SearXNG
-        # interroge l'ensemble des moteurs, qui filtrent selon l'operateur.
-        if any(op in search_query for op in self._SEARCH_OPERATORS):
-            logger.info(
-                f"       🔍 requête à opérateur — moteurs avant exemption : "
-                f"{selected_engines or '(aucun)'}"
-            )
-            return []
-        return selected_engines
 
     def _extract_topics_from_snippets(
         self, urls_data: List[Dict], config: PipelineConfig | None = None
@@ -1765,60 +1700,6 @@ Consignes:
         "criteres de validation", "critères de validation",
         "sources consultees", "sources consultées", "demarche", "démarche",
     )
-
-    def _filter_by_constraints(
-        self, sources: List[Dict], ctx: Optional[ExecutionContext] = None
-    ) -> List[Dict]:
-        """
-        Applique whitelist et exclusions de domaines aux resultats de
-        recherche.
-
-        Ces contraintes sont documentees dans l'API (SourcesConstraints) et
-        transmises jusqu'a l'orchestrateur depuis l'endpoint, mais n'etaient
-        jamais lues : l'interface promettait une capacite que le pipeline
-        n'honorait pas.
-
-        Whitelist et exclusions sont volontairement appliquees APRES la
-        recherche plutot que dans la requete au moteur : un operateur
-        "site:" mal supporte par certains moteurs rendrait zero resultat
-        sans qu'on sache pourquoi, alors qu'un filtrage a posteriori est
-        explicite et journalisable.
-        """
-        wl = ctx.domains_whitelist if ctx is not None else []
-        ex = ctx.domains_exclusions if ctx is not None else []
-        if not wl and not ex:
-            return sources
-
-        from urllib.parse import urlparse
-
-        def domain_of(url: str) -> str:
-            try:
-                return (urlparse(url).netloc or "").lower()
-            except Exception:
-                return ""
-
-        def matches(dom: str, pattern: str) -> bool:
-            # "example.com" couvre aussi "www.example.com" et les
-            # sous-domaines ; "*.gouv.fr" est accepte par commodite.
-            p = pattern.lstrip("*.").lower()
-            return dom == p or dom.endswith("." + p)
-
-        kept, rejected = [], 0
-        for s in sources:
-            dom = domain_of(s.get("url", ""))
-            if not dom:
-                continue
-            if wl and not any(matches(dom, p) for p in wl):
-                rejected += 1
-                continue
-            if ex and any(matches(dom, p) for p in ex):
-                rejected += 1
-                continue
-            kept.append(s)
-
-        if rejected:
-            logger.info(f"       🔎 {rejected} source(s) écartée(s) par les contraintes de domaines")
-        return kept
 
     @classmethod
     def _is_meta_section(cls, name: str) -> bool:
@@ -2342,123 +2223,6 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         ]
         return "\n".join(lines)
 
-    # Mots vides : retires lors de la reduction d'une consigne longue en
-    # requete de recherche. FR + EN car les consignes arrivent dans les deux
-    # langues et le plan peut etre genere dans l'une ou l'autre.
-    _STOPWORDS = {
-        "le", "la", "les", "un", "une", "des", "du", "de", "et", "ou", "a", "au",
-        "aux", "en", "dans", "sur", "pour", "par", "avec", "sans", "sous", "que",
-        "qui", "quoi", "dont", "est", "sont", "etre", "avoir", "plus", "moins",
-        "ce", "cette", "ces", "son", "leur", "leurs", "quel", "quelle", "quels",
-        "quelles", "comment", "pourquoi", "veuillez", "merci", "sil", "vous",
-        "the", "a", "an", "of", "and", "or", "to", "in", "on", "for", "by",
-        "with", "without", "that", "which", "what", "how", "why", "is", "are",
-        "be", "been", "will", "would", "their", "there", "please", "produce",
-        "based", "various", "such", "as", "across", "from", "about", "can",
-    }
-
-    def _build_search_query(
-        self,
-        query: str,
-        section_name: str,
-        key_questions: List[str] = None,
-        search_terms: List[str] = None,
-        max_words: int | None = None,
-    ) -> str:
-        """
-        Construit une requete de recherche EXPLOITABLE.
-
-        Le comportement precedent concatenait la consigne complete, le nom de
-        section et les questions cles. Sur une consigne courte ("SearXNG
-        moteur de recherche") cela passait ; sur une consigne realiste de
-        350 caracteres cela produisait une requete de 400+ caracteres a
-        laquelle aucun moteur ne repond - 0 source sur toutes les sections,
-        rapport vide. Detecte par le benchmark, invisible pour nos tests
-        maison qui utilisaient des sujets courts.
-
-        Ordre de preference :
-        1. search_terms fourni par le plan (le LLM a formule la requete)
-        2. reduction par mots-cles : mots significatifs de la consigne +
-           nom de section, plafonne a max_words
-
-        Le plafond est le point essentiel : au-dela d'une dizaine de mots,
-        un moteur generaliste renvoie du bruit ou rien.
-        """
-        import re
-
-        cfg = self.config
-        if max_words is None:
-            max_words = cfg.search_query_max_words
-
-        if search_terms:
-            terms = " ".join(str(t) for t in search_terms if t).strip()
-            if terms:
-                return " ".join(terms.split()[:max_words])
-
-        def salient(text: str, limit: int) -> List[str]:
-            words = re.findall(r"[\w'-]+", text.lower())
-            out, seen = [], set()
-            for w in words:
-                if len(w) <= 2 or w in self._STOPWORDS or w in seen:
-                    continue
-                seen.add(w)
-                out.append(w)
-                if len(out) >= limit:
-                    break
-            return out
-
-        # Le nom de section porte l'angle specifique : prioritaire sur la
-        # consigne generale, qui est commune a toutes les sections.
-        section_words = salient(section_name, cfg.search_query_section_words)
-        budget = max_words - len(section_words)
-        query_words = salient(query, max(cfg.search_query_min_query_words, budget))
-
-        combined = query_words + [w for w in section_words if w not in query_words]
-        result = " ".join(combined[:max_words]).strip()
-
-        return result or query[:cfg.search_query_fallback_chars]
-
-    def _section_search_queries(
-        self,
-        query: str,
-        section_name: str,
-        section_config: Dict,
-        config: PipelineConfig,
-    ) -> List[str]:
-        """Requetes de recherche d'une section.
-
-        Par defaut une seule requete (les termes du plan concatenes puis
-        coupes). Avec separate_search_terms, une requete par terme : un
-        operateur `filetype:pdf` ou une expression entre guillemets ne se
-        melange plus aux mots des autres termes (C34).
-        """
-        key_questions = section_config.get("key_questions", [])
-        terms = section_config.get("search_terms")
-        if config.separate_search_terms and terms:
-            cleaned = [str(t).strip() for t in terms if t and str(t).strip()]
-            queries: List[str] = []
-            for term in cleaned[:config.search_terms_max_queries]:
-                q = self._build_search_query(
-                    query=query,
-                    section_name=section_name,
-                    key_questions=key_questions,
-                    search_terms=[term],
-                )
-                if q and q not in queries:
-                    queries.append(q)
-            if queries:
-                return queries
-        # Requete bornee (voir _build_search_query) : la concatenation brute
-        # produisait des requetes de 400+ caracteres sur consigne longue.
-        return [
-            self._build_search_query(
-                query=query,
-                section_name=section_name,
-                key_questions=key_questions,
-                search_terms=terms,
-            )
-        ]
-
     async def _section_research_phase(
         self,
         query: str,
@@ -2474,7 +2238,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         """
         logger.info(f"       🔍 Recherches pour section '{section_name}'")
 
-        queries = self._section_search_queries(query, section_name, section_config, context.config)
+        queries = section_search_queries(self.services(), query, section_name, section_config, context.config)
         search_query = " | ".join(queries)
         for q in queries:
             logger.info(f"       ↳ requête: '{q}'")
@@ -2496,9 +2260,9 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         axis = section_config.get("source_axis")
 
         async def _search_one(q: str) -> List[Any]:
-            engines = await self._cascade_engines(q, axis=axis, ctx=context)
+            engines = await cascade_engines(self.services(), q, axis=axis, ctx=context)
             engines_param = ",".join(engines) if engines else None
-            pool = self._search_pool_size(max_sources, context)
+            pool = search_pool_size(self.services(), max_sources, context)
             found = await self.search_client.search(
                 query=q, max_results=pool, language=language, engines=engines_param
             )
@@ -2509,7 +2273,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             # si la source ciblee n'a rien sur le sujet, la requete rend zero
             # alors que les memes mots-cles sans operateur auraient trouve.
             # Le benefice du ciblage ne doit pas se payer d'une section vide.
-            if not found and any(op in q for op in self._SEARCH_OPERATORS):
+            if not found and any(op in q for op in SEARCH_OPERATORS):
                 import re as _re_op
                 _plain = _re_op.sub(r'\b(?:filetype|site|inurl|intitle):\S+', '', q)
                 _plain = _plain.replace('"', '').strip()
@@ -2568,7 +2332,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
 
                 # Le filtre de domaines precede la troncature : sinon des
                 # resultats exclus occupent les places demandees (C35).
-                sources = self._filter_by_constraints(sources, context)[:max_sources]
+                sources = filter_by_constraints(sources, context)[:max_sources]
 
                 # Tracker la recherche
                 context.add_step(
@@ -2888,7 +2652,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         # Requete bornee plutot que la consigne brute concatenee : le scoring
         # compare les mots de la requete au contenu des chunks, une consigne de
         # 350 caracteres noie les termes discriminants dans du remplissage.
-        scoring_query = self._build_search_query(
+        scoring_query = build_search_query(self.services(),
             query=query,
             section_name=section_name,
             search_terms=(section_config or {}).get("search_terms"),

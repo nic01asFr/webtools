@@ -13,6 +13,7 @@ import pytest
 from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrchestrator
 from app.research.pipeline_config import PipelineConfig
 from app.services.engine_catalog import EngineCatalog
+from app.research.stages.queries import build_search_query
 
 from tests.contract.test_pipeline_contract import QUERY, build_orchestrator, nominal
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch, make_result
@@ -237,7 +238,7 @@ async def test_requete_d_exploration(flag: bool, cat: EngineCatalog) -> None:
 
     call = search.queries[0]
     if flag:
-        assert call.query == orch._build_search_query(query=LONG_QUERY, section_name="")
+        assert call.query == build_search_query(orch.services(), query=LONG_QUERY, section_name="")
         assert len(call.query.split()) <= 12 < len(LONG_QUERY.split())
         assert call.engines == ",".join(cat.cascade(per_axis=3))
     else:
