@@ -32,7 +32,7 @@ import httpx
 
 from citecheck.juge import Judge, Judgement, embedder_for
 from citecheck.llm import Endpoint
-from citecheck.mesures import PROBLEMS, answer_correct, summarize
+from citecheck.mesures import JUDGED, PROBLEMS, answer_correct, ratio_ci, summarize
 from citecheck.pages import PageStore, default_client
 from citecheck.texte import fold
 from citecheck.triplets import parse_answer, pipeline_texts
@@ -274,6 +274,53 @@ async def evaluate_item(item: dict[str, Any], store: PageStore, judge: Judge,
     return result
 
 
+def build_groups(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Affirmations : les citations d'une meme phrase d'une meme tache."""
+    groups: dict[str, dict[str, Any]] = {}
+    for r in records:
+        raw = json.dumps([r["task_id"], fold(r["claim"])], ensure_ascii=False)
+        key = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20]
+        group = groups.setdefault(key, {
+            "key": key, "task_id": r["task_id"], "mode": r["mode"], "claim": r["claim"],
+            "context": r.get("context", ""), "members": [],
+        })
+        group["members"].append(r)
+    return groups
+
+
+async def evaluate_group(group: dict[str, Any], store: PageStore, judge: Judge) -> dict[str, Any]:
+    """Statut d'une affirmation au vu de toutes les sources qu'elle cite.
+
+    - soutenue si une source la soutient seule, ou si la reunion des pages
+      accessibles la soutient ;
+    - sinon inverifiable si une page citee est inaccessible (elle pourrait
+      la soutenir) ;
+    - sinon le verdict de la reunion (ou de la seule page accessible).
+    """
+    members = group["members"]
+    result: dict[str, Any] = {
+        "key": group["key"], "task_id": group["task_id"], "mode": group["mode"],
+        "claim": group["claim"], "refs": sorted({m["ref"] for m in members}),
+        "urls": sorted({m["url"] for m in members if m.get("url")}),
+    }
+    if any(m["status"] == "soutenue" for m in members):
+        return {**result, "status": "soutenue", "via": "une_source"}
+    accessible = list(dict.fromkeys(m["url"] for m in members if m.get("page_status") == "ok"))
+    union_status = None
+    if len(accessible) >= 2:
+        pages = [(url, (await store.get(url)).text) for url in accessible]
+        judgement = await judge.judge_group(group["claim"], group["context"], pages)
+        result.update({"quote": judgement.quote, "analysis": judgement.analysis})
+        if judgement.status == "soutenue":
+            return {**result, "status": "soutenue", "via": "reunion"}
+        union_status = judgement.status
+    elif len(accessible) == 1:
+        union_status = next(m["status"] for m in members if m.get("url") == accessible[0])
+    if any(m["status"] == "inverifiable" for m in members):
+        return {**result, "status": "inverifiable", "via": "page_inaccessible"}
+    return {**result, "status": union_status or "orpheline", "via": "reunion" if len(accessible) >= 2 else "une_source"}
+
+
 async def cmd_evaluate(
     args: argparse.Namespace,
     env: Mapping[str, str],
@@ -311,18 +358,47 @@ async def cmd_evaluate(
                       flush=True)
 
         await asyncio.gather(*(worker(i) for i in pending))
+
+        keys = {i["key"] for i in items}
+        records = [r for k, r in done.items() if k in keys]
+        # Affirmations : une phrase est verifiable si ses sources, ensemble,
+        # la soutiennent.
+        groups_path = eval_dir / "affirmations.jsonl"
+        groups_done = {g["key"]: g for g in read_jsonl(groups_path)}
+        groups = build_groups(records)
+        signature = {k: sorted(m["key"] for m in g["members"]) for k, g in groups.items()}
+
+        async def group_worker(group: dict[str, Any]) -> None:
+            async with semaphore:
+                result = await evaluate_group(group, store, judge)
+            result["members"] = signature[group["key"]]
+            async with lock:
+                with groups_path.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps(result, ensure_ascii=False) + "\n")
+                groups_done[result["key"]] = result
+
+        pending_groups = [
+            g for k, g in groups.items()
+            if k not in groups_done or groups_done[k].get("members") != signature[k]
+        ]
+        print(f"{len(groups)} affirmation(s), {len(pending_groups)} a evaluer")
+        await asyncio.gather(*(group_worker(g) for g in pending_groups))
     await endpoint.close()
 
-    keys = {i["key"] for i in items}
-    records = [r for k, r in done.items() if k in keys]
-    report = build_summary(records, tasks, judge_label(args.juge, args.raisonnement))
+    claims = [groups_done[k] for k in groups]
+    report = build_summary(records, tasks, judge_label(args.juge, args.raisonnement), claims)
     write_json(eval_dir / "resume.json", report)
     (eval_dir / "RAPPORT.md").write_text(render_report(report, records, out), encoding="utf-8")
     print(f"Resultats : {eval_dir}")
     return 0
 
 
-def build_summary(records: list[dict[str, Any]], tasks: dict[str, Any], judge_model: str) -> dict[str, Any]:
+def build_summary(
+    records: list[dict[str, Any]],
+    tasks: dict[str, Any],
+    judge_model: str,
+    claims: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     summary: dict[str, Any] = {"juge": judge_model, "par_mode": {}, "taches": tasks}
     for mode in ("quick", "deep"):
         mode_records = [r for r in records if r["mode"] == mode]
@@ -330,6 +406,19 @@ def build_summary(records: list[dict[str, Any]], tasks: dict[str, Any], judge_mo
         if not mode_tasks:
             continue
         block = summarize(mode_records)
+        mode_claims = [c for c in claims or [] if c["mode"] == mode]
+        if mode_claims:
+            block["affirmations"] = len(mode_claims)
+            block["affirmations_soutenues"] = ratio_ci(
+                mode_claims, lambda c: c["status"] == "soutenue", lambda c: c["status"] in JUDGED
+            )
+            block["affirmations_contredites"] = ratio_ci(
+                mode_claims, lambda c: c["status"] == "contredite", lambda c: c["status"] in JUDGED
+            )
+            block["affirmations_inverifiables"] = ratio_ci(
+                mode_claims, lambda c: c["status"] == "inverifiable", lambda c: True
+            )
+            block["statuts_affirmations"] = dict(sorted(Counter(c["status"] for c in mode_claims).items()))
         block["taches_en_echec"] = sorted(k for k, v in mode_tasks.items() if v.get("echec"))
         units = sum(v.get("unites", 0) for v in mode_tasks.values())
         cited = sum(v.get("unites_citees", 0) for v in mode_tasks.values())
@@ -364,7 +453,10 @@ def render_report(summary: Mapping[str, Any], records: list[dict[str, Any]], out
         "",
     ]
     labels = [
-        ("exactes", "Citations exactes"),
+        ("affirmations_soutenues", "Affirmations soutenues par leurs sources (ensemble)"),
+        ("affirmations_contredites", "Affirmations contredites par leurs sources"),
+        ("affirmations_inverifiables", "Affirmations dont une source est inaccessible"),
+        ("exactes", "Citations exactes (source par source)"),
         ("exactes_ou_partielles", "Exactes ou partielles"),
         ("contredites", "Contredites par la page"),
         ("non_etayees_par_le_juge", "Verdict du juge non etaye"),
@@ -382,7 +474,9 @@ def render_report(summary: Mapping[str, Any], records: list[dict[str, Any]], out
         for key, label in labels:
             if key in block:
                 lines.append(f"| {label} | {_fmt_rate(block[key])} |")
-        lines.append(f"| Statuts | {block['statuts']} |")
+        lines.append(f"| Statuts des citations | {block['statuts']} |")
+        if block.get("statuts_affirmations"):
+            lines.append(f"| Statuts des affirmations | {block['statuts_affirmations']} |")
         if block.get("origine_des_fautes"):
             lines.append(f"| Origine des fautes | {block['origine_des_fautes']} |")
         lines.append("")

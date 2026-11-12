@@ -14,7 +14,7 @@ from dataclasses import asdict, dataclass, field
 from typing import Any
 
 from citecheck.llm import Endpoint, LLMError
-from citecheck.preuves import Embedder, PassageIndex, select_evidence
+from citecheck.preuves import MAX_EVIDENCE_CHARS, Embedder, PassageIndex, select_evidence
 from citecheck.texte import fold, missing_numbers, quote_found
 
 VERDICTS = ("soutenue", "partielle", "contredite", "non_soutenue")
@@ -78,10 +78,18 @@ def normalize_verdict(value: Any) -> str | None:
 
 
 def build_messages(claim: str, context: str, page_text: str, url: str) -> list[dict[str, str]]:
+    """Messages du juge ; url vide = plusieurs pages citees ensemble."""
+    if url:
+        header = f"TEXTE DE LA PAGE (source : {url}) :"
+    else:
+        header = (
+            "TEXTE DES PAGES CITEES ENSEMBLE POUR CETTE AFFIRMATION (elle est soutenue si "
+            "leur reunion la soutient ; l'extrait peut venir de l'une quelconque d'entre elles) :"
+        )
     user = (
         f"CONTEXTE (non verifie) : {context or '(aucun)'}\n\n"
         f"AFFIRMATION : {claim}\n\n"
-        f"TEXTE DE LA PAGE (source : {url}) :\n<<<\n{page_text}\n>>>"
+        f"{header}\n<<<\n{page_text}\n>>>"
     )
     return [{"role": "system", "content": SYSTEM_PROMPT}, {"role": "user", "content": user}]
 
@@ -135,6 +143,31 @@ class Judge:
         judgement.evidence_method = evidence.method
         judgement.passages_total = evidence.passages_total
         judgement.passages_kept = evidence.passages_kept
+        return judgement
+
+    async def judge_group(self, claim: str, context: str, sources: list[tuple[str, str]]) -> Judgement:
+        """Juge une affirmation contre la reunion des pages citees ensemble.
+
+        Une phrase qui cite [1][2] peut prendre un chiffre dans chaque source :
+        aucune ne la soutient seule, leur reunion si. Le budget de texte est
+        partage entre les pages ; l'extrait est cherche dans leur reunion.
+        """
+        budget = MAX_EVIDENCE_CHARS // max(1, len(sources))
+        blocks = []
+        methods = set()
+        for i, (url, text) in enumerate(sources, start=1):
+            index = self._indexes.setdefault(url, PassageIndex(text))
+            evidence = await select_evidence(claim, text, index=index, embedder=self.embedder, budget=budget)
+            methods.add(evidence.method)
+            blocks.append(f"[Source {i} : {url}]\n{evidence.text}")
+        try:
+            raw, _ = await self.endpoint.chat_json(
+                self.model, build_messages(claim, context, "\n\n".join(blocks), ""), schema=SCHEMA
+            )
+        except LLMError as exc:
+            return Judgement(status="erreur_juge", error=str(exc)[:300])
+        judgement = settle(raw, claim, "\n".join(text for _url, text in sources))
+        judgement.evidence_method = "+".join(sorted(methods))
         return judgement
 
 

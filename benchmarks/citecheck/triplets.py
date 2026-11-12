@@ -79,6 +79,8 @@ def strip_markers(text: str) -> str:
     """Texte sans appels de citation, espaces et ponctuation recolles."""
     text = _MARKER.sub("", text)
     text = re.sub(r"\s+([.,;:!?])", r"\1", text)
+    # "2019 [2], [5]." laisse "2019,." : la virgule entre deux appels disparait.
+    text = re.sub(r"[,;]+(?=[.!?]|\s*$)", "", text)
     return re.sub(r"\s+", " ", text).strip()
 
 

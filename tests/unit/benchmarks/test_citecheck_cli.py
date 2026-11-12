@@ -166,6 +166,9 @@ async def test_generer_puis_evaluer(tmp_path: Path) -> None:
     # la faute vient de l'extraction.
     assert deep["statuts"] == {"contredite": 1}
     assert deep["origine_des_fautes"] == {"extraction": 1}
+    # Affirmations : soutenue, page inaccessible, numero sans source.
+    assert quick["statuts_affirmations"] == {"inverifiable": 1, "orpheline": 1, "soutenue": 1}
+    assert deep["statuts_affirmations"] == {"contredite": 1}
     report = (out / "evaluation-juge-test" / "RAPPORT.md").read_text(encoding="utf-8")
     assert "Citations fautives" in report and "contredite" in report
 
@@ -235,3 +238,67 @@ def test_auditer_echantillon_puis_accord(tmp_path: Path) -> None:
     assert cli.cmd_audit(argparse.Namespace(evaluation=str(tmp_path), par_statut=2, graine=1, accord=True)) == 0
     result = json.loads((tmp_path / "audit-accord.json").read_text(encoding="utf-8"))
     assert result["accord_binaire"] == 0.5 and len(result["desaccords"]) == 2
+
+
+# --- affirmations citant plusieurs sources ----------------------------------------
+
+
+class _Store:
+    def __init__(self, texts: dict[str, str]) -> None:
+        self.texts = texts
+
+    async def get(self, url: str):
+        from citecheck.pages import Page
+
+        return Page(url=url, status="ok", text=self.texts[url])
+
+
+class _GroupJudge:
+    def __init__(self, status: str) -> None:
+        self.status = status
+        self.calls: list[list[str]] = []
+
+    async def judge_group(self, claim, context, sources):
+        from citecheck.juge import Judgement
+
+        self.calls.append([url for url, _ in sources])
+        return Judgement(status=self.status, quote="q", analysis="a")
+
+
+def _member(url: str, status: str, page_status: str = "ok") -> dict:
+    return {"key": url, "task_id": "t", "mode": "quick", "claim": "c", "context": "", "ref": 1,
+            "url": url, "status": status, "page_status": page_status}
+
+
+async def test_affirmation_soutenue_par_la_reunion_de_ses_sources() -> None:
+    judge = _GroupJudge("soutenue")
+    group = {"key": "g", "task_id": "t", "mode": "quick", "claim": "5 700 ans [1], 5 730 ans [2]",
+             "context": "", "members": [_member("u1", "partielle"), _member("u2", "partielle")]}
+    result = await cli.evaluate_group(group, _Store({"u1": "a", "u2": "b"}), judge)
+    assert (result["status"], result["via"]) == ("soutenue", "reunion")
+    assert judge.calls == [["u1", "u2"]]
+
+
+async def test_affirmation_soutenue_par_une_source_sans_appel_au_juge() -> None:
+    judge = _GroupJudge("non_soutenue")
+    group = {"key": "g", "task_id": "t", "mode": "quick", "claim": "c", "context": "",
+             "members": [_member("u1", "partielle"), _member("u2", "soutenue")]}
+    result = await cli.evaluate_group(group, _Store({}), judge)
+    assert (result["status"], result["via"]) == ("soutenue", "une_source") and judge.calls == []
+
+
+async def test_affirmation_non_soutenue_avec_page_inaccessible_est_inverifiable() -> None:
+    judge = _GroupJudge("partielle")
+    group = {"key": "g", "task_id": "t", "mode": "quick", "claim": "c", "context": "",
+             "members": [_member("u1", "partielle"), _member("u2", "partielle"),
+                         _member("u3", "inverifiable", page_status="http_error")]}
+    result = await cli.evaluate_group(group, _Store({"u1": "a", "u2": "b"}), judge)
+    assert result["status"] == "inverifiable"
+
+
+async def test_affirmation_contredite_par_ses_sources() -> None:
+    judge = _GroupJudge("contredite")
+    group = {"key": "g", "task_id": "t", "mode": "quick", "claim": "c", "context": "",
+             "members": [_member("u1", "contredite"), _member("u2", "non_soutenue")]}
+    result = await cli.evaluate_group(group, _Store({"u1": "a", "u2": "b"}), judge)
+    assert (result["status"], result["via"]) == ("contredite", "reunion")

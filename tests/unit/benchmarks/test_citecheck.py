@@ -130,6 +130,9 @@ def test_parse_refs() -> None:
 
 def test_strip_markers() -> None:
     assert strip_markers("Texte [1] et suite [2, 3].") == "Texte et suite."
+    # Cas reel : "depuis le 1er janvier 2019 [2], [5]." laissait "2019,.".
+    assert strip_markers("depuis le 1er janvier 2019 [2], [5].") == "depuis le 1er janvier 2019."
+    assert strip_markers("Fin [1], [2]") == "Fin"
 
 
 def test_parse_deep_triplets() -> None:
