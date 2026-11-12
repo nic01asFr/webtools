@@ -1,12 +1,18 @@
 """Schema JSON du plan et plan generique de repli (configures par PipelineConfig)."""
 
-from typing import Any, Dict
+from typing import Any, Dict, List, Optional
 
 from app.research.pipeline_config import PipelineConfig
 
 
-def build_plan_schema(cfg: PipelineConfig) -> Dict[str, Any]:
-    """Schema de la sortie structuree du plan (sections en liste d'objets)."""
+def build_plan_schema(
+    cfg: PipelineConfig, imposed_sections: Optional[List[str]] = None
+) -> Dict[str, Any]:
+    """Schema de la sortie structuree du plan (sections en liste d'objets).
+
+    Avec `imposed_sections`, le nom de chaque section est limite a ces titres
+    (enum) et leur nombre est fixe ; sans, le schema est inchange.
+    """
     # Sortie structuree forcee : plus de clefs dynamiques (l'ancien format
     # section_targets = {nom_section: {...}} etait incompatible avec un
     # JSON Schema strict). "sections" devient une liste d'objets, chacun
@@ -164,6 +170,23 @@ def build_plan_schema(cfg: PipelineConfig) -> Dict[str, Any]:
         "required": ["complexity_analysis", "sections", "narrative_flow", "search_strategy"],
         "additionalProperties": False,
     }
+    if imposed_sections:
+        sections = plan_schema["properties"]["sections"]
+        count = len(imposed_sections)
+        sections["minItems"] = count
+        sections["maxItems"] = count
+        sections["description"] = (
+            "Sections IMPOSEES par l'appelant : exactement "
+            + str(count)
+            + " sections, une par titre autorise, dans cet ordre : "
+            + " | ".join(imposed_sections)
+            + ". N'ajoute aucune autre section et ne change aucun titre."
+        )
+        sections["items"]["properties"]["name"] = {
+            "type": "string",
+            "enum": list(imposed_sections),
+            "description": "Titre impose, recopie tel quel",
+        }
     return plan_schema
 
 
