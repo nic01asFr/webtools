@@ -13,7 +13,10 @@ suspendre l'acces par Google, Brave, DuckDuckGo et Startpage. Le bruit
 degradait aussi le scoring, qui se dispersait sur des resultats hors sujet.
 """
 
+import asyncio
 import logging
+import time
+from collections.abc import Awaitable, Callable
 from typing import Dict, List, Optional
 
 import httpx
@@ -135,26 +138,29 @@ FAILURE_COOLDOWN_SECONDS = 900
 class EngineCatalog:
     """Catalogue des moteurs reellement disponibles, decouvert a l'execution."""
 
-    def __init__(self):
+    def __init__(self, clock: Callable[[], float] = time.time) -> None:
         self._engines: Dict[str, dict] = {}
         self._loaded = False
         # moteur -> horodatage du dernier echec (voir mark_failure)
         self._failures: Dict[str, float] = {}
+        # Horloge injectable : les tests avancent le temps sans attendre.
+        self._clock = clock
+        self._base_url: str | None = None
 
-    async def load(self, base_url: str, timeout: float = 10.0) -> bool:
-        """Interroge /config. Best-effort : un echec laisse le catalogue vide,
-        et l'appelant retombe sur le comportement sans selection."""
-        try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
-                resp = await client.get(f"{base_url.rstrip('/')}/config")
-                resp.raise_for_status()
-                data = resp.json()
-        except Exception as e:
-            logger.warning(f"Catalogue de moteurs indisponible ({e}) — selection desactivee")
-            self._loaded = False
-            return False
+    async def _fetch_config(self, base_url: str, timeout: float) -> dict:
+        """Appel HTTP a /config, isole pour etre remplace dans les tests."""
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            resp = await client.get(f"{base_url.rstrip('/')}/config")
+            resp.raise_for_status()
+            return resp.json()
 
-        for eng in data.get("engines", []):
+    def ingest(self, config: dict) -> bool:
+        """Construit le catalogue depuis le contenu de /config, sans reseau.
+
+        L'etat precedent est vide avant remplissage : un moteur disparu de la
+        configuration ne doit pas survivre a un rechargement."""
+        self._engines = {}
+        for eng in (config or {}).get("engines", []):
             if not eng.get("enabled"):
                 continue
             cats = set(eng.get("categories", []))
@@ -172,6 +178,44 @@ class EngineCatalog:
         self._loaded = bool(self._engines)
         logger.info(f"Catalogue de moteurs charge : {len(self._engines)} moteurs texte disponibles")
         return self._loaded
+
+    async def load(
+        self,
+        base_url: str,
+        timeout: float = 10.0,
+        retries: int = 3,
+        delay: float = 2.0,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> bool:
+        """Interroge /config, avec nouvelles tentatives si SearXNG demarre
+        encore. Best-effort : un echec final laisse le catalogue vide, et
+        l'appelant retombe sur le comportement sans selection."""
+        self._base_url = base_url
+        for attempt in range(1, max(retries, 1) + 1):
+            try:
+                data = await self._fetch_config(base_url, timeout)
+                if self.ingest(data):
+                    return True
+                logger.warning("Catalogue de moteurs : /config sans moteur exploitable")
+            except Exception as e:
+                logger.warning(f"Catalogue de moteurs indisponible ({e}) - tentative {attempt}/{retries}")
+            if attempt < retries:
+                await sleep(delay * 2 ** (attempt - 1))
+
+        self._loaded = False
+        return False
+
+    async def ensure_loaded(
+        self,
+        timeout: float = 10.0,
+        sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
+    ) -> bool:
+        """Retente un chargement si le catalogue est vide et qu'une URL est connue."""
+        if self._loaded:
+            return True
+        if not self._base_url:
+            return False
+        return await self.load(self._base_url, timeout=timeout, retries=1, sleep=sleep)
 
     @property
     def available(self) -> bool:
@@ -229,11 +273,10 @@ class EngineCatalog:
 
     def mark_failure(self, name: str, reason: str = ""):
         """Signale qu'un moteur n'a pas repondu (suspension, timeout, vide)."""
-        import time
         key = self._canonical(name)
         if not key:
             return
-        self._failures[key] = time.time()
+        self._failures[key] = self._clock()
         logger.debug(f"Moteur '{key}' ecarte temporairement ({reason})")
 
     def mark_success(self, name: str):
@@ -243,11 +286,10 @@ class EngineCatalog:
             self._failures.pop(key, None)
 
     def _is_available(self, name: str) -> bool:
-        import time
         ts = self._failures.get(name)
         if ts is None:
             return True
-        if time.time() - ts > FAILURE_COOLDOWN_SECONDS:
+        if self._clock() - ts > FAILURE_COOLDOWN_SECONDS:
             del self._failures[name]  # rehabilitation apres cooldown
             return True
         return False
