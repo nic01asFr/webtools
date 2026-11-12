@@ -87,3 +87,11 @@ def test_unmatched_limite_a_dix() -> None:
 def test_sources_vides() -> None:
     res = check_numeric_fidelity("12345 cas", "")
     assert res["fidelity_rate"] == 0.0
+
+
+def test_chiffres_des_url_citees_ne_sont_pas_des_donnees() -> None:
+    """Constat E2E : les chiffres d'une URL [SOURCE:...] etaient signales absents."""
+    ecrit = "Rust a 12345 crates [SOURCE:https://example.org/news/857399/a%E2%80%93b2020]."
+    res = check_numeric_fidelity(ecrit, "Rust a 12345 crates.")
+    assert res["unmatched"] == []
+    assert res["fidelity_rate"] == 1.0
