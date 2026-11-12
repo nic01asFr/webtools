@@ -116,6 +116,14 @@ class PipelineConfig:
     # et la collecte d'un rapport depassait le delai global.
     extraction_use_agent: bool = True  # faux : extraction directe seulement (pas d'agent navigateur)
 
+    # --- Collecte : repli quand une recherche ne rend rien ---
+    # Mesure sur le run de reference citecheck du 12/11/2026 : 21 recherches
+    # de section sur 79 rendaient zero resultat (axe "actualite" route vers
+    # des moteurs signales indisponibles, axe "technique" vers github et pypi
+    # pour un reglement europeen, requetes de 10 a 14 mots-cles) et 22
+    # collectes de section sur 49 n'extrayaient rien.
+    search_zero_result_fallback: bool = True  # vrai : requete vide -> cascade complete, puis requete raccourcie
+
     # --- Lot V4-1 : budgets et seuils ---
     # Valeurs reprises a l'identique de l'orchestrateur : aucun changement de
     # comportement. Le test test_v4_1_config fige ces defauts.
@@ -159,6 +167,7 @@ class PipelineConfig:
     search_pool_multiplier: int = 3  # facteur de resultats demandes quand des contraintes de domaines filtrent apres coup
     search_snippet_chars: int = 300  # longueur de l'extrait gardee par resultat de section
     cascade_engines_per_axis: int = 3  # moteurs retenus par axe dans la cascade
+    search_fallback_query_words: int = 6  # mots gardes par la requete raccourcie du dernier repli
     complement_default_sources_per_section: int = 2  # seuil de sources par section si le plan n'en donne pas
     complement_depth_light_delta: int = -1  # ajustement du seuil de sources pour une section "light"
     complement_depth_moderate_delta: int = 0  # ajustement du seuil de sources pour une section "moderate"

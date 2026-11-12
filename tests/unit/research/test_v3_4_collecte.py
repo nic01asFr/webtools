@@ -335,3 +335,90 @@ async def test_options_d_extraction_transmises(root_only: bool, single_pass: boo
     for call in pages.calls:
         assert call.options.rss_tier_root_only is root_only
         assert call.options.single_llm_pass_enabled is single_pass
+
+
+
+# --- Repli quand une recherche ne rend rien (run citecheck du 12/11/2026) ---
+
+
+class _EnginesSearch(FakeSearch):
+    """Ne rend des resultats que pour les moteurs et requetes autorises."""
+
+    def __init__(self, ok_engines: set, ok_queries: set | None, results: list) -> None:
+        super().__init__()
+        self.ok_engines = ok_engines
+        self.ok_queries = ok_queries
+        self.results = results
+
+    async def search(self, query, max_results=10, language="all", categories=None,
+                     engines=None, time_range=None, max_pages=1):
+        await super().search(query, max_results, language, categories, engines, time_range, max_pages)
+        engines_ok = engines is None or bool(set((engines or "").split(",")) & self.ok_engines)
+        query_ok = self.ok_queries is None or query in self.ok_queries
+        return list(self.results)[:max_results] if engines_ok and query_ok else []
+
+
+def _news_and_general_catalog(monkeypatch: pytest.MonkeyPatch) -> EngineCatalog:
+    cat = EngineCatalog()
+    cat.ingest({"engines": [
+        {"name": "google news", "enabled": True, "categories": ["news"]},
+        {"name": "wikipedia search", "enabled": True, "categories": ["general"]},
+    ]})
+    monkeypatch.setattr(engine_catalog_module, "engine_catalog", cat)
+    return cat
+
+
+NEWS_SECTION = {"depth": "moderate", "key_questions": ["Q ?"], "search_terms": ["solar costs"],
+                "source_axis": "actualite"}
+
+
+async def test_axe_sans_resultat_repli_sur_la_cascade_complete(monkeypatch: pytest.MonkeyPatch) -> None:
+    _news_and_general_catalog(monkeypatch)
+    page = "https://ex.org/a"
+    search = _EnginesSearch({"wikipedia search"}, None, [make_result(page, "t", "s")])
+    orch, search, _pages = make_orch(search=search, pages=FakeExtractorManager({page: PAGE}))
+    ctx = ExecutionContext("q", config=orch.config)
+
+    data = await section_research_phase(orch.services(), "q", "S", NEWS_SECTION, {}, ctx)
+
+    assert [c.engines for c in search.queries] == ["google news", "google news,wikipedia search"]
+    assert [s["url"] for s in data["sources"]] == [page]
+    assert ctx.diagnostics.count("collecte.repli_cascade_complete") == 1
+
+
+async def test_requete_trop_longue_repli_sur_la_requete_raccourcie(monkeypatch: pytest.MonkeyPatch) -> None:
+    _news_and_general_catalog(monkeypatch)
+    page = "https://ex.org/a"
+    long_terms = "solar costs Africa rural kits 2024 households grid comparison solar"
+    section = {**NEWS_SECTION, "search_terms": [long_terms]}
+    short = "solar costs Africa rural kits 2024"
+    search = _EnginesSearch({"wikipedia search"}, {short}, [make_result(page, "t", "s")])
+    orch, search, _pages = make_orch(search=search, pages=FakeExtractorManager({page: PAGE}))
+    ctx = ExecutionContext("q", config=orch.config)
+
+    data = await section_research_phase(orch.services(), "q", "S", section, {}, ctx)
+
+    assert search.queries[-1].query == short
+    assert [s["url"] for s in data["sources"]] == [page]
+    assert ctx.diagnostics.count("collecte.repli_requete_courte") == 1
+
+
+async def test_repli_desactivable(monkeypatch: pytest.MonkeyPatch) -> None:
+    _news_and_general_catalog(monkeypatch)
+    search = _EnginesSearch({"wikipedia search"}, None, [make_result("https://ex.org/a", "t", "s")])
+    orch, search, _pages = make_orch(PipelineConfig(search_zero_result_fallback=False), search)
+    ctx = ExecutionContext("q", config=orch.config)
+
+    data = await section_research_phase(orch.services(), "q", "S", NEWS_SECTION, {}, ctx)
+
+    assert len(search.queries) == 1 and data["sources"] == []
+
+
+def test_shorten_query() -> None:
+    from app.research.stages.search import shorten_query
+
+    q = "Commission européenne interdiction néonicotinoïdes 2013 lobbying agriculture Europe 2013"
+    assert shorten_query(q, 6) == "Commission européenne interdiction néonicotinoïdes 2013 lobbying"
+    assert shorten_query('site:eur-lex.europa.eu "règlement" néonicotinoïdes dérogations', 6) == (
+        "règlement néonicotinoïdes dérogations"
+    )

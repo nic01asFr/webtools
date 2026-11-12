@@ -41,7 +41,7 @@ périmé ou si un champ manque.
 
 <!-- DEBUT-GENERE : ne pas modifier a la main, voir docs/generer_configuration.py -->
 
-### Drapeaux à mesurer (type B) : 21 champs
+### Drapeaux à mesurer (type B) : 22 champs
 
 | Nom | Type | Défaut | Variable d'environnement | Effet | Campagne | Valeur essayée |
 |---|---|---|---|---|---|---|
@@ -63,6 +63,7 @@ périmé ou si un champ manque.
 | `exploration_uses_plan_query` | bool | `false` | `WEBTOOLS_PIPELINE_EXPLORATION_USES_PLAN_QUERY` | exploration : requete reduite et moteurs de la cascade (C31) | M5 | `true` |
 | `chunking_v2` | bool | `false` | `WEBTOOLS_PIPELINE_CHUNKING_V2` | transmis a document_to_chunk_items (C73) | M5 | `true` |
 | `extraction_use_agent` | bool | `true` | `WEBTOOLS_PIPELINE_EXTRACTION_USE_AGENT` | faux : extraction directe seulement (pas d'agent navigateur) | M5 | `false` |
+| `search_zero_result_fallback` | bool | `true` | `WEBTOOLS_PIPELINE_SEARCH_ZERO_RESULT_FALLBACK` | vrai : requete vide -> cascade complete, puis requete raccourcie | M5 | `false` |
 | `plan_prompt_v2` | bool | `false` | `WEBTOOLS_PIPELINE_PLAN_PROMPT_V2` | prompt de plan sans ancien JSON ni exemples, contexte reduit (C33) | hors campagne | `true` |
 | `targeted_search_skip_structured` | bool | `false` | `WEBTOOLS_PIPELINE_TARGETED_SEARCH_SKIP_STRUCTURED` | recherche ciblee sans appel LLM d'extraction structuree (C36, C79) | hors campagne | `true` |
 | `quick_uses_chunk_selection` | bool | `false` | `WEBTOOLS_PIPELINE_QUICK_USES_CHUNK_SELECTION` | /research/quick: passages choisis par pertinence au lieu de 2000 car. de tete (C63) | hors campagne | `true` |
@@ -73,7 +74,7 @@ périmé ou si un champ manque.
 |---|---|---|---|---|
 | `max_sources_per_section` | int \| None | `None` | `WEBTOOLS_PIPELINE_MAX_SOURCES_PER_SECTION` | Plafond de sources par section, pour la recherche et pour l'extraction (C20). None : plafond selon la profondeur de la section (3, 5 ou 8) et 5 pages extraites au plus. |
 
-### Budgets et seuils : 111 champs
+### Budgets et seuils : 112 champs
 
 #### Étape exploration
 
@@ -123,6 +124,7 @@ périmé ou si un champ manque.
 | `search_pool_multiplier` | int | `3` | `WEBTOOLS_PIPELINE_SEARCH_POOL_MULTIPLIER` | facteur de resultats demandes quand des contraintes de domaines filtrent apres coup |
 | `search_snippet_chars` | int | `300` | `WEBTOOLS_PIPELINE_SEARCH_SNIPPET_CHARS` | longueur de l'extrait gardee par resultat de section |
 | `cascade_engines_per_axis` | int | `3` | `WEBTOOLS_PIPELINE_CASCADE_ENGINES_PER_AXIS` | moteurs retenus par axe dans la cascade |
+| `search_fallback_query_words` | int | `6` | `WEBTOOLS_PIPELINE_SEARCH_FALLBACK_QUERY_WORDS` | mots gardes par la requete raccourcie du dernier repli |
 | `complement_default_sources_per_section` | int | `2` | `WEBTOOLS_PIPELINE_COMPLEMENT_DEFAULT_SOURCES_PER_SECTION` | seuil de sources par section si le plan n'en donne pas |
 | `complement_depth_light_delta` | int | `-1` | `WEBTOOLS_PIPELINE_COMPLEMENT_DEPTH_LIGHT_DELTA` | ajustement du seuil de sources pour une section "light" |
 | `complement_depth_moderate_delta` | int | `0` | `WEBTOOLS_PIPELINE_COMPLEMENT_DEPTH_MODERATE_DELTA` | ajustement du seuil de sources pour une section "moderate" |
@@ -231,7 +233,7 @@ périmé ou si un champ manque.
 | `enrichment_regenerate_v2_max_tokens` | int | `6000` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_V2_MAX_TOKENS` | jetons maximaux de la regeneration de section v2 |
 | `enrichment_regenerate_temperature` | float | `0.1` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_TEMPERATURE` | temperature de la regeneration de section (v1 et v2) |
 
-Total : 133 champs, soit tous ceux de `PipelineConfig`.
+Total : 135 champs, soit tous ceux de `PipelineConfig`.
 
 <!-- FIN-GENERE -->
 

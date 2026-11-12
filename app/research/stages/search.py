@@ -115,6 +115,29 @@ async def targeted_search(
         return None
 
 
+def shorten_query(query: str, words: int) -> str:
+    """Premiers mots d'une requete, sans operateurs ni guillemets ni doublons.
+
+    "Commission europeenne interdiction neonicotinoides 2013 lobbying
+    agriculture Europe 2013" -> "Commission europeenne interdiction
+    neonicotinoides 2013 lobbying" pour words=6.
+    """
+    import re as _re
+
+    plain = _re.sub(r"\b(?:filetype|site|inurl|intitle):\S+", "", query).replace('"', " ")
+    kept: List[str] = []
+    seen: set = set()
+    for word in plain.split():
+        key = word.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        kept.append(word)
+        if len(kept) >= words:
+            break
+    return " ".join(kept)
+
+
 async def section_research_phase(
     svc: StageServices,
     query: str,
@@ -179,6 +202,32 @@ async def section_research_phase(
                 found = await svc.search_client.search(
                     query=_plain, max_results=pool, language=language, engines=engines_param
                 )
+
+        # Repli si la requete ne rend toujours rien : d'abord la cascade
+        # complete (tous les axes), puis la requete raccourcie a ses premiers
+        # mots. Un axe mal choisi par le plan ou des moteurs indisponibles ne
+        # doivent pas laisser la section sans source (voir PipelineConfig).
+        if not found and context.config.search_zero_result_fallback:
+            wide = await cascade_engines(svc, q, axis=None, ctx=context)
+            wide_param = ",".join(wide) if wide else None
+            if engines_param is not None and wide_param != engines_param:
+                logger.info(f"       ↪ aucun résultat sur l'axe '{axis}', cascade complète")
+                context.diagnostics.note(
+                    "collecte.repli_cascade_complete", section=section_name, query=q, axe=axis
+                )
+                found = await svc.search_client.search(
+                    query=q, max_results=pool, language=language, engines=wide_param
+                )
+            if not found:
+                short = shorten_query(q, context.config.search_fallback_query_words)
+                if short and short != q:
+                    logger.info(f"       ↪ aucun résultat, requête raccourcie : '{short}'")
+                    context.diagnostics.note(
+                        "collecte.repli_requete_courte", section=section_name, query=q, courte=short
+                    )
+                    found = await svc.search_client.search(
+                        query=short, max_results=pool, language=language, engines=wide_param
+                    )
         return list(found or [])
 
     try:
