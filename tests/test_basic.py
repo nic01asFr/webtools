@@ -56,7 +56,8 @@ def test_prompt_templates_custom():
     url = "https://example.com"
     custom = "Extrait uniquement le titre de {url}"
     prompt = PromptTemplates.get_prompt("general", url, custom)
-    assert prompt == f"Extrait uniquement le titre de {url}"
+    assert f"Extrait uniquement le titre de {url}" in prompt
+    assert "TITRE:" in prompt
 
 
 def test_prompt_templates_legifrance():
