@@ -27,11 +27,30 @@ exposes).
 ## Cles d'enregistrement
 
 - Recherche : empreinte des parametres normalises (requete aux espaces
-  reduits, langue, moteurs, categories, plage temporelle, nombre de
-  resultats, pages).
+  reduits, langue, categories, plage temporelle, nombre de resultats,
+  pages). Les moteurs ne font PAS partie de la cle : la cascade les choisit
+  selon leur disponibilite, qui change d'un run a l'autre.
 - Extraction : URL normalisee seule (schema et hote en minuscules, sans
   fragment ni barre finale). Les options d'extraction varient d'un appel a
   l'autre sans changer la page.
+
+## Condition de rejeu : un plan stable
+
+Les requetes de recherche viennent du plan redige par le LLM, a temperature
+non nulle par defaut (`PipelineConfig.plan_temperature`, 0.2). Deux runs
+peuvent donc formuler des requetes differentes, et le rejeu echoue alors sur
+une requete inconnue. Pour l'enregistrement ET pour les rejeux, poser
+`WEBTOOLS_PIPELINE_PLAN_TEMPERATURE=0`. Cela reduit la variation du plan mais
+ne garantit pas le determinisme : un fournisseur peut repondre autrement a
+temperature 0. Un rejeu n'est fidele que si le plan est le meme.
+
+## Diagnostics du rejeu
+
+Quand le rejeu est actif, la reponse de `/research/deep` porte
+`diagnostics.replay` : `{mode, served, missed, recorded}` (somme de la
+recherche et de l'extraction). Un run avec `missed` > 0 n'est pas un rejeu
+fidele : le pipeline avale les erreurs de collecte, ce compteur est le seul
+signal visible dans la reponse.
 
 ## Limite
 

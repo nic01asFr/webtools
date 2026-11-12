@@ -210,16 +210,15 @@ def _register_sources(
     """Alimente le registre : sources requises, puis sources decouvertes.
 
     Une source est utilisee (SUCCESS) quand elle figure dans la bibliographie
-    du rapport ; une source requise l'est aussi quand son URL apparait dans le
-    texte du rapport.
+    du rapport. Une source requise suit la meme regle : sa simple presence dans
+    le texte du rapport (data, research_traces) ne vaut pas utilisation.
     """
     bibliography_urls = {
         b.get("url") for b in ((answer or {}).get("bibliography") or []) if isinstance(b, dict)
     }
-    report_text = str(answer) if answer else ""
 
     for url in sources.required:
-        used = url in bibliography_urls or (bool(report_text) and url in report_text)
+        used = url in bibliography_urls
         registry.add_website(
             url=url,
             status=SourceStatus.SUCCESS if used else SourceStatus.DISCOVERED_NOT_USED,
@@ -313,6 +312,14 @@ async def research_deep(request: DeepResearchRequest):
             )
             exec_ctx = result.get("execution_context") or {}
             diagnostics = result.get("diagnostics") or diagnostics
+            from app.research.replay import replay_summary
+
+            replay = replay_summary(
+                getattr(orchestrator, "search_client", None),
+                getattr(orchestrator, "extractor_manager", None),
+            )
+            if replay is not None and isinstance(diagnostics, dict):
+                diagnostics["replay"] = replay
             answer = result.get("answer")
             timed_out = bool(result.get("timed_out"))
             error = result.get("error")

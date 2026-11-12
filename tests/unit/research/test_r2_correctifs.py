@@ -129,3 +129,57 @@ async def test_intersections_sans_sortie_structuree_utilise_generate() -> None:
     await orch._analyze_intersections("q", {"sections": ["A"]}, ctx)
     assert llm.calls_for(kind="structured") == []
     assert llm.calls_for(kind="generate")
+
+
+# --- Rejeu : cle sans moteurs, bilan dans les diagnostics (R2-5) -------------
+
+
+async def test_rejeu_cle_independante_des_moteurs(tmp_path: Any) -> None:
+    from app.research.replay import build_replay_clients
+
+    fake = FakeSearch({"q": [make_result("https://a.org/x", "T")]})
+    rec, _ = build_replay_clients("record", tmp_path, fake, FakeExtractorManager())
+    res = await rec.search("q", engines="google,bing")
+    rep, _ = build_replay_clients("replay", tmp_path, None, None)
+    assert await rep.search("q", engines="wikipedia") == res
+    assert await rep.search("q") == res
+    assert rep.missed == 0
+
+
+def test_replay_summary_compte_les_manques(tmp_path: Any) -> None:
+    from app.research.replay import build_replay_clients, replay_summary
+
+    assert replay_summary(FakeSearch(), FakeExtractorManager()) is None
+    search, extractor = build_replay_clients("replay", tmp_path, None, None)
+    search.missed = 2
+    search.served = 3
+    assert replay_summary(search, extractor) == {
+        "mode": "replay", "served": 3, "missed": 2, "recorded": 0,
+    }
+
+
+def test_plan_temperature_est_un_champ_de_configuration() -> None:
+    # Nom documente dans benchmarks/replay.md (WEBTOOLS_PIPELINE_PLAN_TEMPERATURE).
+    assert "plan_temperature" in PipelineConfig().to_dict()
+
+
+# --- Sources requises : seule la bibliographie compte (R2-8) -----------------
+
+
+def test_source_requise_citee_hors_bibliographie_n_est_pas_utilisee() -> None:
+    from app.api.v1.endpoints.research_deep import SourcesConstraints, _register_sources
+    from app.core.source_registry import SourceRegistry
+
+    url = "https://req.org/x"
+    answer: dict[str, Any] = {
+        "sections": [{"data": [{"source": url}]}],
+        "research_traces": {"x": url},
+        "bibliography": [{"id": 1, "url": "https://autre.org/y"}],
+    }
+    registry = SourceRegistry()
+    _register_sources(registry, SourcesConstraints(required=[url]), {}, answer)
+    assert registry.required_sources_status() == "partial_failure"
+    answer["bibliography"].append({"id": 2, "url": url})
+    registry2 = SourceRegistry()
+    _register_sources(registry2, SourcesConstraints(required=[url]), {}, answer)
+    assert registry2.required_sources_status() == "all_success"

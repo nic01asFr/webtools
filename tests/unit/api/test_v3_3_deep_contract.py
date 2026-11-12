@@ -330,3 +330,18 @@ def test_schema_sans_champ_fantome() -> None:
     assert set(defs["OutputFormat"]["properties"]) == {"sections", "include_section_data"}
     for model in (schema, *defs.values()):
         assert model["additionalProperties"] is False
+
+
+async def test_diagnostics_replay_expose_les_manques(
+    harness: Harness, tmp_path: Any
+) -> None:
+    from app.research.replay import build_replay_clients
+
+    search, extractor = build_replay_clients("replay", tmp_path, None, None)
+    harness.orch.search_client = search
+    harness.orch.extractor_manager = extractor
+    body = (await harness.post({"topic": QUERY})).json()
+    replay = body["diagnostics"]["replay"]
+    assert replay["mode"] == "replay"
+    assert replay["missed"] > 0
+    assert set(replay) == {"mode", "served", "missed", "recorded"}
