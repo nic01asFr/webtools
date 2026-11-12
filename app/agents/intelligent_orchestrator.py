@@ -2815,6 +2815,12 @@ Retourne JSON:
         # Générer titre et summary
         complexity = plan.get("complexity_analysis", {})
         title = f"Analyse: {query.title()}"
+        if context.config.clean_title:
+            from app.research.report_title import short_title
+            title = short_title(query)
+            if not title:
+                title = f"Analyse: {query.title()}"
+                context.diagnostics.note("assemblage.titre_repli", raison="consigne vide")
 
         # Le summary est un EXTRAIT de la premiere section. Il etait construit
         # ICI, avant _convert_sources_to_bibliography : il embarquait donc des
@@ -2840,26 +2846,6 @@ Retourne JSON:
 
         # Conversion sources → bibliographie
         final_report = self._convert_sources_to_bibliography(final_report)
-
-        # Summary construit APRES conversion : le contenu des sections porte
-        # alors des [n] et non des [SOURCE:url] bruts.
-        #
-        # Filet final : le summary est un EXTRAIT (2 premieres phrases) et la
-        # coupure peut tomber au milieu d'un marqueur, produisant un
-        # "[SOURCE:https://..." orphelin sans crochet fermant — donc
-        # introuvable dans url_to_num. On retire tout residu plutot que de le
-        # livrer au lecteur.
-        _secs = final_report.get("sections") or []
-        if _secs:
-            _first = (_secs[0].get("content") or "").strip()
-            _sentences = _first.split('. ')[:2]
-            _sum = (
-                '. '.join(_sentences).rstrip('.') + '.'
-                if _sentences and _first else "Rapport de recherche approfondie."
-            )
-            import re as _re
-            _sum = _re.sub(r'\s*\[SOURCE:[^\]]*\]?', '', _sum).strip()
-            final_report["summary"] = _sum or "Rapport de recherche approfondie."
 
         # Comptabiliser les sections perdues par echec LLM. Sans cela, un
         # rapport dont TOUTES les sections ont echoue sortait avec
@@ -2923,6 +2909,24 @@ Retourne JSON:
             # Majorite non sourcee -> le rapport n'est pas un resultat fiable.
             if len(unsourced) > len(sections_list) / 2:
                 final_report["degraded"] = True
+
+        # Summary construit APRES conversion (le contenu porte des [n]) et
+        # APRES le retrait des sections marquees : un marqueur interne ne doit
+        # jamais devenir le resume (C41). Le filet final retire tout residu
+        # "[SOURCE:" orphelin issu d'une coupure en milieu de marqueur.
+        _secs = final_report.get("sections") or []
+        if context.config.summary_mode == "none":
+            final_report["summary"] = ""
+        elif _secs:
+            _first = (_secs[0].get("content") or "").strip()
+            _sentences = _first.split('. ')[:2]
+            _sum = (
+                '. '.join(_sentences).rstrip('.') + '.'
+                if _sentences and _first else "Rapport de recherche approfondie."
+            )
+            import re as _re
+            _sum = _re.sub(r'\s*\[SOURCE:[^\]]*\]?', '', _sum).strip()
+            final_report["summary"] = _sum or "Rapport de recherche approfondie."
 
         logger.info(f"  ✓ Rapport assemblé: {total_words} mots, {len(sections_list)} sections")
 

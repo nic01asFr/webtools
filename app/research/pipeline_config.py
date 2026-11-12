@@ -62,7 +62,17 @@ def _convert(name: str, raw: str, tp: Any) -> Any:
 
 @dataclass(frozen=True)
 class PipelineConfig:
-    """Drapeaux et parametres du pipeline. Aucun champ pour l'instant."""
+    """Drapeaux et parametres du pipeline."""
+
+    # --- Lot V3-2 : assemblage du rapport ---
+    clean_title: bool = False  # titre court derive de la consigne au lieu de "Analyse: ..." (C41)
+    summary_mode: str = "extract"  # "extract" (2 premieres phrases) ou "none" (resume vide) (C07)
+
+    def __post_init__(self) -> None:
+        if self.summary_mode not in ("extract", "none"):
+            raise ValueError(
+                f"summary_mode invalide : {self.summary_mode!r} (attendu 'extract' ou 'none')"
+            )
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":

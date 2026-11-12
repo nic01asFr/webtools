@@ -1,0 +1,108 @@
+"""Lot V3-2 : assemblage du rapport (resume, titre, summary_mode)."""
+
+import pytest
+from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrchestrator
+from app.research.pipeline_config import PipelineConfig
+from app.research.report_title import short_title
+
+from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch
+
+QUERY = "Impact of solar energy on rural electricity access"
+GOOD = "Solar kits changed daily life in many districts. Financing stays the main barrier."
+MARKED = "[SECTION_SANS_SOURCE] Aucune donnee exploitable pour cette section."
+
+
+def _orchestrator(config: PipelineConfig) -> IntelligentOrchestrator:
+    return IntelligentOrchestrator(
+        FakeLLM(),
+        search_client=FakeSearch(),
+        extractor_manager=FakeExtractorManager(),
+        config=config,
+    )
+
+
+def _context(query: str, contents: dict[str, str], config: PipelineConfig) -> ExecutionContext:
+    ctx = ExecutionContext(query, config=config)
+    ctx.final_content = {
+        "sections": {n: {"content": c, "raw_data": []} for n, c in contents.items()}
+    }
+    return ctx
+
+
+async def _assemble(
+    contents: dict[str, str], query: str = QUERY, **flags: object
+) -> tuple[dict, ExecutionContext]:
+    config = PipelineConfig(**flags)
+    ctx = _context(query, contents, config)
+    plan = {"sections": list(contents)}
+    report = await _orchestrator(config)._final_assembly(query, plan, ctx)
+    return report, ctx
+
+
+async def test_resume_ignore_la_section_marquee() -> None:
+    report, _ = await _assemble({"A": MARKED, "B": GOOD})
+    assert "SECTION_SANS_SOURCE" not in report["summary"]
+    assert report["summary"].startswith("Solar kits changed")
+    assert report["unsourced_sections"] == ["A"]
+    assert [s["title"] for s in report["sections"]] == ["B"]
+
+
+async def test_degraded_et_champs_inchanges() -> None:
+    report, _ = await _assemble({"A": MARKED, "B": MARKED, "C": GOOD})
+    assert report["degraded"] is True
+    assert report["unsourced_sections"] == ["A", "B"]
+    report, _ = await _assemble({"A": MARKED, "B": GOOD, "C": GOOD})
+    assert "degraded" not in report
+    report, _ = await _assemble({"A": "[SYNTHESE_ECHOUEE] x", "B": GOOD})
+    assert report["degraded"] is True
+    assert report["failed_sections"] == ["A"]
+
+
+async def test_titre_par_defaut_inchange() -> None:
+    report, _ = await _assemble({"A": GOOD})
+    assert report["title"] == f"Analyse: {QUERY.title()}"
+
+
+async def test_clean_title_actif() -> None:
+    long_query = (
+        "Quel est l'impact de l'energie solaire sur l'acces a l'electricite en zone rurale ? " * 3
+    )
+    report, _ = await _assemble({"A": GOOD}, query=long_query, clean_title=True)
+    assert (
+        report["title"]
+        == "Quel est l'impact de l'energie solaire sur l'acces a l'electricite en zone"
+    )
+    assert not report["title"].startswith("Analyse")
+
+
+async def test_clean_title_consigne_vide_repli_note() -> None:
+    report, ctx = await _assemble({"A": GOOD}, query="  ", clean_title=True)
+    assert report["title"].startswith("Analyse")
+    assert ctx.diagnostics.count("assemblage.titre_repli") == 1
+
+
+def test_short_title_coupe_au_mot() -> None:
+    title = short_title("word " * 60)
+    assert len(title) <= 80
+    assert title.endswith("word")
+    assert short_title("") == ""
+
+
+async def test_summary_mode_extract_defaut() -> None:
+    report, _ = await _assemble({"A": GOOD})
+    assert report["summary"]
+
+
+async def test_summary_mode_none() -> None:
+    report, _ = await _assemble({"A": GOOD}, summary_mode="none")
+    assert report["summary"] == ""
+
+
+def test_summary_mode_invalide() -> None:
+    with pytest.raises(ValueError):
+        PipelineConfig(summary_mode="bref")
+    assert (
+        PipelineConfig.from_env({"WEBTOOLS_PIPELINE_SUMMARY_MODE": "none"}).summary_mode == "none"
+    )
+    with pytest.raises(ValueError):
+        PipelineConfig.from_env({"WEBTOOLS_PIPELINE_SUMMARY_MODE": "x"})

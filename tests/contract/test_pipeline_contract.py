@@ -8,7 +8,6 @@ modification, a travers tout deplacement de code (lots de type N).
 Les defauts connus sont des xfail(strict=True) nommes par leur constat :
 le lot qui corrige le defaut fait passer le test en XPASS (strict : echec),
 ce qui oblige a retirer le marqueur.
-- C41 : resume construit avant le retrait des sections marquees
 - C44 : citations a prefixe commun, "[1]/b]" a la place de "[2]"
 """
 
@@ -207,7 +206,7 @@ def common_prefix_citations() -> list[SectionSpec]:
 # generique les ecarte pour ne pas masquer d'autres violations.
 SCENARIOS: dict[str, tuple[Any, set[str]]] = {
     "nominal": (nominal, set()),
-    "section_sans_source": (sourceless_first_section, {"INTERNAL_MARKER"}),  # C41
+    "section_sans_source": (sourceless_first_section, set()),
     "echec_synthese": (synthesis_failure, set()),
     "prefixe_commun": (common_prefix_citations, {"CITATION_RESIDUE"}),  # C44
 }
@@ -267,9 +266,6 @@ async def test_echec_de_synthese_est_signale() -> None:
     assert len(llm.calls_for(pattern=r'Rédige la section "Costs"')) == 3
 
 
-@pytest.mark.xfail(
-    strict=True, reason="C41 : le resume est construit avant le retrait des sections marquees"
-)
 async def test_c41_resume_sans_marqueur_interne() -> None:
     result, _llm, _search, _extractor = await run_scenario("section_sans_source")
     codes = [v["code"] for v in check_report(result["answer"])["violations"]]
