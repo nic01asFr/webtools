@@ -331,7 +331,17 @@ async def semantic_chunk_selection(
     # toujours mieux que rendre une section vide — et un rapport vide
     # sortait jusqu'ici avec success=true. Le seuil sert a classer, il ne
     # doit pas pouvoir aneantir la production.
-    if not selected and scored_items:
+    if not selected and scored_items and not cfg.selection_fallback_enabled:
+        # Section retiree plutot que redigee sur des passages hors sujet.
+        logger.warning("  ⛔ Aucun passage au-dessus du seuil : repli désactivé, section sans source")
+        if context is not None:
+            context.diagnostics.note(
+                "selection.repli_desactive",
+                section=section,
+                meilleur=round(max(s["score"] for s in scored_items), 1),
+                seuil=min_score_threshold,
+            )
+    elif not selected and scored_items:
         fallback_n = min(cfg.selection_fallback_chunks, len(scored_items))
         for scored in scored_items[:fallback_n]:
             selected.append(scored["item"])

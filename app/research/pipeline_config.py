@@ -102,6 +102,9 @@ class PipelineConfig:
 
     # --- Lot V3-8 : recherche rapide ---
     quick_uses_chunk_selection: bool = False  # /research/quick: passages choisis par pertinence au lieu de 2000 car. de tete (C63)
+    # Mesure citecheck du 12/11/2026 : 25 % d'affirmations soutenues dans les
+    # sections redigees apres ce repli, contre 51 % apres une selection normale.
+    selection_fallback_enabled: bool = True  # vrai : sans passage au-dessus du seuil, retenir quand meme les meilleurs
     deep_verify_sections: bool = False  # recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89)
     quick_verify_answer: bool = False  # /research/quick: chaque phrase verifiee contre ses sources, reecriture unique si fautive (C89)
 

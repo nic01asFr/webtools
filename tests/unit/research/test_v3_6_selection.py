@@ -293,3 +293,28 @@ async def test_repli_sous_le_seuil_note_avec_la_section() -> None:
     assert len(events) == 1
     assert events[0]["details"]["section"] == "Recul du trait de cote"
     assert events[0]["details"]["seuil"] == 1000.0
+
+
+
+async def test_repli_desactive_section_sans_passage() -> None:
+    orch, ctx = _orch(), _ctx(selection_fallback_enabled=False)
+    selected = await semantic_chunk_selection(
+        orch.services(), [_item("https://s.org/a")], QUERY, min_score_threshold=1000.0,
+        context=ctx, section="Glossaire",
+    )
+    assert selected == []
+    events = _events(ctx, "selection.repli_desactive")
+    assert len(events) == 1 and events[0]["details"]["section"] == "Glossaire"
+    assert _events(ctx, "selection.repli_sous_seuil") == []
+
+
+async def test_repli_desactive_la_section_n_est_pas_redigee() -> None:
+    llm = FakeLLM()
+    orch = _orch(llm)
+    ctx = ExecutionContext(QUERY, config=PipelineConfig(selection_fallback_enabled=False,
+                                                        selection_min_score_moderate=1000.0))
+    out = await synthesize_single_section(
+        orch.services(), QUERY, SECTION, SECTION_CONFIG, [_item("https://s.org/a")], ctx
+    )
+    assert out.startswith("[SECTION_SANS_SOURCE]")
+    assert llm.calls_for(kind="generate") == []
