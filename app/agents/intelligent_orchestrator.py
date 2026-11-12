@@ -1,21 +1,13 @@
 """
 Intelligent Orchestrator - Orchestrateur Intelligent Multi-Outils
 
-Système qui:
-1. Connaît tous les outils disponibles et leurs capacités
-2. Analyse la requête et le contexte
-3. Planifie la meilleure stratégie
-4. Exécute en s'adaptant aux résultats
-5. Traite et enrichit les données
-6. Ajuste et poursuit jusqu'à obtenir la réponse
+Pipeline de recherche profonde en phases :
+1. Exploration (SearXNG) et plan detaille par sections
+2. Recherche et extraction par section
+3. Enrichissement iteratif et assemblage final du rapport
 
-Outils disponibles:
-- SearXNG: Recherche web pour découvrir sources
-- ExtractAgent: Extraction de contenu web
-- AdaptiveNavigator: API/Sites avec stratégies adaptatives
-- SearchSite: Recherche interactive sur sites
-- DataProcessor: Traitement datasets
-- Vision: Analyse d'images
+Dependances : client de recherche, ExtractorManager, GenericDataExtractor
+(extraction structuree) et client LLM.
 """
 
 import asyncio
@@ -23,15 +15,12 @@ import logging
 import json
 from typing import Dict, Any, List, Optional
 from datetime import datetime
-from enum import Enum
 
-from app.agents.adaptive_navigator import AdaptiveNavigator, StrategyType
-from app.agents.data_processor import DataProcessor, DataProcessorFactory
 from app.core.llm.base import BaseLLMClient
 from app.services.search_service import searxng_client
 from app.manager import ExtractorManager
 from app.api.models import ExtractionOptions
-from app.core.data_extractor import GenericDataExtractor, DataValidator
+from app.core.data_extractor import GenericDataExtractor
 from app.research.diagnostics import Diagnostics
 from app.research.pipeline_config import PipelineConfig
 
@@ -56,38 +45,6 @@ def _extract_domain(url: str) -> str:
         return netloc[4:] if netloc.startswith("www.") else netloc
     except Exception:
         return url
-
-
-class ToolType(str, Enum):
-    """Types d'outils disponibles."""
-    SEARCH_WEB = "search_web"          # SearXNG pour découvrir sources
-    EXTRACT_CONTENT = "extract_content"  # Extraction contenu web
-    API_NAVIGATE = "api_navigate"      # Navigation API
-    SEARCH_SITE = "search_site"        # Recherche sur site
-    PROCESS_DATA = "process_data"      # Traitement données
-    ANALYZE_IMAGE = "analyze_image"    # Analyse d'images
-
-
-class Tool:
-    """Représentation d'un outil avec ses capacités."""
-
-    def __init__(
-        self,
-        name: str,
-        tool_type: ToolType,
-        capabilities: List[str],
-        input_formats: List[str],
-        output_format: str,
-        best_for: List[str],
-        limitations: List[str]
-    ):
-        self.name = name
-        self.tool_type = tool_type
-        self.capabilities = capabilities
-        self.input_formats = input_formats
-        self.output_format = output_format
-        self.best_for = best_for
-        self.limitations = limitations
 
 
 class ExecutionContext:
@@ -201,63 +158,9 @@ class IntelligentOrchestrator:
         # doublures dans les tests.
         self.search_client = search_client if search_client is not None else searxng_client
 
-        # Initialiser les outils
-        self.adaptive_navigator = AdaptiveNavigator(llm_client, timeout)
+        # Outils injectes ou construits par defaut
         self.extractor_manager = extractor_manager if extractor_manager is not None else ExtractorManager()
         self.data_extractor = GenericDataExtractor(llm_client)
-
-        # Catalogue d'outils
-        self.tools = self._init_tools_catalog()
-
-    def _init_tools_catalog(self) -> Dict[str, Tool]:
-        """Initialise le catalogue d'outils."""
-        return {
-            "searxng": Tool(
-                name="SearXNG",
-                tool_type=ToolType.SEARCH_WEB,
-                capabilities=["découvrir_sources", "recherche_web", "trouver_urls"],
-                input_formats=["query_text"],
-                output_format="list_of_urls",
-                best_for=["exploration", "découverte", "sources_multiples"],
-                limitations=["pas_de_contenu_direct", "qualité_variable"]
-            ),
-            "extract": Tool(
-                name="WebExtractor",
-                tool_type=ToolType.EXTRACT_CONTENT,
-                capabilities=["extraire_contenu", "suivre_liens", "parser_html"],
-                input_formats=["url"],
-                output_format="structured_content",
-                best_for=["contenu_pages", "articles", "documentation"],
-                limitations=["sites_complexes", "javascript_lourd"]
-            ),
-            "api_navigator": Tool(
-                name="API Navigator",
-                tool_type=ToolType.API_NAVIGATE,
-                capabilities=["appeler_apis", "parser_docs", "construire_requêtes"],
-                input_formats=["api_url", "query"],
-                output_format="structured_data",
-                best_for=["apis_rest", "données_structurées", "classements"],
-                limitations=["nécessite_doc", "apis_complexes"]
-            ),
-            "search_site": Tool(
-                name="SearchSite",
-                tool_type=ToolType.SEARCH_SITE,
-                capabilities=["recherche_interactive", "formulaires", "navigation"],
-                input_formats=["site_url", "query"],
-                output_format="search_results",
-                best_for=["sites_avec_recherche", "exploration_site"],
-                limitations=["sites_sans_formulaire", "lent"]
-            ),
-            "data_processor": Tool(
-                name="DataProcessor",
-                tool_type=ToolType.PROCESS_DATA,
-                capabilities=["filtrer", "trier", "grouper", "joindre", "transformer"],
-                input_formats=["list_of_dicts"],
-                output_format="processed_data",
-                best_for=["post_traitement", "agrégations", "nettoyage"],
-                limitations=["nécessite_données_structurées"]
-            )
-        }
 
     async def execute_intelligent_research(
         self,
@@ -1256,9 +1159,6 @@ IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
         # Fallback: retourner la section actuelle
         return current_section
 
-    async def close(self):
-        """Ferme les ressources."""
-        await self.adaptive_navigator.close()
     # ===================================================================
     # NOUVELLE ARCHITECTURE OPTIMISÉE
     # Phase 3: Synthèse par section
