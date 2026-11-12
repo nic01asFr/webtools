@@ -18,25 +18,40 @@ sans figurer tel quel dans la source.
 """
 
 import re
+from decimal import Decimal, InvalidOperation
 from typing import Dict, List
 
-# Nombres significatifs : au moins 2 chiffres, ou un decimal, ou un
-# pourcentage. On ignore les petits entiers isoles (1, 2, 3...) qui sont
-# le plus souvent des enumerations, pas des donnees.
-_NUMBER_RE = re.compile(r"\b\d{1,3}(?:[  ,]\d{3})*(?:[.,]\d+)?\s*%?")
+# Nombres significatifs : au moins 2 chiffres, ou un decimal. On ignore les
+# petits entiers isoles (1, 2, 3...) qui sont le plus souvent des
+# enumerations, pas des donnees.
+# Trois formes, essayees dans l'ordre : groupes de milliers a espace (fine ou
+# insecable), groupes de milliers a virgule, entier nu ; puis partie decimale
+# optionnelle. Le premier groupe est limite a 3 chiffres, donc "2021 150"
+# reste deux nombres. Les assertions de bord interdisent de couper un nombre.
+_NUMBER_RE = re.compile(
+    r"(?<![\d.,])"
+    r"(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d{1,3}(?:,\d{3})+|\d+)"
+    r"(?:[.,]\d+)?"
+    r"(?!\d)"
+)
+_THOUSANDS_COMMA_RE = re.compile(r"^\d{1,3}(?:,\d{3})+(?:\.\d+)?$")
 
 
 def _normalise(num: str) -> str:
-    """Ramene un nombre a une forme comparable : 28,7 / 28.7 / 28,70 -> 287"""
+    """Ramene un nombre a une forme comparable : 28,7 / 28.7 / 28,70 -> 28.7"""
     n = num.strip().rstrip("%").strip()
-    n = n.replace(" ", "").replace("\u00a0", "").replace(",", ".")
+    n = n.replace(" ", "").replace("\u00a0", "").replace("\u202f", "")
+    if _THOUSANDS_COMMA_RE.match(n):
+        n = n.replace(",", "")
+    else:
+        n = n.replace(",", ".")
     try:
-        f = float(n)
-    except ValueError:
+        d = Decimal(n)
+    except InvalidOperation:
         return ""
-    # Suffisamment tolerant pour absorber les ecarts de formatage, assez
-    # strict pour distinguer 28.7 de 28.9
-    return f"{f:.4g}"
+    # Forme canonique sans perte : 2021 reste 2021, 28,70 devient 28.7, ce
+    # qui distingue 28.7 de 28.9 et 1500 de 1509.
+    return format(d.normalize(), "f")
 
 
 def extract_numbers(text: str, min_value: float = 10.0) -> List[str]:
