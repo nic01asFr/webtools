@@ -12,6 +12,12 @@
 # Secret : jamais ici. SearXNG remplace secret_key par la variable
 # d'environnement SEARXNG_SECRET (obligatoire, voir docker-compose.yml et
 # start_all.sh).
+#
+# general.contact_url n'est PAS defini ici, volontairement : SearXNG le lit
+# dans la variable d'environnement SEARXNG_CONTACT_URL (verifie sur l'image
+# epinglee : valeur de l'environnement quand le fichier ne la fixe pas).
+# Exigee par les moteurs wikipedia et wikidata (politique d'usage de
+# Wikimedia). L'ecrire ici la rendrait sourde a la variable.
 use_default_settings: true
 
 server:

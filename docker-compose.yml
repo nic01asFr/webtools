@@ -14,6 +14,10 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
+      args:
+        # Identite du code pour /health.commit (l'image n'a pas de git) :
+        #   WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build
+        WEBTOOLS_COMMIT: ${WEBTOOLS_COMMIT:-unknown}
     image: webtools:local
     container_name: webtools-service
     depends_on:
@@ -101,6 +105,15 @@ services:
     volumes:
       - webtools-mcp-state:/state
     restart: unless-stopped
+    # Le HEALTHCHECK de l'image cible l'API (8000) : ce service n'ecoute que
+    # sur 8090. Le serveur MCP n'a pas de route /health ; la route de
+    # decouverte OAuth repond 200 sans authentification (/mcp repond 401).
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8090/.well-known/oauth-authorization-server"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   searxng:
     # Image epinglee par condensat (le tag seul est indicatif). Pour la mettre
