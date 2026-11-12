@@ -876,6 +876,13 @@ class IntelligentOrchestrator:
                 break
 
             logger.info(f"  🎯 {len(weak_sections)} section(s) à enrichir")
+            ctx.diagnostics.note(
+                "enrichissement.iteration",
+                iteration=iteration + 1,
+                weak_sections=len(weak_sections),
+                regenerated_max=min(2, len(weak_sections)),
+                overall_score=quality_analysis.get('overall_score'),
+            )
 
             # Enrichir les sections faibles (max 2 par itération)
             for section_analysis in weak_sections[:2]:
@@ -890,8 +897,23 @@ class IntelligentOrchestrator:
 
                 # Régénérer la section avec les nouvelles données
                 if enrichment_data:
+                    from app.research.enrichment_utils import count_citations
+                    _before = next(
+                        (s for s in report.get('sections', []) if s.get('title') == section_title),
+                        None,
+                    ) or {}
                     updated_section = await self._regenerate_section(
                         query, section_title, report, enrichment_data, ctx
+                    )
+                    _after = updated_section if isinstance(updated_section, dict) else {}
+                    ctx.diagnostics.note(
+                        "enrichissement.section_regeneree",
+                        title=section_title,
+                        chars_before=len(_before.get('content', '') or ''),
+                        chars_after=len(_after.get('content', '') or ''),
+                        citations_before=count_citations(_before.get('content')),
+                        citations_after=count_citations(_after.get('content')),
+                        unchanged=updated_section is _before,
                     )
 
                     # Remplacer la section dans le rapport
@@ -983,6 +1005,7 @@ CRITÈRES:
                             return json.loads(response[start_idx:i + 1])
         except Exception as e:
             logger.error(f"Erreur analyse qualité: {e}")
+            ctx.diagnostics.note("enrichissement.analyse_echouee", error=repr(e))
 
         # Fallback
         return {
@@ -1155,6 +1178,9 @@ IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
                             return result
         except Exception as e:
             logger.error(f"Erreur régénération section: {e}")
+            ctx.diagnostics.note(
+                "enrichissement.regeneration_echouee", title=section_title, error=repr(e)
+            )
 
         # Fallback: retourner la section actuelle
         return current_section
@@ -2742,6 +2768,7 @@ Retourne JSON:
 
         except Exception as e:
             logger.error(f"  ❌ Erreur analyse cohérence: {e}")
+            context.diagnostics.note("coherence.analyse_echouee", error=repr(e))
 
         return {"improvements": [], "redundancies": [], "coherence_score": 75}
 
@@ -2777,6 +2804,13 @@ Retourne JSON:
                     current_content = context.final_content['sections'][section_a]['content']
                     transition_text = f"\n\n{suggestion}"
                     context.final_content['sections'][section_a]['content'] = current_content + transition_text
+                    context.diagnostics.note(
+                        "coherence.transition_collee",
+                        section=section_a,
+                        suggestion_chars=len(suggestion or ""),
+                        chars_before=len(current_content or ""),
+                        chars_after=len(current_content or "") + len(transition_text),
+                    )
                     logger.info(f"     → Transition ajoutée: {section_a} → {section_b}")
 
     async def _final_assembly(
