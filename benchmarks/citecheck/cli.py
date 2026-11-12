@@ -32,7 +32,7 @@ from typing import Any
 import httpx
 
 from citecheck.juge import Judge, Judgement, embedder_for
-from citecheck.llm import Endpoint
+from citecheck.llm import Endpoint, LLMError
 from citecheck.mesures import JUDGED, PROBLEMS, answer_correct, ratio_ci, summarize
 from citecheck.pages import BrowserFetcher, PageStore, default_client
 from citecheck.texte import fold
@@ -342,6 +342,11 @@ async def cmd_evaluate(
     done = {r["key"]: r for r in read_jsonl(results_path)}
 
     endpoint = judge_endpoint(env, llm_transport, args.raisonnement)
+    try:
+        await endpoint.ping(args.juge)
+    except LLMError as exc:
+        await endpoint.close()
+        raise ConfigError(f"juge indisponible : {exc}") from exc
     embedder = None if args.plongements == "aucun" else embedder_for(endpoint, args.plongements)
     judge = Judge(endpoint, args.juge, embedder)
     semaphore = asyncio.Semaphore(args.concurrence)
@@ -584,6 +589,11 @@ async def cmd_calibrate(
 ) -> int:
     cases = load_cases(Path(args.cas))
     endpoint = judge_endpoint(env, llm_transport, args.raisonnement)
+    try:
+        await endpoint.ping(args.juge)
+    except LLMError as exc:
+        await endpoint.close()
+        raise ConfigError(f"juge indisponible : {exc}") from exc
     embedder = None if args.plongements == "aucun" else embedder_for(endpoint, args.plongements)
     judge = Judge(endpoint, args.juge, embedder)
     semaphore = asyncio.Semaphore(args.concurrence)

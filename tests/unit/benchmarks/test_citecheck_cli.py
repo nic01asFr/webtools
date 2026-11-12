@@ -109,6 +109,9 @@ def _judge_transport(calls: list[str]) -> httpx.MockTransport:
     def handler(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
         assert body["chat_template_kwargs"] == {"enable_thinking": False}
+        if len(body["messages"]) == 1:
+            # Controle prealable du juge (ping) : non compte comme jugement.
+            return httpx.Response(200, json={"choices": [{"message": {"content": "OK"}}]})
         user = body["messages"][1]["content"]
         calls.append(user)
         claim = user.split("AFFIRMATION : ")[1].split("\n")[0]
@@ -445,3 +448,16 @@ async def test_lecture_navigateur_sans_fin_bornee(tmp_path: Path) -> None:
     async with default_client(_page_transport()) as client:
         page = await PageStore(tmp_path, client, browser=hung, browser_deadline_s=0.05).get("https://a.example/vide")
     assert not page.ok and page.method == "http+navigateur" and "echeance" in page.error
+
+
+async def test_juge_muet_arrete_l_evaluation(tmp_path: Path) -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ReadTimeout("muet", request=request)
+
+    cases = tmp_path / "cas.jsonl"
+    cases.write_text(json.dumps({"id": "c1", "texte": "t", "affirmation": "a", "attendu": "soutenue"}) + "\n",
+                     encoding="utf-8")
+    args = argparse.Namespace(cas=str(cases), juge="muet", sortie=str(tmp_path), plongements="aucun",
+                              concurrence=1, raisonnement=False)
+    with pytest.raises(cli.ConfigError, match="juge indisponible"):
+        await cli.cmd_calibrate(args, {"CITECHECK_LLM_API_KEY": "k"}, llm_transport=httpx.MockTransport(handler))

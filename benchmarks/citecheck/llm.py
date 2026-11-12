@@ -137,6 +137,21 @@ class Endpoint:
                 continue
         raise LLMError(f"JSON invalide du juge : {last_raw[:300]!r}")
 
+    async def ping(self, model: str, timeout_s: float = 60.0) -> None:
+        """Appel minimal au modele ; leve LLMError s'il ne repond pas a temps.
+
+        Observe le 12/11/2026 : un modele du proxy ne repondait plus ; sans
+        ce controle, chaque citation attendait 3 x 300 s avant d'echouer.
+        """
+        body = {"model": model, "messages": [{"role": "user", "content": "OK"}], "max_tokens": 5,
+                **self.chat_extra}
+        try:
+            response = await self.client.post(f"{self.base_url}/chat/completions", json=body, timeout=timeout_s)
+        except httpx.HTTPError as exc:
+            raise LLMError(f"le modele {model} ne repond pas ({type(exc).__name__})") from exc
+        if response.status_code >= 400:
+            raise LLMError(f"le modele {model} repond HTTP {response.status_code}")
+
     async def embed(self, model: str, texts: list[str], batch: int = 32) -> list[list[float]]:
         vectors: list[list[float]] = []
         for i in range(0, len(texts), batch):
