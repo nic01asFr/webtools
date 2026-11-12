@@ -579,7 +579,8 @@ class IntelligentOrchestrator:
         query: str,
         max_chars: int = 50000,
         depth: str = "moderate",
-        min_score_threshold: float = None
+        min_score_threshold: float = None,
+        context: Optional["ExecutionContext"] = None,
     ) -> List[Dict]:
         """
         Sélectionne intelligemment les chunks les plus pertinents selon la profondeur demandée.
@@ -595,6 +596,8 @@ class IntelligentOrchestrator:
             max_chars: Budget maximum de caractères
             depth: "light" | "moderate" | "deep" - Profondeur d'analyse attendue
             min_score_threshold: Score minimum pour inclure un chunk (auto si None)
+            context: contexte de la requete (cache d'embeddings, diagnostics,
+                configuration) ; sans contexte, cache local et aucune note
 
         Returns:
             Liste triée des chunks les plus pertinents
@@ -611,16 +614,34 @@ class IntelligentOrchestrator:
         # Repli silencieux sur le scoring mots-cles seul si l'appel
         # d'embedding echoue (jamais bloquant pour la selection).
         semantic_scores = {}
-        if hasattr(self.llm_client, "embed") and valid_items:
+        embedding_cache = context.embedding_cache if context is not None else {}
+        if not self.llm_client.supports_embeddings:
+            if valid_items and context is not None:
+                context.diagnostics.note(
+                    "selection.repli_mots_cles",
+                    etape="selection",
+                    raison="embeddings non supportes",
+                )
+        elif valid_items:
             try:
-                texts_to_embed = [query] + [item["content"][:2000] for item in valid_items]
-                vectors = await self.llm_client.embed(texts_to_embed)
+                from app.research.embedding_cache import embed_with_cache
+                vectors = await embed_with_cache(
+                    self.llm_client,
+                    embedding_cache,
+                    [query] + [item["content"] for item in valid_items],
+                )
                 query_vec = vectors[0]
                 for item, vec in zip(valid_items, vectors[1:]):
                     semantic_scores[id(item)] = _cosine_similarity(query_vec, vec)
                 logger.info(f"  🧠 Scoring sémantique par embeddings : {len(semantic_scores)} chunks scorés")
             except Exception as e:
                 logger.warning(f"Embeddings indisponibles pour la selection semantique, repli sur mots-cles seuls: {e}")
+                if context is not None:
+                    context.diagnostics.note(
+                        "selection.repli_mots_cles",
+                        etape="selection",
+                        raison=f"embeddings en erreur : {e}",
+                    )
 
         scored_items = []
 
@@ -667,8 +688,11 @@ class IntelligentOrchestrator:
                 try:
                     from app.utils.factual_density import factual_density
                     fact_bonus = factual_density(item.get("content", ""))["score"] * 10.0
-                except Exception:
-                    pass
+                except Exception as e:
+                    if context is not None:
+                        context.diagnostics.note(
+                            "selection.densite_factuelle_indisponible", erreur=str(e)
+                        )
 
                 score = (keyword_score * 0.5) + (sem * 100 * 0.35) + (corrob * 100 * 0.15) + fact_bonus
             else:
@@ -709,6 +733,8 @@ class IntelligentOrchestrator:
         selected = []
         total_chars = 0
         chunks_selected = 0
+        max_per_source = context.config.max_chunks_per_source if context is not None else 0
+        per_source: Dict[str, int] = {}
 
         for scored in scored_items:
             # Arrêter si on a atteint le nombre cible ET que le score diminue trop
@@ -721,6 +747,14 @@ class IntelligentOrchestrator:
 
             item = scored["item"]
             content_len = scored["content_length"]
+
+            # Plafond par source (0 = aucun) : un seul document long ne doit
+            # pas remplir tout le budget.
+            if max_per_source > 0:
+                source_key = str(item.get("source", ""))
+                if per_source.get(source_key, 0) >= max_per_source:
+                    continue
+                per_source[source_key] = per_source.get(source_key, 0) + 1
 
             # Vérifier si on peut ajouter ce chunk
             if total_chars + content_len > max_chars:
@@ -2248,23 +2282,32 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         # Embeddings des nouveaux chunks, avec cache partage (evite un
         # recalcul si _semantic_chunk_selection traite le meme contenu ensuite)
         new_embeddings = {}
-        if hasattr(self.llm_client, "embed") and new_data:
+        if not self.llm_client.supports_embeddings:
+            if new_data:
+                context.diagnostics.note(
+                    "selection.repli_mots_cles",
+                    etape="croisement",
+                    section=section_name,
+                    raison="embeddings non supportes",
+                )
+        elif new_data:
             try:
-                to_embed, keys = [], []
-                for dp in new_data:
-                    key = dp.get("source", "") + "::" + dp.get("content", "")[:100]
-                    if key not in context.embedding_cache:
-                        to_embed.append(dp.get("content", "")[:2000])
-                        keys.append(key)
-                if to_embed:
-                    vectors = await self.llm_client.embed(to_embed)
-                    for key, vec in zip(keys, vectors):
-                        context.embedding_cache[key] = vec
-                for dp in new_data:
-                    key = dp.get("source", "") + "::" + dp.get("content", "")[:100]
-                    new_embeddings[id(dp)] = context.embedding_cache.get(key)
+                from app.research.embedding_cache import embed_with_cache
+                vectors = await embed_with_cache(
+                    self.llm_client,
+                    context.embedding_cache,
+                    [dp.get("content", "") for dp in new_data],
+                )
+                for dp, vec in zip(new_data, vectors):
+                    new_embeddings[id(dp)] = vec
             except Exception as e:
                 logger.warning(f"       Embeddings indisponibles pour le croisement semantique: {e}")
+                context.diagnostics.note(
+                    "selection.repli_mots_cles",
+                    etape="croisement",
+                    section=section_name,
+                    raison=f"embeddings en erreur : {e}",
+                )
 
         for data_point in new_data:
             enriched_point = data_point.copy()
@@ -2380,8 +2423,25 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
             # ailleurs : ce client accepte des prompts de 30 000 caracteres
             # sans difficulte.
             max_chars=16000,
-            depth=depth
+            depth=depth,
+            context=context,
         )
+
+        # Charge utile du bloc DONNEES DISPONIBLES. Par defaut les passages
+        # complets (cross_references, metadata, compteurs compris) ; en mode
+        # minimal, seulement ce que la redaction cite.
+        if context.config.prompt_payload_minimal:
+            prompt_payload = [
+                {
+                    "source": d.get("source", ""),
+                    "title": d.get("title", ""),
+                    "content": d.get("content", ""),
+                    "corroboration_count": d.get("corroboration_count", 0),
+                }
+                for d in selected_data
+            ]
+        else:
+            prompt_payload = selected_data
 
         # Construire le prompt de synthèse
         depth_instructions = {
@@ -2445,7 +2505,7 @@ INSTRUCTIONS:
 {depth_instructions}
 {already_written_block}
 DONNÉES DISPONIBLES ({len(selected_data)} sources):
-{json.dumps(selected_data, indent=2, ensure_ascii=False)}
+{json.dumps(prompt_payload, indent=2, ensure_ascii=False)}
 
 RÈGLES:
 1. CITATIONS — chaque affirmation factuelle porte sa source, en fin de
@@ -2578,6 +2638,12 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
                     max_tokens=int(words_target * 4.5),
                     temperature=0.3
                 )
+                if self.llm_client.last_truncated:
+                    context.diagnostics.note(
+                        "selection.synthese_tronquee",
+                        section=section_name,
+                        max_tokens=int(words_target * 4.5),
+                    )
                 if response and response.strip():
                     # Controle de fidelite numerique : signale les chiffres
                     # ecrits qui n'apparaissent dans aucune source de la
@@ -2596,8 +2662,19 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
                                 f"{_fid['numbers_written']} chiffre(s) absent(s) des sources "
                                 f"(fidélité {_fid['fidelity_rate']}) — {_fid['unmatched'][:5]}"
                             )
+                            context.diagnostics.note(
+                                "selection.chiffres_absents",
+                                section=section_name,
+                                nombre=_fid["unmatched_count"],
+                                ecrits=_fid["numbers_written"],
+                            )
                     except Exception as e:
                         logger.debug(f"Contrôle de fidélité non appliqué : {e}")
+                        context.diagnostics.note(
+                            "selection.controle_fidelite_indisponible",
+                            section=section_name,
+                            erreur=str(e),
+                        )
 
                     word_count = len(response.split())
                     if word_count < 50 and words_target >= 150:

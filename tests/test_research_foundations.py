@@ -25,7 +25,9 @@ class _DemoConfig(PipelineConfig):
 
 
 def test_config_vide_par_defaut() -> None:
-    assert PipelineConfig().to_dict() == {}
+    # Chaque champ vaut son defaut : aucune valeur n'est imposee sans variable.
+    expected = {f.name: f.default for f in dataclasses.fields(PipelineConfig)}
+    assert PipelineConfig().to_dict() == expected
     assert PipelineConfig.from_env({}) == PipelineConfig()
 
 
@@ -44,7 +46,8 @@ def test_config_conversion_selon_le_type() -> None:
         "AUTRE": "x",
     }
     cfg = _DemoConfig.from_env(env)
-    assert cfg.to_dict() == {"flag": True, "limit": 7, "ratio": 0.25, "label": "Mixte", "maybe": 12}
+    own = {"flag": True, "limit": 7, "ratio": 0.25, "label": "Mixte", "maybe": 12}
+    assert {k: v for k, v in cfg.to_dict().items() if k in own} == own
 
 
 @pytest.mark.parametrize("raw,expected", [("1", True), ("OFF", False), ("yes", True), ("0", False)])

@@ -62,7 +62,11 @@ def _convert(name: str, raw: str, tp: Any) -> Any:
 
 @dataclass(frozen=True)
 class PipelineConfig:
-    """Drapeaux et parametres du pipeline. Aucun champ pour l'instant."""
+    """Drapeaux et parametres du pipeline."""
+
+    # --- Lot V3-6 : selection des passages et donnees du prompt ---
+    prompt_payload_minimal: bool = False  # le prompt de synthese ne recoit que source, title, content, corroboration_count (C39)
+    max_chunks_per_source: int = 0  # plafond de passages retenus par source ; 0 = pas de plafond (C38)
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":
