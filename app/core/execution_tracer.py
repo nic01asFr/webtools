@@ -77,10 +77,6 @@ class ExecutionTracer:
         self.start_time = time.time()
         self.metadata: Dict[str, Any] = {}
 
-    def add_metadata(self, key: str, value: Any):
-        """Ajouter des métadonnées globales"""
-        self.metadata[key] = value
-
     def step(self, action: str, tool: str) -> 'StepContext':
         """
         Context manager pour tracer une étape
@@ -136,19 +132,6 @@ class ExecutionTracer:
             }
         }
 
-    def get_steps_by_action(self, action: str) -> List[ExecutionStep]:
-        """Récupérer toutes les étapes d'un certain type"""
-        return [step for step in self.steps if step.action == action]
-
-    def get_steps_by_tool(self, tool: str) -> List[ExecutionStep]:
-        """Récupérer toutes les étapes utilisant un outil"""
-        return [step for step in self.steps if step.tool == tool]
-
-    def has_failures(self) -> bool:
-        """Vérifier s'il y a eu des échecs"""
-        return any(step.status == StepStatus.FAILED for step in self.steps)
-
-
 class StepContext:
     """Context manager pour une étape d'exécution"""
 
@@ -198,19 +181,3 @@ class StepContext:
     def set_output(self, data: Dict[str, Any]):
         """Définir les données de sortie"""
         self.output_data = data
-
-    def set_status(self, status: StepStatus, error: Optional[str] = None):
-        """Définir le status de l'étape"""
-        self.status = status
-        if error:
-            self.error = error
-
-    def mark_partial(self, reason: str):
-        """Marquer comme partiellement réussi"""
-        self.status = StepStatus.PARTIAL
-        self.error = reason
-
-    def mark_failed(self, reason: str):
-        """Marquer comme échoué"""
-        self.status = StepStatus.FAILED
-        self.error = reason
