@@ -90,10 +90,22 @@ async def extract_web_content(request: ExtractRequest) -> ExtractResponse:
         if request.llm_config:
             llm_client = own_client = await _create_caller_client(request.llm_config)
         else:
-            llm_client = await get_llm_client()
+            llm_client = None
 
         # Options d'extraction
         options = request.options or None
+
+        # Le client partage n'est demande que si l'extraction en a besoin
+        # (agent actif) ; sans cle, le gestionnaire degrade vers l'extraction
+        # directe et la reponse le signale.
+        llm_unavailable = False
+        needs_llm = options.use_agent if options is not None else True
+        if llm_client is None and needs_llm:
+            try:
+                llm_client = await get_llm_client()
+            except ValueError as e:
+                logger.warning("Client LLM indisponible, extraction directe: %s", e)
+                llm_unavailable = True
 
         # Effectuer l'extraction
         logger.info(f"Extraction demandée pour {request.url}")
@@ -107,6 +119,8 @@ async def extract_web_content(request: ExtractRequest) -> ExtractResponse:
 
         # Convertir en réponse API
         response = ExtractResponse.from_web_result(result)
+        if llm_unavailable:
+            response.metadata["llm_disponible"] = False
 
         if not response.success:
             logger.warning(f"Extraction échouée pour {request.url}: {response.error}")
