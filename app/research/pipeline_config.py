@@ -74,6 +74,11 @@ class PipelineConfig:
                 f"summary_mode invalide : {self.summary_mode!r} (attendu 'extract' ou 'none')"
             )
 
+    # --- Lot V3-1 : citations et bibliographie ---
+    validate_cited_urls: bool = False  # rapproche ou retire les URL citees non fournies (C45)
+    bibliography_cited_only: bool = False  # bibliographie limitee aux sources citees (C45)
+    bibliography_real_titles: bool = False  # titre reel de la page au lieu de "Source n" (C45)
+
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":
         """Construit la configuration depuis l'environnement.

@@ -8,7 +8,6 @@ modification, a travers tout deplacement de code (lots de type N).
 Les defauts connus sont des xfail(strict=True) nommes par leur constat :
 le lot qui corrige le defaut fait passer le test en XPASS (strict : echec),
 ce qui oblige a retirer le marqueur.
-- C44 : citations a prefixe commun, "[1]/b]" a la place de "[2]"
 """
 
 import asyncio
@@ -208,7 +207,7 @@ SCENARIOS: dict[str, tuple[Any, set[str]]] = {
     "nominal": (nominal, set()),
     "section_sans_source": (sourceless_first_section, set()),
     "echec_synthese": (synthesis_failure, set()),
-    "prefixe_commun": (common_prefix_citations, {"CITATION_RESIDUE"}),  # C44
+    "prefixe_commun": (common_prefix_citations, set()),  # C44 corrige (V3-1)
 }
 
 
@@ -272,9 +271,6 @@ async def test_c41_resume_sans_marqueur_interne() -> None:
     assert "INTERNAL_MARKER" not in codes
 
 
-@pytest.mark.xfail(
-    strict=True, reason="C44 : citations a prefixe commun, [SOURCE:.../a/b] devient [1]/b]"
-)
 async def test_c44_citations_a_prefixe_commun() -> None:
     result, _llm, _search, _extractor = await run_scenario("prefixe_commun")
     codes = [v["code"] for v in check_report(result["answer"])["violations"]]
