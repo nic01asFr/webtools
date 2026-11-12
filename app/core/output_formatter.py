@@ -63,6 +63,8 @@ class OutputFormatter:
         unsourced_sections: Optional[List[str]] = None,
         missing_sections: Optional[List[str]] = None,
         diagnostics: Optional[Dict[str, Any]] = None,
+        required_sources_failed: Optional[List[Dict[str, str]]] = None,
+        required_sources_uncited: Optional[List[str]] = None,
     ) -> Dict[str, Any]:
         """
         Formater output pour /api/v1/research/deep.
@@ -88,7 +90,7 @@ class OutputFormatter:
             summary["sources_discovered"] = len(execution_context.get("sources_discovered") or [])
         summary["required_sources_status"] = self.registry.required_sources_status()
 
-        return {
+        body: Dict[str, Any] = {
             "success": success,
             "degraded": degraded,
             "timed_out": timed_out,
@@ -105,3 +107,9 @@ class OutputFormatter:
                 "config": {}, "events": {"counts": {}, "events": []}, "invariants": None
             },
         }
+        # Cles presentes seulement quand non vides (sources.required de la requete).
+        if required_sources_failed:
+            body["required_sources_failed"] = list(required_sources_failed)
+        if required_sources_uncited:
+            body["required_sources_uncited"] = list(required_sources_uncited)
+        return body

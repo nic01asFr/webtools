@@ -191,12 +191,23 @@ Paramètres :
   selon la profondeur de la section
 - `output_format.include_section_data` → joint à chaque section les passages
   extraits (`data`, texte intégral) ; absent de la réponse sinon
-- `objectives`, `context.language`, `output_format.sections` (ou `output_sections`)
-  → transmis au modèle qui planifie le rapport
+- `objectives`, `context.language` → transmis au modèle qui planifie le rapport
+- `output_format.sections` (ou `output_sections`) → sections IMPOSÉES : le rapport
+  contient exactement ces sections, avec ces titres et dans cet ordre (titres
+  comparés sans tenir compte de la casse ni des espaces) ; les sections proposées
+  en plus par le modèle sont retirées, les manquantes ajoutées. Une section sans
+  matière exploitable est retirée et signalée dans `unsourced_sections`. Les écarts
+  du plan sont dans `diagnostics.events` (`plan.sections_imposees`)
 
 Contraintes de sources :
-- `sources.required` → URLs à utiliser ; `execution.summary.required_sources_status`
-  dit si elles ont servi
+- `sources.required` → URLs OBLIGATOIRES : chacune est extraite avant la rédaction
+  (même hors de `domains_whitelist` ou dans `exclusions`), découpée en passages et
+  proposée à toutes les sections ; la pertinence décide où elle sert. Une URL non
+  extraite rend le rapport `degraded`, avec `required_sources_failed` (url, reason)
+  et un message d'erreur ; une URL extraite mais non citée figure dans
+  `required_sources_uncited` sans dégrader le rapport. Ces deux listes sont
+  absentes quand elles sont vides. `execution.summary.required_sources_status`
+  vaut `none_required`, `all_success` ou `partial_failure`
 - `sources.domains_whitelist` → Limiter à ces domaines
 - `sources.exclusions` → Exclure ces domaines
 

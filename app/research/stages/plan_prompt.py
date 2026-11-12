@@ -45,6 +45,32 @@ def is_meta_section(name: str) -> bool:
     return any(p in low for p in META_SECTION_PATTERNS)
 
 
+def imposed_sections_block(imposed: list) -> str:
+    """Consigne des sections imposees, ajoutee au prompt du plan quand l'appelant en fixe."""
+    listing = "\n".join(f"{i}. {t}" for i, t in enumerate(imposed, start=1))
+    return (
+        "\n\n"
+        "SECTIONS IMPOSEES PAR L'APPELANT : le plan contient EXACTEMENT les "
+        "sections suivantes, avec ces titres, dans cet ordre, sans en ajouter ni "
+        "en retirer ni en reformuler le titre. Construis pour chacune sa cible "
+        "(profondeur, objectifs, questions, requetes).\n"
+        + listing
+        + "\n"
+    )
+
+
+def required_sources_block(exploration_data: dict) -> str:
+    """Titres et extraits des sources requises deja lues, pour que le plan les voie."""
+    items = [s for s in (exploration_data.get("sources") or []) if s.get("required")]
+    if not items:
+        return ""
+    lines = [
+        "SOURCES OBLIGATOIRES DEJA LUES (le plan doit en tenir compte) :",
+        *(f"- {s.get('title') or s.get('url')} ({s.get('url')}) : {s.get('snippet', '')}" for s in items),
+    ]
+    return "\n" + "\n".join(lines) + "\n"
+
+
 def build_plan_prompt_v2(
     query: str,
     context: dict,
@@ -77,9 +103,7 @@ def build_plan_prompt_v2(
         lines.append("OBJECTIFS: " + "; ".join(str(o) for o in objectives))
     imposed = ctx_in.get("output_sections")
     if imposed:
-        lines.append(
-            "SECTIONS IMPOSEES (a reprendre telles quelles): " + "; ".join(str(x) for x in imposed)
-        )
+        lines.append(imposed_sections_block([str(x) for x in imposed]).strip())
     for key, label in (
         ("sources_required", "SOURCES OBLIGATOIRES"),
         ("sources_suggested", "SOURCES SUGGEREES"),

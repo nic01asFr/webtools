@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 from app.research.context import ExecutionContext
 from app.research.stages.services import StageServices
 from app.research.stages.extract import section_extraction_phase
+from app.research.stages.required import add_required_chunks
 from app.research.stages.search import section_research_phase, targeted_search
 
 logger = logging.getLogger(__name__)
@@ -155,5 +156,9 @@ async def collect_section_data(
                 logger.info(
                     f"     ✓ +{len(extra['sources'])} source(s), total: {len(extracted_by_section[section_name])}"
                 )
+
+    # Sources requises (V4-4) : candidates pour toutes les sections, apres le
+    # complement pour ne pas fausser le decompte de sources de chaque section.
+    add_required_chunks(ctx, extracted_by_section)
 
     return extracted_by_section
