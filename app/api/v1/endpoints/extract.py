@@ -7,8 +7,11 @@ from fastapi import APIRouter, HTTPException, status
 
 from app.api.models import ExtractRequest, ExtractResponse
 from app.manager import ExtractorManager
+from app.core.llm import get_llm_client
+from app.core.llm.base import BaseLLMClient, LLMClientError
 from app.core.llm.factory import LLMFactory
-from app.core.llm.base import LLMClientError
+from app.api.models import LLMConfig
+from app.utils.url_safety import UnsafeURLError, assert_safe_url_async
 
 logger = logging.getLogger(__name__)
 
@@ -16,6 +19,43 @@ router = APIRouter()
 
 # Instance globale du manager
 manager = ExtractorManager()
+
+# Messages renvoyes au client : un par categorie, le detail va dans les journaux.
+MSG_BAD_LLM_CONFIG = "Configuration LLM invalide"
+MSG_UNSAFE_BASE_URL = "llm_config.base_url refusee (adresse non publique ou invalide)"
+MSG_INTERNAL = "Erreur interne lors de l'extraction"
+
+
+async def _create_caller_client(llm_config: LLMConfig) -> BaseLLMClient:
+    """
+    Cree le client LLM de la configuration fournie par l'appelant.
+
+    base_url passe d'abord par la garde SSRF : sinon le serveur enverrait le
+    texte de la page a un hote arbitraire. Leve HTTPException 400 si elle est
+    refusee ou si la configuration est invalide.
+    """
+    if llm_config.base_url:
+        try:
+            await assert_safe_url_async(llm_config.base_url)
+        except UnsafeURLError as e:
+            logger.warning("llm_config.base_url refusee (SSRF): %s", e)
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST, detail=MSG_UNSAFE_BASE_URL
+            )
+    try:
+        client = LLMFactory.create(
+            provider=llm_config.provider,
+            api_key=llm_config.api_key,
+            model=llm_config.model,
+            base_url=llm_config.base_url
+        )
+    except LLMClientError as e:
+        logger.warning("Configuration LLM invalide: %s", e)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=MSG_BAD_LLM_CONFIG
+        )
+    logger.info("Client LLM créé: %s", llm_config.provider)
+    return client
 
 
 @router.post(
@@ -43,23 +83,14 @@ async def extract_web_content(request: ExtractRequest) -> ExtractResponse:
     Raises:
         HTTPException: En cas d'erreur de validation ou de configuration
     """
+    # Client propre a la requete, a fermer en fin de traitement. Reste None
+    # quand l'appelant utilise la configuration du service (client partage).
+    own_client = None
     try:
-        # Créer le client LLM si configuré
-        llm_client = None
         if request.llm_config:
-            try:
-                llm_client = LLMFactory.create(
-                    provider=request.llm_config.provider,
-                    api_key=request.llm_config.api_key,
-                    model=request.llm_config.model,
-                    base_url=request.llm_config.base_url
-                )
-                logger.info(f"Client LLM créé: {request.llm_config.provider}")
-            except LLMClientError as e:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail=f"Configuration LLM invalide: {str(e)}"
-                )
+            llm_client = own_client = await _create_caller_client(request.llm_config)
+        else:
+            llm_client = await get_llm_client()
 
         # Options d'extraction
         options = request.options or None
@@ -73,22 +104,6 @@ async def extract_web_content(request: ExtractRequest) -> ExtractResponse:
             llm_client=llm_client,
             options=options
         )
-
-        # NE PAS fermer le client LLM ici : get_llm_client() renvoie une
-        # instance PARTAGEE par tout le service. La fermer apres une
-        # extraction rendait le client inutilisable pour tout le reste du
-        # processus - "Cannot send a request, as the client has been closed",
-        # remonte par le SDK comme un generique "Connection error".
-        #
-        # C'etait la cause des syntheses perdues dans research/deep : ce
-        # pipeline declenche des dizaines d'extractions, la premiere fermait
-        # le client partage et TOUTES les syntheses suivantes echouaient,
-        # rendant un rapport vide avec success=true. Symptome trompeur : le
-        # client teste isolement passait 15 appels enchaines sans un echec,
-        # et research/quick (peu d'extractions) fonctionnait normalement.
-        #
-        # Le cycle de vie du client partage appartient a l'application, pas a
-        # un endpoint.
 
         # Convertir en réponse API
         response = ExtractResponse.from_web_result(result)
@@ -105,5 +120,11 @@ async def extract_web_content(request: ExtractRequest) -> ExtractResponse:
         logger.error(f"Erreur lors de l'extraction: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Erreur interne lors de l'extraction: {str(e)}"
+            detail=MSG_INTERNAL
         )
+
+    finally:
+        # Seul un client cree pour cette requete est ferme : le client partage
+        # de get_llm_client() appartient a l'application.
+        if own_client is not None:
+            await own_client.close()
