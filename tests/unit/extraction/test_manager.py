@@ -230,10 +230,23 @@ async def test_budget_borne_un_palier_lent() -> None:
 
 
 async def test_budget_partage_entre_paliers() -> None:
-    pdf = FakeTier(None, delay=0.4)
-    rss = FakeTier(None, delay=0.4)
+    # Horloge simulee : chaque palier consomme 0.4 s de budget sans attente
+    # reelle. La version precedente dormait vraiment et echouait sous charge
+    # (un reliquat de budget de quelques millisecondes laissait passer le
+    # palier direct).
+    now = [0.0]
     direct = FakeTier(ok(ARTICLE))
+
+    class SlowTier(FakeTier):
+        async def try_extract(self, url: str, timeout: int = 10) -> WebResult | None:
+            self.calls += 1
+            now[0] += 0.4
+            return None
+
+    pdf = SlowTier(None)
+    rss = SlowTier(None)
     manager = make_manager(pdf=pdf, rss=rss, direct=direct)
+    manager._clock = lambda: now[0]
     opts = ExtractionOptions.model_construct(
         use_agent=False,
         timeout=0.6,
@@ -244,7 +257,9 @@ async def test_budget_partage_entre_paliers() -> None:
         enable_ocr=False,
     )
     result = await manager.extract(ARTICLE, options=opts)
-    # 0.4 + 0.4 > 0.6 : le palier RSS est borne et le direct n'est jamais atteint.
+    # 0.4 + 0.4 > 0.6 : le budget est epuise apres le RSS, le direct n'est
+    # jamais atteint.
+    assert pdf.calls == 1 and rss.calls == 1
     assert not result.success
     assert direct.calls == 0
 
