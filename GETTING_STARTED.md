@@ -56,6 +56,66 @@ make docker-logs
 curl http://localhost:8000/health
 ```
 
+## Deploiement : trois services, deux environnements Python
+
+webtools se compose de trois services, identiques avec Docker
+(`docker-compose.yml`) et sans (`start_all.sh`) :
+
+| Service | Role | Environnement |
+|---|---|---|
+| `searxng` | moteur de recherche, configure par `docker/searxng/settings.yml` | image epinglee par condensat |
+| `webtools` | API FastAPI | dependances de `requirements.lock` |
+| `webtools-mcp` | serveur MCP, client HTTP de l'API | dependances de `requirements-mcp.lock` |
+
+L'API (`browser-use` impose `pydantic<2.11`) et le serveur MCP (`fastmcp`
+exige `pydantic>=2.12`) ne se resolvent pas dans un meme environnement : ne
+les installez jamais ensemble. L'image Docker contient les deux venvs
+(`/opt/venv-api`, `/opt/venv-mcp`).
+
+Sans Docker, designez les interpreteurs par variables :
+
+```bash
+python -m venv venv-api && venv-api/bin/pip install -r requirements.lock
+python -m venv venv-mcp && venv-mcp/bin/pip install -r requirements-mcp.lock
+export WEBTOOLS_API_PYTHON=$PWD/venv-api/bin/python
+export WEBTOOLS_MCP_PYTHON=$PWD/venv-mcp/bin/python
+# Variables obligatoires : voir .env.example
+./start_all.sh
+```
+
+La configuration SearXNG est `docker/searxng/settings.yml`
+(`SEARXNG_SETTINGS_PATH` dans `start_all.sh`) ; le test
+`tests/unit/config/test_searxng_settings.py` verifie qu'elle active chaque
+moteur nomme dans `AXIS_PREFERENCE`, `ENGINE_INTERVALS` et
+`FALLBACK_PROFILES`. Ajouter un moteur au code oblige a l'ajouter au YAML.
+
+### Regenerer les fichiers de verrou
+
+Toujours dans un venv jetable hors du depot, jamais dans un venv partage :
+
+```bash
+T="$(mktemp -d)" && python3.11 -m venv "$T/venv" && "$T/venv/bin/pip" install pip-tools
+# API : dependances principales de pyproject.toml
+"$T/venv/bin/python" -m piptools compile --no-header --strip-extras -o requirements.lock pyproject.toml
+# MCP : liste de l'extra mcp de pyproject.toml, plus httpx
+printf 'fastmcp>=3.0.0
+mcp>=1.0.0
+starlette>=0.37.0
+httpx>=0.27.2
+' > "$T/mcp.in"
+"$T/venv/bin/python" -m piptools compile --no-header --strip-extras -o requirements-mcp.lock "$T/mcp.in"
+```
+
+Puis remettre les deux lignes de commentaire d'en-tete des verrous (voir
+`git diff`). Utiliser Python 3.11, comme l'image. Variante sans pip-tools :
+`pip install --dry-run --ignore-installed --report rapport.json -r <liste>`.
+
+### Mettre a jour l'image SearXNG
+
+`docker buildx imagetools inspect searxng/searxng:latest` donne le condensat ;
+le reporter dans `docker-compose.yml`, puis lancer `pytest tests/unit/config`
+et verifier `/config` de l'instance (moteurs presents et actifs).
+
 ## 🔧 Configuration Minimale
 
 Éditez le fichier `.env` avec au moins une configuration LLM :

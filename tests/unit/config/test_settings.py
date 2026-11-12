@@ -46,5 +46,7 @@ def test_surcharge_par_environnement(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_accesseur_searxng_retire_la_barre_finale(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr(config, "settings", Settings(searxng_base_url="http://x:8080/", _env_file=None))
+    monkeypatch.setattr(
+        config, "settings", Settings(searxng_base_url="http://x:8080/", _env_file=None)
+    )
     assert config.get_searxng_base_url() == "http://x:8080"

@@ -55,7 +55,8 @@ def test_moteurs_de_axis_preference_actives(moteurs: Dict[str, dict]) -> None:
     absents = sorted(n for n in _attendus_par_axe() if n not in moteurs)
     assert not absents, f"moteurs de AXIS_PREFERENCE absents de settings.yml : {absents}"
     inactifs = sorted(
-        n for n in _attendus_par_axe()
+        n
+        for n in _attendus_par_axe()
         if moteurs[n].get("disabled", True) or moteurs[n].get("inactive", True)
     )
     assert not inactifs, f"moteurs de AXIS_PREFERENCE non actifs : {inactifs}"
@@ -63,7 +64,8 @@ def test_moteurs_de_axis_preference_actives(moteurs: Dict[str, dict]) -> None:
 
 def test_moteurs_a_intervalle_actives(moteurs: Dict[str, dict]) -> None:
     manquants = sorted(
-        n for n in SearXNGClient.ENGINE_INTERVALS
+        n
+        for n in SearXNGClient.ENGINE_INTERVALS
         if n not in moteurs or moteurs[n].get("disabled", True) or moteurs[n].get("inactive", True)
     )
     assert not manquants, f"moteurs de ENGINE_INTERVALS non actifs : {manquants}"
@@ -72,7 +74,8 @@ def test_moteurs_a_intervalle_actives(moteurs: Dict[str, dict]) -> None:
 def test_moteurs_des_profils_de_repli_actives(moteurs: Dict[str, dict]) -> None:
     attendus = {n for noms in FALLBACK_PROFILES.values() for n in noms} - FALLBACK_SANS_MOTEUR
     manquants = sorted(
-        n for n in attendus
+        n
+        for n in attendus
         if n not in moteurs or moteurs[n].get("disabled", True) or moteurs[n].get("inactive", True)
     )
     assert not manquants, f"moteurs de FALLBACK_PROFILES non actifs : {manquants}"
@@ -86,7 +89,9 @@ def test_categories_coherentes_avec_les_axes(moteurs: Dict[str, dict]) -> None:
             cats = sorted(moteurs[nom]["categories"])
             assert not set(cats) & EXCLUDED_CATEGORIES, f"{nom} : categorie exclue {cats}"
             assert nom not in EXCLUDED_ENGINES
-            axe_reel = next((CATEGORY_TO_AXIS[c] for c in cats if c in CATEGORY_TO_AXIS), DEFAULT_AXIS)
+            axe_reel = next(
+                (CATEGORY_TO_AXIS[c] for c in cats if c in CATEGORY_TO_AXIS), DEFAULT_AXIS
+            )
             assert nom in AXIS_PREFERENCE[axe_reel], (
                 f"{nom} (axe attendu {axe}) tombe sur l'axe {axe_reel} avec {cats}"
             )

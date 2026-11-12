@@ -1,0 +1,494 @@
+# Verrou de l'API (dependances principales de pyproject.toml, browser-use inclus).
+# Genere par pip-compile ; ne pas editer a la main. Regeneration : GETTING_STARTED.md.
+annotated-doc==0.0.6
+    # via
+    #   fastapi
+    #   typer
+annotated-types==0.8.0
+    # via pydantic
+anthropic==0.125.0
+    # via
+    #   langchain-anthropic
+    #   webtools-service (pyproject.toml)
+anyio==4.16.0
+    # via
+    #   anthropic
+    #   fastapi
+    #   httpx
+    #   httpx2
+    #   openai
+    #   starlette
+    #   watchfiles
+babel==2.18.0
+    # via courlan
+backoff==2.2.1
+    # via posthog
+beautifulsoup4==4.15.0
+    # via
+    #   markdownify
+    #   webtools-service (pyproject.toml)
+boto3==1.44.1
+    # via langchain-aws
+botocore==1.44.1
+    # via
+    #   boto3
+    #   browser-use
+    #   s3transfer
+browser-use==0.1.41
+    # via webtools-service (pyproject.toml)
+certifi==2026.10.23
+    # via
+    #   httpcore
+    #   httpx
+    #   requests
+    #   trafilatura
+cffi==2.1.1
+    # via cryptography
+charset-normalizer==3.5.2
+    # via
+    #   htmldate
+    #   pdfminer-six
+    #   requests
+    #   trafilatura
+click==8.5.1
+    # via
+    #   huggingface-hub
+    #   uvicorn
+cloudpickle==3.1.2
+    # via joblib
+colorama==0.4.6
+    # via
+    #   tqdm
+    #   typer
+courlan==1.4.0
+    # via trafilatura
+cryptography==50.0.2
+    # via
+    #   google-auth
+    #   pdfminer-six
+dateparser==1.5.0
+    # via htmldate
+defusedxml==0.7.1
+    # via langchain-anthropic
+distro==1.9.0
+    # via
+    #   anthropic
+    #   openai
+    #   posthog
+docstring-parser==0.18.0
+    # via anthropic
+faiss-cpu==1.16.0
+    # via browser-use
+fastapi==0.162.5
+    # via webtools-service (pyproject.toml)
+filelock==3.12.2
+    # via
+    #   huggingface-hub
+    #   torch
+    #   webtools-service (pyproject.toml)
+filetype==1.2.0
+    # via langchain-google-genai
+fsspec==2026.9.0
+    # via
+    #   huggingface-hub
+    #   torch
+google-ai-generativelanguage==0.6.18
+    # via langchain-google-genai
+google-api-core==2.44.0
+    # via
+    #   browser-use
+    #   google-ai-generativelanguage
+google-auth==2.62.2
+    # via
+    #   google-ai-generativelanguage
+    #   google-api-core
+googleapis-common-protos==1.76.0
+    # via
+    #   google-api-core
+    #   grpcio-status
+greenlet==3.5.6
+    # via playwright
+grpcio==1.85.1
+    # via
+    #   google-api-core
+    #   grpcio-status
+    #   qdrant-client
+grpcio-status==1.85.1
+    # via google-api-core
+h11==0.16.0
+    # via
+    #   httpcore
+    #   httpcore2
+    #   uvicorn
+h2==4.4.1
+    # via httpx
+hf-xet==1.8.0
+    # via huggingface-hub
+hpack==4.2.0
+    # via h2
+htmldate==1.11.0
+    # via trafilatura
+httpcore==1.0.9
+    # via httpx
+httpcore2==2.16.0
+    # via httpx2
+httptools==0.9.0
+    # via uvicorn
+httpx==0.28.1
+    # via
+    #   anthropic
+    #   browser-use
+    #   langsmith
+    #   ollama
+    #   openai
+    #   qdrant-client
+    #   webtools-service (pyproject.toml)
+httpx2==2.16.0
+    # via huggingface-hub
+huggingface-hub==2.4.0
+    # via
+    #   sentence-transformers
+    #   tokenizers
+    #   transformers
+hyperframe==6.1.0
+    # via h2
+idna==3.20
+    # via
+    #   anyio
+    #   httpx
+    #   httpx2
+    #   requests
+jinja2==3.1.6
+    # via torch
+jiter==0.19.0
+    # via
+    #   anthropic
+    #   openai
+jmespath==1.1.0
+    # via
+    #   boto3
+    #   botocore
+joblib==1.6.0
+    # via scikit-learn
+jsonpatch==1.47
+    # via langchain-core
+jsonpointer==3.12
+    # via jsonpatch
+justext==3.0.2
+    # via trafilatura
+langchain==0.3.22
+    # via browser-use
+langchain-anthropic==0.3.3
+    # via
+    #   browser-use
+    #   webtools-service (pyproject.toml)
+langchain-aws==0.2.19
+    # via browser-use
+langchain-core==0.3.49
+    # via
+    #   browser-use
+    #   langchain
+    #   langchain-anthropic
+    #   langchain-aws
+    #   langchain-deepseek
+    #   langchain-google-genai
+    #   langchain-ollama
+    #   langchain-openai
+    #   langchain-text-splitters
+    #   webtools-service (pyproject.toml)
+langchain-deepseek==0.1.3
+    # via browser-use
+langchain-google-genai==2.1.2
+    # via browser-use
+langchain-ollama==0.3.0
+    # via browser-use
+langchain-openai==0.3.11
+    # via
+    #   browser-use
+    #   langchain-deepseek
+    #   webtools-service (pyproject.toml)
+langchain-text-splitters==0.3.7
+    # via langchain
+langsmith==0.3.45
+    # via
+    #   langchain
+    #   langchain-core
+lxml==6.1.3
+    # via
+    #   htmldate
+    #   justext
+    #   lxml-html-clean
+    #   trafilatura
+lxml-html-clean==0.4.6
+    # via lxml
+markdown-it-py==4.3.0
+    # via rich
+markdownify==1.1.0
+    # via browser-use
+markupsafe==3.0.4
+    # via jinja2
+mdurl==0.1.2
+    # via markdown-it-py
+mem0ai==0.1.88
+    # via browser-use
+monotonic==1.6
+    # via posthog
+mpmath==1.3.0
+    # via sympy
+narwhals==2.28.0
+    # via scikit-learn
+networkx==3.6.1
+    # via torch
+numpy==1.26.4
+    # via
+    #   faiss-cpu
+    #   langchain-aws
+    #   qdrant-client
+    #   scikit-learn
+    #   scipy
+    #   sentence-transformers
+    #   transformers
+ollama==0.6.3
+    # via langchain-ollama
+openai==1.109.1
+    # via
+    #   langchain-openai
+    #   mem0ai
+    #   webtools-service (pyproject.toml)
+opentelemetry-api==1.45.2
+    # via
+    #   fastapi
+    #   google-api-core
+orjson==3.13.0
+    # via langsmith
+packaging==24.2
+    # via
+    #   faiss-cpu
+    #   huggingface-hub
+    #   langchain-core
+    #   langsmith
+    #   transformers
+pdfminer-six==20260107
+    # via pdfplumber
+pdfplumber==0.11.10
+    # via webtools-service (pyproject.toml)
+pillow==13.0.0
+    # via pdfplumber
+playwright==1.65.1
+    # via
+    #   browser-use
+    #   webtools-service (pyproject.toml)
+portalocker==4.4.2
+    # via qdrant-client
+posthog==3.25.0
+    # via
+    #   browser-use
+    #   mem0ai
+proto-plus==1.29.0
+    # via
+    #   google-ai-generativelanguage
+    #   google-api-core
+protobuf==6.33.6
+    # via
+    #   google-ai-generativelanguage
+    #   google-api-core
+    #   googleapis-common-protos
+    #   grpcio-status
+    #   proto-plus
+    #   qdrant-client
+psutil==7.2.2
+    # via browser-use
+psycopg2-binary==2.9.13
+    # via mem0ai
+pyasn1==0.6.5
+    # via pyasn1-modules
+pyasn1-modules==0.4.2
+    # via google-auth
+pycparser==3.12
+    # via cffi
+pydantic==2.10.6
+    # via
+    #   anthropic
+    #   browser-use
+    #   fastapi
+    #   langchain
+    #   langchain-anthropic
+    #   langchain-aws
+    #   langchain-core
+    #   langchain-google-genai
+    #   langsmith
+    #   mem0ai
+    #   ollama
+    #   openai
+    #   pydantic-settings
+    #   qdrant-client
+    #   typer
+    #   webtools-service (pyproject.toml)
+pydantic-core==2.27.2
+    # via pydantic
+pydantic-settings==2.3.4
+    # via webtools-service (pyproject.toml)
+pygments==2.21.0
+    # via rich
+pypdf==7.0.1
+    # via webtools-service (pyproject.toml)
+pypdfium2==5.15.2
+    # via pdfplumber
+pyperclip==1.11.0
+    # via browser-use
+python-dateutil==2.9.0.post0
+    # via
+    #   botocore
+    #   dateparser
+    #   htmldate
+    #   posthog
+python-dotenv==1.2.4
+    # via
+    #   browser-use
+    #   pydantic-settings
+    #   uvicorn
+python-multipart==0.0.33
+    # via webtools-service (pyproject.toml)
+pytz==2024.2
+    # via
+    #   dateparser
+    #   mem0ai
+pyyaml==6.0.3
+    # via
+    #   huggingface-hub
+    #   langchain
+    #   langchain-core
+    #   transformers
+    #   uvicorn
+qdrant-client==1.20.0
+    # via mem0ai
+regex==2026.11.9
+    # via
+    #   dateparser
+    #   tiktoken
+    #   transformers
+requests==2.34.2
+    # via
+    #   browser-use
+    #   google-api-core
+    #   langchain
+    #   langsmith
+    #   posthog
+    #   requests-toolbelt
+    #   tiktoken
+requests-toolbelt==1.0.0
+    # via langsmith
+rich==15.0.0
+    # via typer
+s3transfer==0.19.3
+    # via boto3
+safetensors==0.8.0
+    # via transformers
+scikit-learn==1.9.1
+    # via sentence-transformers
+scipy==1.17.1
+    # via
+    #   scikit-learn
+    #   sentence-transformers
+screeninfo==0.8.1
+    # via browser-use
+sentence-transformers==6.3.0
+    # via browser-use
+shellingham==1.5.4
+    # via typer
+six==1.17.0
+    # via
+    #   markdownify
+    #   posthog
+    #   python-dateutil
+sniffio==1.3.1
+    # via
+    #   anthropic
+    #   openai
+soupsieve==4.1
+    # via beautifulsoup4
+sqlalchemy==2.1.8
+    # via
+    #   langchain
+    #   mem0ai
+starlette==1.10.0
+    # via fastapi
+sympy==1.14.0
+    # via torch
+tenacity==8.2.3
+    # via
+    #   langchain-core
+    #   webtools-service (pyproject.toml)
+threadpoolctl==3.8.0
+    # via scikit-learn
+tiktoken==0.14.0
+    # via langchain-openai
+tld==0.13.2
+    # via courlan
+tokenizers==0.23.3
+    # via
+    #   sentence-transformers
+    #   transformers
+torch==2.15.0
+    # via sentence-transformers
+tqdm==4.70.1
+    # via
+    #   huggingface-hub
+    #   openai
+    #   sentence-transformers
+    #   transformers
+trafilatura==2.3.1
+    # via webtools-service (pyproject.toml)
+transformers==5.22.2
+    # via sentence-transformers
+truststore==0.10.5
+    # via
+    #   httpcore2
+    #   httpx2
+typer==0.29.1
+    # via transformers
+typing-extensions==4.16.0
+    # via
+    #   anthropic
+    #   anyio
+    #   beautifulsoup4
+    #   browser-use
+    #   fastapi
+    #   grpcio
+    #   httpx2
+    #   huggingface-hub
+    #   langchain-core
+    #   openai
+    #   opentelemetry-api
+    #   pydantic
+    #   pydantic-core
+    #   sentence-transformers
+    #   sqlalchemy
+    #   starlette
+    #   torch
+    #   typing-inspection
+typing-inspection==0.4.5
+    # via fastapi
+tzdata==2026.6
+    # via tzlocal
+tzlocal==5.4.5
+    # via dateparser
+urllib3==2.8.0
+    # via
+    #   botocore
+    #   courlan
+    #   htmldate
+    #   qdrant-client
+    #   requests
+    #   trafilatura
+uvicorn==0.54.0
+    # via webtools-service (pyproject.toml)
+watchfiles==1.3.0
+    # via uvicorn
+websockets==17.4
+    # via uvicorn
+zstandard==0.23.0
+    # via langsmith
+
+# The following packages are considered to be unsafe in a requirements file:
+# setuptools

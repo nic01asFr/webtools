@@ -1,8 +1,20 @@
+# Trois services, les memes que start_all.sh :
+#   searxng       moteur de recherche (conteneur a part, jamais expose)
+#   webtools      API FastAPI (environnement Python /opt/venv-api)
+#   webtools-mcp  serveur MCP, client HTTP de l'API (environnement /opt/venv-mcp)
+# Les deux services Python utilisent la meme image (docker/Dockerfile) ; seul
+# l'interpreteur differe, car leurs dependances sont incompatibles (C81).
+#
+# Variables obligatoires : WEBTOOLS_API_KEY, DEFAULT_LLM_API_KEY, SEARXNG_SECRET,
+# SEARXNG_CONTACT_URL, MCP_ACCESS_TOKEN. Les defauts LLM sont ceux de
+# app/core/config.py et .env.example.
+
 services:
   webtools:
     build:
       context: .
       dockerfile: docker/Dockerfile
+    image: webtools:local
     container_name: webtools-service
     depends_on:
       - searxng
@@ -24,17 +36,15 @@ services:
       # l'API est ouverte a quiconque connait l'URL.
       - WEBTOOLS_API_KEY=${WEBTOOLS_API_KEY:?WEBTOOLS_API_KEY doit etre defini}
 
-      # LLM (SSPCloud par defaut)
+      # LLM : les defauts sont ceux de app/core/config.py
       - DEFAULT_LLM_PROVIDER=${DEFAULT_LLM_PROVIDER:-openai}
       - DEFAULT_LLM_MODEL=${DEFAULT_LLM_MODEL:-qwen3-6-35b-moe}
       - DEFAULT_LLM_BASE_URL=${DEFAULT_LLM_BASE_URL:-https://llm.lab.sspcloud.fr/api}
       - DEFAULT_LLM_API_KEY=${DEFAULT_LLM_API_KEY:?DEFAULT_LLM_API_KEY doit etre defini}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-${DEFAULT_LLM_API_KEY}}
-      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-https://llm.lab.sspcloud.fr/api}
+      - OPENAI_BASE_URL=${OPENAI_BASE_URL:-${DEFAULT_LLM_BASE_URL:-https://llm.lab.sspcloud.fr/api}}
 
-      # SearXNG : dependance reelle du pipeline de recherche. Sans elle,
-      # /search et toute la recherche echouent silencieusement au premier
-      # appel (le defaut localhost:8081 n'a aucun sens dans un conteneur).
+      # SearXNG : dependance reelle du pipeline de recherche (reseau interne).
       - SEARXNG_BASE_URL=http://searxng:8080
 
       # Playwright : chemin explicite, coherent avec le Dockerfile
@@ -63,20 +73,60 @@ services:
       retries: 3
       start_period: 40s
 
+  webtools-mcp:
+    image: webtools:local
+    container_name: webtools-mcp
+    # Meme image que l'API, interpreteur du serveur MCP.
+    command: ["/opt/venv-mcp/bin/python", "mcp_server.py"]
+    depends_on:
+      - webtools
+    networks:
+      - proxy
+      - webtools-internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.webtools-mcp.rule=Host(`${MCP_PUBLIC_HOST:-localhost}`)"
+      - "traefik.http.routers.webtools-mcp.entrypoints=websecure"
+      - "traefik.http.routers.webtools-mcp.tls=true"
+      - "traefik.http.routers.webtools-mcp.tls.certresolver=letsencrypt"
+      - "traefik.http.services.webtools-mcp.loadbalancer.server.port=8090"
+    environment:
+      # Le serveur MCP joint l'API par le reseau interne, avec la meme cle.
+      - WEBTOOLS_API=http://webtools:8000
+      - WEBTOOLS_API_KEY=${WEBTOOLS_API_KEY:?WEBTOOLS_API_KEY doit etre defini}
+      - WEBTOOLS_STATE_DIR=/state
+      - MCP_ACCESS_TOKEN=${MCP_ACCESS_TOKEN:?MCP_ACCESS_TOKEN doit etre defini}
+      - MCP_PUBLIC_URL=${MCP_PUBLIC_URL:-http://localhost:8090}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - webtools-mcp-state:/state
+    restart: unless-stopped
+
   searxng:
-    image: searxng/searxng:latest
+    # Image epinglee par condensat (le tag seul est indicatif). Pour la mettre
+    # a jour : docker buildx imagetools inspect searxng/searxng:latest, puis
+    # relire docker/searxng/settings.yml (noms de moteurs) et lancer
+    # tests/unit/config.
+    image: searxng/searxng:2026.11.12-de722ab1b@sha256:0b104e2e1117b0ca83a36f3ac6ecda7d9ee948ccea6ead74750a03e1b856229a
     container_name: webtools-searxng
     networks:
       - webtools-internal
     environment:
       - SEARXNG_BASE_URL=http://searxng:8080/
+      - SEARXNG_SETTINGS_PATH=/etc/searxng/settings.yml
       # Clef de session : a definir, sinon SearXNG refuse de demarrer
       - SEARXNG_SECRET=${SEARXNG_SECRET:?SEARXNG_SECRET doit etre defini}
+      # Exigee par les moteurs wikipedia et wikidata (politique d'usage de
+      # Wikimedia) : une URL ou un mailto: de contact de l'exploitant.
+      - SEARXNG_CONTACT_URL=${SEARXNG_CONTACT_URL:?SEARXNG_CONTACT_URL doit etre defini}
     volumes:
       - ./docker/searxng:/etc/searxng:rw
     restart: unless-stopped
     # Pas de port publie : accessible uniquement depuis le reseau interne,
     # jamais expose a l'exterieur.
+
+volumes:
+  webtools-mcp-state:
 
 networks:
   proxy:
