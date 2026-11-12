@@ -40,3 +40,21 @@ def numbered_to_source(text: str, bibliography: list[dict[str, Any]]) -> str:
 def cited_urls(text: str | None) -> set[str]:
     """URL citees sous la forme [SOURCE:url] dans un texte."""
     return set(_SOURCE_RE.findall(text or ""))
+
+
+def strip_unknown_citations(text: str, allowed: set[str]) -> tuple[str, list[str]]:
+    """Retire les [SOURCE:url] dont l'URL n'est pas dans `allowed`.
+
+    Retourne le texte nettoye et la liste des URL retirees : une citation
+    inventee par le modele ne doit pas entrer dans la bibliographie.
+    """
+    removed: list[str] = []
+
+    def _sub(match: re.Match[str]) -> str:
+        url = match.group(1)
+        if url in allowed:
+            return match.group(0)
+        removed.append(url)
+        return ""
+
+    return _SOURCE_RE.sub(_sub, text or ""), removed

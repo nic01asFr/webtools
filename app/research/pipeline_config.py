@@ -62,7 +62,12 @@ def _convert(name: str, raw: str, tp: Any) -> Any:
 
 @dataclass(frozen=True)
 class PipelineConfig:
-    """Drapeaux et parametres du pipeline. Aucun champ pour l'instant."""
+    """Drapeaux et parametres du pipeline."""
+
+    # --- Lot V3-5 : enrichissement et coherence ---
+    enrichment_enabled: bool = True  # faux : saute l'enrichissement iteratif (C42)
+    coherence_append_enabled: bool = True  # faux : ne colle plus les suggestions de coherence (C40)
+    regenerate_v2: bool = False  # vrai : regeneration de section avec langue, citations et schema (C43)
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":
