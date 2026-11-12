@@ -29,6 +29,11 @@ REFUS_REEL = (
         # Variante reelle du 12/11/2026, non detectee par le premier motif.
         "Il est important de noter que les données fournies dans le contexte ne contiennent "
         "aucune information scientifique concernant les néonicotinoïdes.",
+        # Variante reelle du 12/11/2026, publiee dans un rapport sur les ZFE
+        # (mesure citecheck, audit manuel).
+        "Il est important de noter dès le départ que les neuf sources fournies dans le contexte "
+        "portent exclusivement sur l'étude des lithométéores (poussières désertiques) et de leurs "
+        "impacts sur la qualité de l'air au Nord du Sénégal.",
     ],
 )
 def test_refus_detecte(text: str) -> None:

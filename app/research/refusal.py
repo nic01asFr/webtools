@@ -29,6 +29,10 @@ _PATTERNS = [
     # recul de l'emploi industriel).
     r"incompatibilit[ée] (?:\S+ )?entre les (?:donn[ée]es|sources) fournies et la demande",
     r"(?:elles|ils|celles-ci|ceux-ci) ne contiennent aucune information sur",
+    # Variante reelle du 12/11/2026 (ZFE en France, sources sur les poussieres
+    # au Nord du Senegal) : publiee comme premiere phrase de section.
+    r"(?:les|ces) (?:\S+ )?(?:sources|donn[ée]es|documents|passages|extraits) fourni(?:e)?s(?: \S+){0,4} "
+    r"(?:portent|traitent|concernent) (?:exclusivement|uniquement|seulement)",
     # Anglais
     r"\bi (?:cannot|can't|am unable to|am not able to) (?:write|draft|produce)",
     r"it is (?:not possible|impossible) to (?:write|draft|produce)",
