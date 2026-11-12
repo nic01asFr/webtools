@@ -428,6 +428,13 @@ class QuickResearchResponse(BaseModel):
     sources_extracted: int = Field(default=0, description="Sources dont le contenu a ete extrait")
     sources_discarded: int = Field(default=0, description="Sources ecartees")
     discarded: List[QuickResearchDiscardedSource] = Field(default_factory=list)
+    verification: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description=(
+            "Verification de la reponse contre ses sources (si quick_verify_answer) : "
+            "phrases verifiees, phrases fautives, reecriture"
+        ),
+    )
     success: bool = True
     error: Optional[str] = None
 

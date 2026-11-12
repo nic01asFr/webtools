@@ -89,6 +89,49 @@ def _quick_uses_chunk_selection() -> bool:
     return PipelineConfig.from_env().quick_uses_chunk_selection
 
 
+def _quick_verify_answer() -> bool:
+    from app.research.pipeline_config import PipelineConfig
+
+    return PipelineConfig.from_env().quick_verify_answer
+
+
+async def _verify_and_correct(
+    llm_client, messages: list, answer: str, sources: list[tuple[str, str]]
+) -> tuple[str, dict]:
+    """Verifie chaque phrase contre ses sources ; reecrit une fois si une
+    phrase est fautive. Rend (reponse, bilan). Un echec de la verification
+    garde la reponse et le signale, sans faire echouer la requete."""
+    from app.research.answer_check import FAULTY, check_answer, correction_request
+
+    try:
+        verdicts = await check_answer(llm_client, answer, sources)
+    except Exception as exc:  # noqa: BLE001 - la reponse non verifiee reste utilisable
+        logger.warning("Recherche rapide : verification impossible (%s)", exc)
+        return answer, {"verifiee": False, "erreur": type(exc).__name__}
+    faulty = [v for v in verdicts if v.verdict in FAULTY]
+    report: dict = {
+        "verifiee": True,
+        "phrases": len(verdicts),
+        "fautives": [{"phrase": v.sentence, "verdict": v.verdict, "probleme": v.problem} for v in faulty],
+        "reecrite": False,
+    }
+    if not faulty:
+        return answer, report
+    try:
+        corrected = await llm_client.generate(messages=messages + [
+            {"role": "assistant", "content": answer},
+            {"role": "user", "content": correction_request(faulty)},
+        ])
+    except Exception as exc:  # noqa: BLE001 - garder la premiere reponse, signalee fautive
+        logger.warning("Recherche rapide : reecriture impossible (%s)", exc)
+        report["erreur"] = type(exc).__name__
+        return answer, report
+    if corrected and corrected.strip():
+        report["reecrite"] = True
+        return corrected.strip(), report
+    return answer, report
+
+
 @router.post("/research/quick", response_model=QuickResearchResponse, summary="Reponse rapide documentee")
 async def research_quick(request: QuickResearchRequest) -> QuickResearchResponse:
     """
@@ -156,15 +199,16 @@ async def research_quick(request: QuickResearchRequest) -> QuickResearchResponse
         context = "\n\n".join(
             f"[Source {i+1}: {e['title']}]\n{text}" for i, (e, text) in enumerate(zip(extracted, texts))
         )
+        messages = [
+            {"role": "system", "content": (
+                "Tu reponds a une question factuelle en te basant UNIQUEMENT sur les "
+                "sources fournies. Cite tes sources avec [1], [2] etc. Sois concis "
+                "(quelques phrases). Si les sources ne permettent pas de repondre, dis-le."
+            )},
+            {"role": "user", "content": f"Question: {request.query}\n\nSources:\n{context}"}
+        ]
         try:
-            answer = await llm_client.generate(messages=[
-                {"role": "system", "content": (
-                    "Tu reponds a une question factuelle en te basant UNIQUEMENT sur les "
-                    "sources fournies. Cite tes sources avec [1], [2] etc. Sois concis "
-                    "(quelques phrases). Si les sources ne permettent pas de repondre, dis-le."
-                )},
-                {"role": "user", "content": f"Question: {request.query}\n\nSources:\n{context}"}
-            ])
+            answer = await llm_client.generate(messages=messages)
         except LLMEmptyContentError:
             logger.error("Recherche rapide : reponse vide du modele pour '%s'", request.query)
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=MSG_LLM_EMPTY)
@@ -179,6 +223,13 @@ async def research_quick(request: QuickResearchRequest) -> QuickResearchResponse
             logger.error("Recherche rapide : reponse vide du modele pour '%s'", request.query)
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=MSG_LLM_EMPTY)
 
+        verification = None
+        if _quick_verify_answer():
+            answer, verification = await _verify_and_correct(
+                llm_client, messages, answer,
+                [(e["title"], text) for e, text in zip(extracted, texts)],
+            )
+
         # La pertinence est le score du moteur de recherche, quand il existe.
         sources = [
             QuickResearchSource(
@@ -191,6 +242,7 @@ async def research_quick(request: QuickResearchRequest) -> QuickResearchResponse
             query=request.query, answer=answer, sources=sources,
             sources_attempted=len(attempted), sources_extracted=len(extracted),
             sources_discarded=len(discarded), discarded=discarded, success=True,
+            verification=verification,
         )
 
     except HTTPException:
