@@ -10,6 +10,7 @@ from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrc
 from app.core.llm.base import LLMEmptyContentError
 from app.research.embedding_cache import content_key
 from app.research.pipeline_config import PipelineConfig
+from app.research.stages.crossref import cross_reference_data
 
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch
 
@@ -79,7 +80,7 @@ async def test_chaque_passage_est_embedde_une_seule_fois() -> None:
     orch, ctx = _orch(llm), _ctx()
     data = [_item(f"https://s{i}.org/a", tail=f"variante {i}") for i in range(4)]
 
-    enriched = await orch._cross_reference_data(SECTION, data, ctx)
+    enriched = await cross_reference_data(orch.services(), SECTION, data, ctx)
     await orch._synthesize_single_section(QUERY, SECTION, SECTION_CONFIG, enriched, ctx)
 
     counts = Counter(_embedded_contents(llm))
@@ -94,7 +95,7 @@ async def test_cache_distingue_les_passages_a_prefixe_commun() -> None:
     b = _item("https://s.org/a", tail="seconde fin")
     assert a["content"][:100] == b["content"][:100]
 
-    enriched = await orch._cross_reference_data(SECTION, [a, b], ctx)
+    enriched = await cross_reference_data(orch.services(), SECTION, [a, b], ctx)
 
     assert content_key(a["content"]) != content_key(b["content"])
     assert len(ctx.embedding_cache) == 2
@@ -107,7 +108,7 @@ async def test_cache_partage_entre_croisement_et_selection() -> None:
     orch, ctx = _orch(llm), _ctx()
     data = [_item(f"https://s{i}.org/a", tail=f"v{i}") for i in range(3)]
 
-    enriched = await orch._cross_reference_data(SECTION, data, ctx)
+    enriched = await cross_reference_data(orch.services(), SECTION, data, ctx)
     before = len(llm.calls_for(kind="embed"))
     await orch._semantic_chunk_selection(enriched, QUERY, context=ctx)
     after = llm.calls_for(kind="embed")[before:]
@@ -132,7 +133,7 @@ async def test_sans_capacite_embeddings_pas_d_appel_et_repli_note() -> None:
     llm.supports_embeddings = False
     orch, ctx = _orch(llm), _ctx()
 
-    await orch._cross_reference_data(SECTION, [_item("https://s.org/a")], ctx)
+    await cross_reference_data(orch.services(), SECTION, [_item("https://s.org/a")], ctx)
     await orch._semantic_chunk_selection([_item("https://s.org/a")], QUERY, context=ctx)
 
     assert llm.calls_for(kind="embed") == []
