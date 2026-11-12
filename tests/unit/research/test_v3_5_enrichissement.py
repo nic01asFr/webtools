@@ -8,6 +8,8 @@ from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrc
 from app.core.llm.base import LLMEmptyContentError
 from app.research.pipeline_config import PipelineConfig
 from app.research.stages.coherence import apply_coherence_improvements
+from app.research.stages.regenerate import regenerate_section
+from app.research.stages.enrich import analyze_report_quality, iterative_enrichment
 
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch
 
@@ -56,7 +58,7 @@ async def test_enrichment_enabled(enabled: bool) -> None:
         r"Analyse la qualit",
         json.dumps({"overall_score": 95, "sections_analysis": [], "gaps_to_fill": []}),
     )
-    await orch._iterative_enrichment("requete", ctx, make_report(), max_iterations=1)
+    await iterative_enrichment(orch.services(), "requete", ctx, make_report(), max_iterations=1)
     assert bool(llm.calls_for(pattern=r"Analyse la qualit")) is enabled
     assert (ctx.diagnostics.count("enrichissement.desactive") == 1) is (not enabled)
 
@@ -99,7 +101,7 @@ async def _regen(cfg: PipelineConfig, structured: Any) -> tuple[Any, FakeLLM, Ex
     ctx = make_ctx(cfg)
     llm.on_structured("section_regeneree", structured)
     llm.on_text(r"Am.liore cette section", json.dumps({"title": "S1", "content": "legacy"}))
-    result = await orch._regenerate_section("requete", "S1", make_report(), _enrichment(), ctx)
+    result = await regenerate_section(orch.services(), "requete", "S1", make_report(), _enrichment(), ctx)
     return result, llm, ctx
 
 
@@ -132,7 +134,7 @@ async def test_regenerate_v2_langue_de_la_requete() -> None:
     ctx = make_ctx(cfg)
     ctx.search_language = "fr"
     llm.on_structured("section_regeneree", {"content": f"ok [SOURCE:{URL_OLD}]"})
-    await orch._regenerate_section("requete", "S1", make_report(), _enrichment(), ctx)
+    await regenerate_section(orch.services(), "requete", "S1", make_report(), _enrichment(), ctx)
     assert "langue 'fr'" in llm.calls_for(kind="structured")[0].prompt
 
 
@@ -167,7 +169,7 @@ async def test_analyse_qualite_en_echec_rend_un_score_absent() -> None:
     orch, llm = make()
     ctx = make_ctx()
     llm.on_text(r"Analyse la qualit", LLMEmptyContentError("vide"))
-    analysis = await orch._analyze_report_quality("q", make_report(), ctx)
+    analysis = await analyze_report_quality(orch.services(), "q", make_report(), ctx)
     assert analysis["overall_score"] is None
     assert ctx.diagnostics.count("enrichissement.score_absent") == 1
 
@@ -185,6 +187,6 @@ async def test_enrichissement_sans_score_ne_plante_pas_et_note() -> None:
     orch, llm = make()
     ctx = make_ctx()
     llm.on_text(r"Analyse la qualit", LLMEmptyContentError("vide"))
-    out = await orch._iterative_enrichment("q", ctx, make_report(), max_iterations=1)
+    out = await iterative_enrichment(orch.services(), "q", ctx, make_report(), max_iterations=1)
     assert out["sections"][0]["title"] == "S1"
     assert ctx.diagnostics.count("enrichissement.iteration") == 1
