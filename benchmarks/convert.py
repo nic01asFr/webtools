@@ -13,6 +13,8 @@ Toute rupture de correspondance entre les [n] du texte et les entrees de la
 bibliographie fait chuter FACT sans que RACE ne bouge - c'est le mode de
 panne silencieux a surveiller.
 """
+from __future__ import annotations
+
 from typing import Any, Dict
 
 
@@ -67,7 +69,46 @@ def report_to_markdown(payload: Dict[str, Any]) -> str:
     return "\n".join(parts).strip()
 
 
-def sanity_check(markdown: str) -> Dict[str, Any]:
+def _report_of(payload: Dict[str, Any]) -> Dict[str, Any]:
+    report = payload.get("result") or payload.get("report") or payload
+    return report if isinstance(report, dict) else {}
+
+
+def report_has_text(payload: Dict[str, Any]) -> bool:
+    """Vrai si la reponse porte du texte de rapport (resume ou section).
+
+    Un titre ou une bibliographie seuls ne comptent pas : seule une reponse
+    sans aucun texte est un echec du harnais ou du service.
+    """
+    report = _report_of(payload)
+    if (report.get("summary") or "").strip():
+        return True
+    return any(
+        (sec.get("content") or "").strip()
+        for sec in report.get("sections", [])
+        if isinstance(sec, dict)
+    )
+
+
+def degradation_info(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """Champs de degradation d'une reponse (racine ou rapport imbrique)."""
+    report = _report_of(payload)
+
+    def pick(key: str, default: Any) -> Any:
+        value = payload.get(key)
+        if value is None:
+            value = report.get(key)
+        return default if value is None else value
+
+    return {
+        "success": payload.get("success", True),
+        "degraded": bool(pick("degraded", False)),
+        "failed_sections": list(pick("failed_sections", [])),
+        "unsourced_sections": list(pick("unsourced_sections", [])),
+    }
+
+
+def sanity_check(markdown: str, payload: Dict[str, Any] | None = None) -> Dict[str, Any]:
     """
     Verifie qu'un article converti est exploitable par le benchmark.
     Retourne un diagnostic, ne leve pas : un article imparfait doit etre
@@ -82,7 +123,7 @@ def sanity_check(markdown: str) -> Dict[str, Any]:
     words = len(markdown.split())
     orphans = sorted(inline_refs - biblio_idx)
 
-    return {
+    diag = {
         "words": words,
         "inline_citations": len(inline_refs),
         "bibliography_entries": len(biblio_idx),
@@ -90,3 +131,6 @@ def sanity_check(markdown: str) -> Dict[str, Any]:
         "has_urls": bool(biblio_lines),
         "usable": words >= 200 and bool(biblio_lines),
     }
+    if payload is not None:
+        diag.update(degradation_info(payload))
+    return diag
