@@ -69,6 +69,11 @@ class FakeLLM(BaseLLMClient):
     Enregistrement : `calls` (tous les appels), `unmatched`, calls_for().
     """
 
+    # Capacites declarees comme le client OpenAI reel (lot V1-7).
+    supports_structured = True
+    supports_embeddings = True
+    supports_vision = False
+
     def __init__(self, embed_dim: int = 16) -> None:
         super().__init__(api_key="fake", base_url=None, model="fake-llm")
         self.embed_dim = embed_dim
@@ -152,5 +157,5 @@ class FakeLLM(BaseLLMClient):
     def get_langchain_wrapper(self) -> BaseChatModel:
         raise NotImplementedError("FakeLLM n'expose pas de wrapper LangChain")
 
-    async def close(self) -> None:
+    async def _aclose(self) -> None:
         return None

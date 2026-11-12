@@ -288,7 +288,7 @@ class IntelligentOrchestrator:
         logger.info(f"🧠 Recherche intelligente REFONDÉE: {query}")
         start_time = datetime.now()
 
-        ctx = ExecutionContext(query)
+        ctx = ExecutionContext(query, config=self.config)
         context = context or {}
         self.current_context = context
 
@@ -3542,13 +3542,10 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         # au niveau du manager de beneficier a toutes les sections/requetes.
         try:
             extractor_manager = self.extractor_manager
-            options = ExtractionOptions(
-                extract_images=False,
-                extract_links=False,
-                clean_html=True,
-                use_agent=True,
-                headless=True
-            )
+            # extract_images, extract_links et clean_html etaient passes ici
+            # sans exister dans ExtractionOptions : ignores en silence, puis
+            # refuses depuis que le modele interdit les champs inconnus (C60).
+            options = ExtractionOptions(use_agent=True, headless=True)
 
             # Extraire chaque URL séquentiellement, en reutilisant le cache
             # partage si cette URL a deja ete extraite pour une autre section

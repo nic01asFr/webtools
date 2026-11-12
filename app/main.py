@@ -49,9 +49,17 @@ async def lifespan(app: FastAPI):
     searxng_url = os.environ.get("SEARXNG_BASE_URL", "http://searxng:8080")
     await engine_catalog.load(searxng_url)
 
+    # browser-use 0.1.41 verifie OPENAI_API_KEY dans l'environnement avant de
+    # lancer un agent ; le client LLM ne l'y ecrit plus (C54). On la derive
+    # une fois ici de la cle du service, sans ecraser une valeur explicite.
+    if os.environ.get("DEFAULT_LLM_API_KEY"):
+        os.environ.setdefault("OPENAI_API_KEY", os.environ["DEFAULT_LLM_API_KEY"])
+
     yield
 
-    # Shutdown
+    # Shutdown : l'instance partagee du client LLM (C50) ferme son pool HTTP.
+    from app.core.llm import close_llm_client
+    await close_llm_client()
     logger.info("Arrêt de Webtools Service...")
 
 
