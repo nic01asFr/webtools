@@ -123,7 +123,6 @@ class AlbertLLMClient(BaseLLMClient):
         # integre (contrairement au SDK OpenAI utilise ailleurs) - on aligne
         # le niveau de resilience entre les deux clients.
         self._record_finish_reason(None)
-        last_error = None
         for attempt in range(3):
             try:
                 response = await self.http_client.post(url, json=data)
@@ -150,7 +149,6 @@ class AlbertLLMClient(BaseLLMClient):
                     f"Erreur HTTP {e.response.status_code}: {e.response.text}"
                 )
             except (httpx.ConnectError, httpx.ReadTimeout, httpx.RemoteProtocolError) as e:
-                last_error = e
                 if attempt < 2:
                     await asyncio.sleep(1.5 * (attempt + 1))
                     continue

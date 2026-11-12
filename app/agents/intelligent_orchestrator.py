@@ -13,7 +13,7 @@ Dependances : client de recherche, ExtractorManager, GenericDataExtractor
 import asyncio
 import logging
 import json
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Sequence
 from datetime import datetime
 
 from app.core.llm.base import BaseLLMClient
@@ -207,7 +207,6 @@ class IntelligentOrchestrator:
         # est deja redige quand le delai global expire.
         self._active_ctx = ctx
         context = context or {}
-        self.current_context = context
 
         # Contraintes de sources fournies par l'appelant. Elles arrivaient
         # jusqu'ici (sources_exclusions, domains_whitelist sont dans le
@@ -444,7 +443,7 @@ class IntelligentOrchestrator:
             coherence_analysis=coherence_analysis,
             context=ctx
         )
-        logger.info(f"  ✓ Cohérence narrative améliorée")
+        logger.info("  ✓ Cohérence narrative améliorée")
 
         # ===================================================================
         # PHASE 4: FINALISATION
@@ -480,7 +479,12 @@ class IntelligentOrchestrator:
         # Pour FACT, ces affirmations n'avaient aucune source rattachee :
         # l'extraction des triplets se fait sur les [n], pas sur les marqueurs
         # internes.
-        final_answer = self._convert_sources_to_bibliography(final_answer, ctx.diagnostics)
+        # Les URL extraites par la recherche ciblee de l'enrichissement ne sont
+        # ni dans les data des sections ni dans la bibliographie : elles comptent
+        # comme fournies au modele (ctx.discovered_sources).
+        final_answer = self._convert_sources_to_bibliography(
+            final_answer, ctx.diagnostics, provided_urls=ctx.discovered_sources
+        )
 
         # Un rapport bati sur le plan generique de repli (V3-7) ne repond pas a
         # la consigne : il est annonce degrade, avec la cause.
@@ -549,19 +553,56 @@ class IntelligentOrchestrator:
             "invariants": invariants,
         }
 
+    @staticmethod
+    def _report_title(query: str, context: ExecutionContext) -> str:
+        """Titre du rapport (commun a l'assemblage final et au rapport partiel)."""
+        title = f"Analyse: {query.title()}"
+        if context.config.clean_title:
+            from app.research.report_title import short_title
+            title = short_title(query)
+            if not title:
+                title = f"Analyse: {query.title()}"
+                context.diagnostics.note("assemblage.titre_repli", raison="consigne vide")
+        return title
+
+    @staticmethod
+    def _apply_summary(report: Dict[str, Any], context: ExecutionContext) -> None:
+        """Resume du rapport selon summary_mode (commun aux deux assemblages).
+
+        Construit APRES la conversion des sources (le contenu porte des [n]) et
+        APRES le retrait des sections marquees : un marqueur interne ne doit
+        jamais devenir le resume (C41). Retire tout residu "[SOURCE:" orphelin."""
+        import re as _re
+        secs = report.get("sections") or []
+        if context.config.summary_mode == "none":
+            report["summary"] = ""
+        elif secs:
+            first = (secs[0].get("content") or "").strip()
+            sentences = first.split('. ')[:context.config.summary_sentences]
+            summ = (
+                '. '.join(sentences).rstrip('.') + '.'
+                if sentences and first else "Rapport de recherche approfondie."
+            )
+            summ = _re.sub(r'\s*\[SOURCE:[^\]]*\]?', '', summ).strip()
+            report["summary"] = summ or "Rapport de recherche approfondie."
+
     def _partial_report(self, query: str, ctx: ExecutionContext) -> Dict[str, Any]:
         """Rapport construit avec les sections deja redigees (delai global depasse)."""
         import re as _re_partial
 
         sections: List[Dict[str, Any]] = []
         missing: List[str] = []
+        failed: List[str] = []
+        unsourced: List[str] = []
         for name, data in ctx.final_content["sections"].items():
             content = (data.get("content") or "").strip()
-            if (
-                not content
-                or "[SECTION_SANS_SOURCE]" in content
-                or "[SYNTHESE_ECHOUEE]" in content
-            ):
+            if "[SYNTHESE_ECHOUEE]" in content:
+                failed.append(name)
+                continue
+            if "[SECTION_SANS_SOURCE]" in content:
+                unsourced.append(name)
+                continue
+            if not content:
                 missing.append(name)
                 continue
             raw = data.get("raw_data", [])
@@ -573,7 +614,7 @@ class IntelligentOrchestrator:
             })
         report: Dict[str, Any] = {
             "type": "report",
-            "title": f"Analyse: {query.title()}",
+            "title": self._report_title(query, ctx),
             "summary": "",
             "sections": sections,
             "metadata": {
@@ -584,10 +625,19 @@ class IntelligentOrchestrator:
             "degraded": True,
             "missing_sections": missing,
         }
-        report = self._convert_sources_to_bibliography(report)
+        if failed:
+            report["failed_sections"] = failed
+            report["metadata"]["failed_sections_count"] = len(failed)
+        if unsourced:
+            report["unsourced_sections"] = unsourced
+            report["metadata"]["unsourced_sections_count"] = len(unsourced)
+        report = self._convert_sources_to_bibliography(
+            report, provided_urls=ctx.discovered_sources
+        )
         marker = _re_partial.compile(r'\s*\[SOURCE:[^\]]*\]?')
         for section in report["sections"]:
             section["content"] = marker.sub('', section["content"]).strip()
+        self._apply_summary(report, ctx)
         return report
 
     async def execute_with_deadline(
@@ -1586,7 +1636,10 @@ Consignes:
     # ===================================================================
 
     def _convert_sources_to_bibliography(
-        self, report: Dict[str, Any], diagnostics: Optional[Diagnostics] = None
+        self,
+        report: Dict[str, Any],
+        diagnostics: Optional[Diagnostics] = None,
+        provided_urls: Sequence[str] = (),
     ) -> Dict[str, Any]:
         """Convertit [SOURCE:url] en [n] et construit la bibliographie.
 
@@ -1602,6 +1655,7 @@ Consignes:
             cited_only=self.config.bibliography_cited_only,
             real_titles=self.config.bibliography_real_titles,
             diagnostics=diagnostics,
+            provided_urls=provided_urls,
         )
         logger.info(f"  Bibliographie generee: {len(report['bibliography'])} sources")
         return report
@@ -3124,8 +3178,8 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
                 f"rédiger sans matière produirait du contenu non sourcé"
             )
             return (
-                f"[SECTION_SANS_SOURCE] Aucune donnée exploitable n'a pu être collectée "
-                f"pour cette section."
+                "[SECTION_SANS_SOURCE] Aucune donnée exploitable n'a pu être collectée "
+                "pour cette section."
             )
 
         logger.info(
@@ -3321,7 +3375,7 @@ Retourne JSON:
         }
 
         try:
-            if hasattr(self.llm_client, "generate_structured"):
+            if self.llm_client.supports_structured:
                 analysis = await self.llm_client.generate_structured(
                     [{"role": "user", "content": prompt}],
                     schema=intersections_schema, schema_name="coherence_analysis",
@@ -3437,13 +3491,7 @@ Retourne JSON:
 
         # Générer titre et summary
         complexity = plan.get("complexity_analysis", {})
-        title = f"Analyse: {query.title()}"
-        if context.config.clean_title:
-            from app.research.report_title import short_title
-            title = short_title(query)
-            if not title:
-                title = f"Analyse: {query.title()}"
-                context.diagnostics.note("assemblage.titre_repli", raison="consigne vide")
+        title = self._report_title(query, context)
 
         # Le summary est un EXTRAIT de la premiere section. Il etait construit
         # ICI, avant _convert_sources_to_bibliography : il embarquait donc des
@@ -3540,19 +3588,7 @@ Retourne JSON:
         # APRES le retrait des sections marquees : un marqueur interne ne doit
         # jamais devenir le resume (C41). Le filet final retire tout residu
         # "[SOURCE:" orphelin issu d'une coupure en milieu de marqueur.
-        _secs = final_report.get("sections") or []
-        if context.config.summary_mode == "none":
-            final_report["summary"] = ""
-        elif _secs:
-            _first = (_secs[0].get("content") or "").strip()
-            _sentences = _first.split('. ')[:context.config.summary_sentences]
-            _sum = (
-                '. '.join(_sentences).rstrip('.') + '.'
-                if _sentences and _first else "Rapport de recherche approfondie."
-            )
-            import re as _re
-            _sum = _re.sub(r'\s*\[SOURCE:[^\]]*\]?', '', _sum).strip()
-            final_report["summary"] = _sum or "Rapport de recherche approfondie."
+        self._apply_summary(final_report, context)
 
         logger.info(f"  ✓ Rapport assemblé: {total_words} mots, {len(sections_list)} sections")
 

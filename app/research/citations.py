@@ -160,6 +160,7 @@ def construire_bibliographie(
     cited_only: bool = False,
     real_titles: bool = False,
     diagnostics: Any | None = None,
+    provided_urls: Iterable[str] = (),
 ) -> dict[str, Any]:
     """Convertit [SOURCE:url] en [n] et construit la bibliographie du rapport.
 
@@ -175,6 +176,10 @@ def construire_bibliographie(
     cited_only : ne pas ajouter les sources jamais citees dans le texte.
     real_titles : titre de la page au lieu de "Source n - domaine".
     diagnostics : objet avec une methode note(evenement, **details), ou None.
+    provided_urls : URL fournies au modele pour la requete en dehors des
+        passages des sections (par exemple extraites par la recherche ciblee
+        de l'enrichissement) ; elles comptent comme fournies pour toutes les
+        sections lors de la validation.
     """
 
     def note(event: str, **details: Any) -> None:
@@ -202,6 +207,13 @@ def construire_bibliographie(
             own.setdefault(url_key(url), url)
             global_sources.setdefault(url_key(url), url)
         section_sources.append(own)
+    for url in provided_urls:
+        if not url:
+            continue
+        global_sources.setdefault(url_key(url), url)
+        for own in section_sources:
+            if own:  # une section sans passage se valide deja contre l'ensemble
+                own.setdefault(url_key(url), url)
 
     def register(url: str) -> None:
         nonlocal counter
