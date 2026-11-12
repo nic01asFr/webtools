@@ -15,6 +15,7 @@ from app.research.pipeline_config import PipelineConfig
 from app.services.engine_catalog import EngineCatalog
 from app.research.stages.queries import build_search_query
 from app.research.stages.search import section_research_phase, targeted_search
+from app.research.stages.extract import section_extraction_phase
 
 from tests.contract.test_pipeline_contract import QUERY, build_orchestrator, nominal
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch, make_result
@@ -216,7 +217,7 @@ async def test_plafond_d_extraction(flag: bool) -> None:
     ctx = ExecutionContext("q", config=orch.config)
     section_data = {"sources": [{"url": u} for u in urls]}
 
-    await orch._section_extraction_phase("S", section_data, ctx)
+    await section_extraction_phase(orch.services(), "S", section_data, ctx)
 
     assert len(pages.urls_requested()) == (8 if flag else 5)
 
@@ -300,7 +301,7 @@ async def test_chunking_v2_transmis(flag: bool, monkeypatch: pytest.MonkeyPatch)
     orch.data_extractor.extract_structured_data = _no_structured  # type: ignore[method-assign]
     ctx = ExecutionContext("q", config=orch.config)
 
-    await orch._section_extraction_phase("S", {"sources": [{"url": url}]}, ctx)
+    await section_extraction_phase(orch.services(), "S", {"sources": [{"url": url}]}, ctx)
     await targeted_search(orch.services(), "solar", "Costs", ["price"], ctx)
 
     assert seen == [flag, flag]
@@ -327,7 +328,7 @@ async def test_options_d_extraction_transmises(root_only: bool, single_pass: boo
     orch.data_extractor.extract_structured_data = _no_structured  # type: ignore[method-assign]
     ctx = ExecutionContext("q", config=config)
 
-    await orch._section_extraction_phase("S", {"sources": [{"url": url}]}, ctx)
+    await section_extraction_phase(orch.services(), "S", {"sources": [{"url": url}]}, ctx)
     await targeted_search(orch.services(), "solar", "Costs", ["price"], ctx)
 
     assert len(pages.calls) == 2
