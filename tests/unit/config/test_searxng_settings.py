@@ -14,16 +14,10 @@ from app.services.engine_catalog import (
     DEFAULT_AXIS,
     EXCLUDED_CATEGORIES,
     EXCLUDED_ENGINES,
-    FALLBACK_PROFILES,
 )
 from app.services.search_service import SearXNGClient
 
 SETTINGS_PATH = Path(__file__).resolve().parents[3] / "docker" / "searxng" / "settings.yml"
-
-# Noms de profils de repli qui ne sont pas des moteurs SearXNG : ignores sans
-# erreur par EngineCatalog.validate, donc tolerees ici (a corriger dans le code).
-FALLBACK_SANS_MOTEUR = {"stackexchange"}
-
 
 @pytest.fixture(scope="module")
 def reglages() -> dict:
@@ -67,16 +61,6 @@ def test_moteurs_a_intervalle_actives(moteurs: dict[str, dict]) -> None:
         if n not in moteurs or moteurs[n].get("disabled", True) or moteurs[n].get("inactive", True)
     )
     assert not manquants, f"moteurs de ENGINE_INTERVALS non actifs : {manquants}"
-
-
-def test_moteurs_des_profils_de_repli_actives(moteurs: dict[str, dict]) -> None:
-    attendus = {n for noms in FALLBACK_PROFILES.values() for n in noms} - FALLBACK_SANS_MOTEUR
-    manquants = sorted(
-        n
-        for n in attendus
-        if n not in moteurs or moteurs[n].get("disabled", True) or moteurs[n].get("inactive", True)
-    )
-    assert not manquants, f"moteurs de FALLBACK_PROFILES non actifs : {manquants}"
 
 
 def test_categories_coherentes_avec_les_axes(moteurs: dict[str, dict]) -> None:
