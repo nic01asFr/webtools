@@ -88,6 +88,15 @@ class PipelineConfig:
     enrichment_enabled: bool = True  # faux : saute l'enrichissement iteratif (C42)
     coherence_append_enabled: bool = True  # faux : ne colle plus les suggestions de coherence (C40)
     regenerate_v2: bool = False  # vrai : regeneration de section avec langue, citations et schema (C43)
+    # --- Lot V3-4 : collecte (requetes, langue, plafonds) ---
+    separate_search_terms: bool = False  # une recherche par terme du plan, resultats fusionnes (C34)
+    search_language_from_query: bool = False  # passe la langue detectee aux moteurs (C32)
+    extraction_cap_follows_depth: bool = False  # extrait autant d'URL que la profondeur (3/5/8) au lieu de 5 (C35)
+    exploration_uses_plan_query: bool = False  # exploration : requete reduite et moteurs de la cascade (C31)
+    targeted_search_skip_structured: bool = False  # recherche ciblee sans appel LLM d'extraction structuree (C36, C79)
+    chunking_v2: bool = False  # transmis a document_to_chunk_items (C73)
+    rss_tier_root_only: bool = False  # transmis a ExtractionOptions : palier RSS reserve a la racine ou aux flux
+    single_llm_pass_enabled: bool = True  # transmis a ExtractionOptions : reecriture LLM unique du contenu direct
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":
