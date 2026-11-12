@@ -458,6 +458,7 @@ class IntelligentOrchestrator:
             )
         except Exception as e:
             logger.warning(f"Enrichissement iteratif echoue, rapport initial conserve: {e}")
+            ctx.diagnostics.note("enrichissement.etape_echouee", error=repr(e))
 
         # Étape 4.2: Génération bibliographie complète
         #
@@ -829,13 +830,21 @@ class IntelligentOrchestrator:
         4. Régénère sections faibles
         """
 
+        if not ctx.config.enrichment_enabled:
+            ctx.diagnostics.note("enrichissement.desactive")
+            return report
+
         for iteration in range(max_iterations):
             logger.info(f"  🔄 Itération {iteration + 1}/{max_iterations}")
 
             # Analyser qualité de chaque section
             quality_analysis = await self._analyze_report_quality(query, report, ctx)
 
-            logger.info(f"  📊 Qualité globale: {quality_analysis.get('overall_score', 0)}/100")
+            overall_score = quality_analysis.get('overall_score')
+            logger.info(
+                f"  📊 Qualité globale: "
+                f"{overall_score if overall_score is not None else 'non mesurée'}/100"
+            )
 
             # Volume reel du rapport, mesure sans LLM. Sert de garde-fou au
             # score de qualite : un rapport quasi vide ne doit jamais pouvoir
@@ -849,7 +858,7 @@ class IntelligentOrchestrator:
             report_is_thin = total_chars < 800 * n_sections
 
             # Si qualité suffisante, arrêter
-            if quality_analysis.get('overall_score', 0) >= 85 and not report_is_thin:
+            if overall_score is not None and overall_score >= 85 and not report_is_thin:
                 logger.info("  ✅ Qualité suffisante atteinte")
                 break
 
@@ -910,6 +919,13 @@ class IntelligentOrchestrator:
                 break
 
             logger.info(f"  🎯 {len(weak_sections)} section(s) à enrichir")
+            ctx.diagnostics.note(
+                "enrichissement.iteration",
+                iteration=iteration + 1,
+                weak_sections=len(weak_sections),
+                regenerated_max=min(2, len(weak_sections)),
+                overall_score=overall_score,
+            )
 
             # Enrichir les sections faibles (max 2 par itération)
             for section_analysis in weak_sections[:2]:
@@ -924,11 +940,29 @@ class IntelligentOrchestrator:
 
                 # Régénérer la section avec les nouvelles données
                 if enrichment_data:
+                    from app.research.enrichment_utils import count_citations
+                    _before = next(
+                        (s for s in report.get('sections', []) if s.get('title') == section_title),
+                        None,
+                    ) or {}
                     updated_section = await self._regenerate_section(
                         query, section_title, report, enrichment_data, ctx
                     )
+                    _after = updated_section if isinstance(updated_section, dict) else {}
+                    ctx.diagnostics.note(
+                        "enrichissement.section_regeneree",
+                        title=section_title,
+                        chars_before=len(_before.get('content', '') or ''),
+                        chars_after=len(_after.get('content', '') or ''),
+                        citations_before=count_citations(_before.get('content')),
+                        citations_after=count_citations(_after.get('content')),
+                        unchanged=updated_section is _before,
+                    )
 
-                    # Remplacer la section dans le rapport
+                    # Remplacer la section dans le rapport (jamais par None :
+                    # une section introuvable ne doit pas vider son emplacement)
+                    if not isinstance(updated_section, dict):
+                        continue
                     for i, section in enumerate(report.get('sections', [])):
                         if section.get('title') == section_title:
                             report['sections'][i] = updated_section
@@ -1017,10 +1051,12 @@ CRITÈRES:
                             return json.loads(response[start_idx:i + 1])
         except Exception as e:
             logger.error(f"Erreur analyse qualité: {e}")
+            ctx.diagnostics.note("enrichissement.analyse_echouee", error=repr(e))
 
-        # Fallback
+        # Fallback : aucune mesure. Le score est absent (None), pas invente.
+        ctx.diagnostics.note("enrichissement.score_absent")
         return {
-            "overall_score": 70,
+            "overall_score": None,
             "sections_analysis": [],
             "gaps_to_fill": []
         }
@@ -1130,6 +1166,11 @@ CRITÈRES:
         if not current_section:
             return None
 
+        if ctx.config.regenerate_v2:
+            return await self._regenerate_section_v2(
+                query, section_title, report, current_section, enrichment_data, ctx
+            )
+
         # Données d'enrichissement
         enrichment_content = json.dumps(
             enrichment_data.get('sources', []),
@@ -1189,9 +1230,144 @@ IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
                             return result
         except Exception as e:
             logger.error(f"Erreur régénération section: {e}")
+            ctx.diagnostics.note(
+                "enrichissement.regeneration_echouee", title=section_title, error=repr(e)
+            )
 
         # Fallback: retourner la section actuelle
         return current_section
+
+    async def _regenerate_section_v2(
+        self,
+        query: str,
+        section_title: str,
+        report: Dict[str, Any],
+        current_section: Dict[str, Any],
+        enrichment_data: Dict[str, Any],
+        ctx: ExecutionContext
+    ) -> Dict[str, Any]:
+        """Regeneration de section (drapeau regenerate_v2, C43).
+
+        Au moment de l'enrichissement les sections portent des [n] (la
+        conversion a eu lieu dans _final_assembly) : on les remet en
+        [SOURCE:url] avant l'appel, le modele les conserve, et la conversion
+        finale reprend les memes numeros (bibliographie existante conservee).
+        Toute erreur ou perte de citation rend la section d'origine.
+        """
+        from app.research.enrichment_utils import (
+            cited_urls,
+            count_citations,
+            numbered_to_source,
+            strip_unknown_citations,
+        )
+
+        lang = getattr(ctx, "search_language", None) or getattr(self, "_search_language", "all")
+        bibliography = report.get('bibliography') or []
+        current_content = current_section.get('content', '') or ''
+        current_with_urls = numbered_to_source(current_content, bibliography)
+        original_urls = cited_urls(current_with_urls)
+
+        sources = enrichment_data.get('sources', [])
+        allowed_urls = set(original_urls)
+        for item in sources:
+            if isinstance(item, dict):
+                for key in ("url", "source"):
+                    if isinstance(item.get(key), str):
+                        allowed_urls.add(item[key])
+        enrichment_content = json.dumps(sources, indent=2, ensure_ascii=False)
+
+        if lang and lang != "all":
+            language_rule = f"Redige en langue '{lang}' (code ISO), comme le reste du rapport."
+        else:
+            language_rule = "Redige dans la meme langue que le CONTENU ACTUEL."
+
+        prompt = f"""Ameliore cette section de rapport avec les nouvelles donnees collectees.
+
+REQUETE GLOBALE: "{query}"
+
+SECTION A AMELIORER: {section_title}
+
+CONTENU ACTUEL:
+{current_with_urls}
+
+NOUVELLES DONNEES COLLECTEES:
+{enrichment_content}
+
+MANQUES IDENTIFIES: {', '.join(enrichment_data.get('missing', []))}
+
+Consignes:
+1. {language_rule}
+2. Enrichis le contenu actuel avec les nouvelles donnees (chiffres, dates, noms).
+3. Conserve chaque citation [SOURCE:url] du contenu actuel, avec la meme URL.
+4. Cite les nouvelles donnees au format [SOURCE:url], avec une URL presente dans les donnees ci-dessus. N'invente aucune URL.
+5. Aucun nombre de paragraphes n'est impose : garde la longueur et la structure que le contenu exige.
+"""
+        schema = {
+            "type": "object",
+            "properties": {
+                "content": {
+                    "type": "string",
+                    "description": (
+                        "Texte complet de la section enrichie, citations au "
+                        "format [SOURCE:url]."
+                    ),
+                }
+            },
+            "required": ["content"],
+            "additionalProperties": False,
+        }
+
+        def _unchanged(reason: str, **details: Any) -> Dict[str, Any]:
+            ctx.diagnostics.note(
+                "enrichissement.regeneration_v2_repli", title=section_title, raison=reason, **details
+            )
+            return current_section
+
+        if not getattr(self.llm_client, "supports_structured", False):
+            return _unchanged("sortie_structuree_indisponible")
+
+        try:
+            result = await self.llm_client.generate_structured(
+                [{"role": "user", "content": prompt}],
+                schema=schema,
+                schema_name="section_regeneree",
+                max_tokens=6000,
+                temperature=0.1,
+            )
+        except Exception as e:
+            logger.error(f"Erreur régénération section (v2): {e}")
+            return _unchanged("erreur_llm", error=repr(e))
+
+        new_content = result.get('content') if isinstance(result, dict) else None
+        if not isinstance(new_content, str) or not new_content.strip():
+            return _unchanged("contenu_vide")
+
+        new_content, invented = strip_unknown_citations(new_content, allowed_urls)
+        if invented:
+            ctx.diagnostics.note(
+                "enrichissement.citations_inventees_retirees",
+                title=section_title, urls=invented,
+            )
+
+        lost = original_urls - cited_urls(new_content)
+        if lost:
+            return _unchanged("citations_perdues", urls=sorted(lost))
+
+        updated = dict(current_section)
+        updated['content'] = new_content.strip()
+        metadata = dict(current_section.get('metadata') or {})
+        if 'word_count' in metadata:
+            metadata['word_count'] = len(updated['content'].split())
+        updated['metadata'] = metadata
+        ctx.diagnostics.note(
+            "enrichissement.regeneration_v2",
+            title=section_title,
+            data_chars=len(enrichment_content),
+            citations_before=count_citations(current_with_urls),
+            citations_after=count_citations(new_content),
+        )
+        logger.info(f"    Section enrichie (v2): {section_title}")
+        return updated
 
     # ===================================================================
     # NOUVELLE ARCHITECTURE OPTIMISÉE
@@ -2818,8 +2994,11 @@ Retourne JSON:
 
         except Exception as e:
             logger.error(f"  ❌ Erreur analyse cohérence: {e}")
+            context.diagnostics.note("coherence.analyse_echouee", error=repr(e))
 
-        return {"improvements": [], "redundancies": [], "coherence_score": 75}
+        # Aucune mesure : le score est absent (None), pas invente.
+        context.diagnostics.note("coherence.score_absent")
+        return {"improvements": [], "redundancies": [], "coherence_score": None}
 
     async def _apply_coherence_improvements(
         self,
@@ -2838,6 +3017,12 @@ Retourne JSON:
             logger.info("  ✓ Aucune amélioration critique nécessaire")
             return
 
+        if not context.config.coherence_append_enabled:
+            context.diagnostics.note(
+                "coherence.append_desactive", suggestions_ignorees=len(high_priority[:3])
+            )
+            return
+
         logger.info(f"  🔧 Application de {len(high_priority)} améliorations")
 
         for improvement in high_priority[:3]:  # Limiter à 3 max
@@ -2853,6 +3038,13 @@ Retourne JSON:
                     current_content = context.final_content['sections'][section_a]['content']
                     transition_text = f"\n\n{suggestion}"
                     context.final_content['sections'][section_a]['content'] = current_content + transition_text
+                    context.diagnostics.note(
+                        "coherence.transition_collee",
+                        section=section_a,
+                        suggestion_chars=len(suggestion or ""),
+                        chars_before=len(current_content or ""),
+                        chars_after=len(current_content or "") + len(transition_text),
+                    )
                     logger.info(f"     → Transition ajoutée: {section_a} → {section_b}")
 
     async def _final_assembly(

@@ -84,6 +84,10 @@ class PipelineConfig:
     # --- Lot V3-6 : selection des passages et donnees du prompt ---
     prompt_payload_minimal: bool = False  # le prompt de synthese ne recoit que source, title, content, corroboration_count (C39)
     max_chunks_per_source: int = 0  # plafond de passages retenus par source ; 0 = pas de plafond (C38)
+    # --- Lot V3-5 : enrichissement et coherence ---
+    enrichment_enabled: bool = True  # faux : saute l'enrichissement iteratif (C42)
+    coherence_append_enabled: bool = True  # faux : ne colle plus les suggestions de coherence (C40)
+    regenerate_v2: bool = False  # vrai : regeneration de section avec langue, citations et schema (C43)
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":
