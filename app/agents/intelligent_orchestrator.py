@@ -242,7 +242,7 @@ class IntelligentOrchestrator:
         logger.info(f"  ✓ Champ évalué: {exploration_data.get('field_assessment', 'N/A')}")
 
         # Étape 1.2: Planification avec canvas détaillé basé sur exploration
-        plan = await self._create_detailed_plan(query, context, exploration_data)
+        plan = await self._create_detailed_plan(query, context, exploration_data, ctx=ctx)
         logger.info(f"  ✓ Canvas structure: {len(plan.get('sections', []))} sections")
         logger.info(f"  ✓ Profondeur: {plan.get('complexity_analysis', {}).get('target_length', 'N/A')}")
         logger.info(f"  ✓ Enchaînements définis: {len(plan.get('narrative_flow', []))} transitions")
@@ -467,7 +467,13 @@ class IntelligentOrchestrator:
         # Pour FACT, ces affirmations n'avaient aucune source rattachee :
         # l'extraction des triplets se fait sur les [n], pas sur les marqueurs
         # internes.
-        final_answer = self._convert_sources_to_bibliography(final_answer)
+        final_answer = self._convert_sources_to_bibliography(final_answer, ctx.diagnostics)
+
+        # Un rapport bati sur le plan generique de repli (V3-7) ne repond pas a
+        # la consigne : il est annonce degrade, avec la cause.
+        if plan.get("fallback"):
+            final_answer["degraded"] = True
+            final_answer["plan_fallback_reason"] = plan.get("fallback_reason")
 
         # Nettoyage FINAL des marqueurs residuels, apres toutes les etapes.
         # Le filet pose dans _final_assembly ne suffit pas : l'enrichissement

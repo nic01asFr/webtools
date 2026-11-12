@@ -126,7 +126,12 @@ def build_report(answer: Dict[str, Any], include_section_data: bool) -> Dict[str
 
 
 def _degradation_error(
-    failed: List[str], unsourced: List[str], missing: List[str], timed_out: bool, deadline: int
+    failed: List[str],
+    unsourced: List[str],
+    missing: List[str],
+    timed_out: bool,
+    deadline: int,
+    plan_fallback_reason: Optional[str] = None,
 ) -> Optional[str]:
     """Message de l'erreur d'un rapport degrade, une cause par message.
 
@@ -146,6 +151,11 @@ def _degradation_error(
     if unsourced:
         parts.append(
             f"{len(unsourced)} section(s) sans source exploitable : la collecte n'a rien remonte sur ce sujet"
+        )
+    if plan_fallback_reason:
+        parts.append(
+            f"plan generique de repli utilise ({plan_fallback_reason}) : "
+            f"la structure du rapport ne suit pas la consigne"
         )
     return " ; ".join(parts) if parts else None
 
@@ -170,6 +180,24 @@ def _json_response(body: Dict[str, Any], processing_time: float) -> JSONResponse
 async def create_orchestrator(config: PipelineConfig, section_budget_timeout: int) -> IntelligentOrchestrator:
     """Construit l'orchestrateur de production (point d'injection des tests)."""
     llm_client = await get_llm_client()
+    # Rejeu de la collecte (V4-3) : actif seulement si WEBTOOLS_REPLAY_MODE est
+    # pose ; la recherche et l'extraction sont alors enregistrees ou rejouees.
+    from app.manager import ExtractorManager
+    from app.research.replay import build_replay_clients, read_replay_env
+    from app.services.search_service import searxng_client
+
+    mode, directory = read_replay_env()
+    if mode:
+        search_client, extractor_manager = build_replay_clients(
+            mode, directory, searxng_client, ExtractorManager()
+        )
+        return IntelligentOrchestrator(
+            llm_client,
+            timeout=section_budget_timeout,
+            config=config,
+            search_client=search_client,
+            extractor_manager=extractor_manager,
+        )
     return IntelligentOrchestrator(llm_client, timeout=section_budget_timeout, config=config)
 
 
@@ -325,7 +353,10 @@ async def research_deep(request: DeepResearchRequest):
     missing = list(answer.get("missing_sections") or [])
     degraded = bool(answer.get("degraded")) or timed_out
     if degraded:
-        formatter_kwargs["error"] = _degradation_error(failed, unsourced, missing, timed_out, request.timeout)
+        formatter_kwargs["error"] = _degradation_error(
+            failed, unsourced, missing, timed_out, request.timeout,
+            plan_fallback_reason=answer.get("plan_fallback_reason"),
+        )
         logger.error(
             f"Rapport DEGRADE : {len(failed)} echec(s) LLM, {len(unsourced)} section(s) sans source, "
             f"{len(missing)} manquante(s), delai depasse: {timed_out}"
