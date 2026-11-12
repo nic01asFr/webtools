@@ -20,6 +20,12 @@ services:
         WEBTOOLS_COMMIT: ${WEBTOOLS_COMMIT:-unknown}
     image: webtools:local
     container_name: webtools-service
+    # Profil de drapeaux du pipeline (docker/profils/). Aucun par defaut ;
+    # WEBTOOLS_PROFIL_ENV=docker/profils/sspcloud-modele-lent.env pour le
+    # proxy SSPCloud lent.
+    env_file:
+      - path: ${WEBTOOLS_PROFIL_ENV:-docker/profils/aucun.env}
+        required: false
     depends_on:
       - searxng
     networks:

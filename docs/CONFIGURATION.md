@@ -277,6 +277,19 @@ seule fois dans `app/core/config.py` (classe `Settings`). `.env.example`,
 | `ALBERT_API_URL` | `https://albert.api.etalab.gouv.fr` | URL du fournisseur `albert` (remplace `DEFAULT_LLM_BASE_URL` pour lui) |
 | `OPENAI_BASE_URL` | déduite de `DEFAULT_LLM_BASE_URL` | Lue par browser-use ; `start_all.sh` et `docker-compose.yml` la renseignent |
 | `DEFAULT_LLM_TOTAL_TIMEOUT` | absent | Durée totale maximale, en secondes, d'un appel LLM avec ses reprises |
+| `DEFAULT_LLM_STREAM` | `1` | Génération en flux pour le client de service. Sans flux, une sortie longue sur un modèle lent dépasse le délai par tentative (90 s) et n'aboutit jamais ; `0` la désactive |
+
+### Profils de déploiement
+
+Les fichiers de `docker/profils/` regroupent des drapeaux du pipeline pour un
+contexte donné. `sspcloud-modele-lent.env` a été établi en production le
+12 novembre 2026 : sur le proxy SSPCloud à environ 10 jetons par seconde,
+une recherche approfondie ne finissait pas en 1 200 s avec les défauts, et
+finissait en 885 s avec ce profil (4 sections, 11 sources, 62 citations,
+aucune violation d'invariant). Docker Compose le charge avec
+`WEBTOOLS_PROFIL_ENV=docker/profils/sspcloud-modele-lent.env` ; hors Docker,
+le sourcer avant `start_all.sh`. Ses trois premiers drapeaux restent à
+mesurer (campagnes M2 et M5).
 
 Seul le fournisseur `openai` rend les sorties structurées et les embeddings
 utilisés par le pipeline approfondi. Avec `anthropic` ou `albert`, le

@@ -979,6 +979,18 @@ Au 12 novembre 2026, version 3.0.0.
   authentification et refus des champs retirés vérifiés en conteneur ;
   recherche approfondie de bout en bout sur données réelles avec un LLM
   substitut (`scripts/smoke_deep.py`).
+- **En production (12 novembre 2026, pod Onyxia `proj-webtools`, vrai LLM)** :
+  - C82, corrigé : à ~10 jetons/s, toute génération longue dépassait le délai
+    de 90 s par tentative ; le plan n'aboutissait jamais. Client en flux.
+  - C56 confirmé en direct (flux RSS attribué à un article) ; corrigé dans le
+    profil `docker/profils/sspcloud-modele-lent.env`.
+  - Avec ce profil : 885 s, 4 sections, 11 sources, 62 citations, aucune
+    violation ; sans lui, le délai de 1 200 s expirait à 2 sections sur 5.
+  - C83, ouvert : consigne en anglais, titres de section rédigés en français
+    par le plan (prompt de plan en français) ; les termes français passent
+    dans les requêtes de recherche. À traiter par une contrainte de schéma.
+  - C84, ouvert : une source hors sujet (page de supermarchés) a franchi la
+    sélection. À examiner avec les seuils de pertinence (M5).
 - **Où commencer** : construire l'image
   (`WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build`), lancer les
   trois services, vérifier le harnais sur une tâche (`benchmarks/INSTALL.md`,
