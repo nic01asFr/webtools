@@ -1,11 +1,21 @@
-# Configuration SearXNG pour webtools.
-# Le format JSON est INDISPENSABLE : le service interroge l'API JSON de
-# SearXNG. Par defaut seul "html" est active, et toutes les recherches
+# Configuration SearXNG de webtools : source unique, versionnee.
+#
+# Image visee : voir docker-compose.yml (epinglee par condensat). Les noms de
+# moteurs ci-dessous sont ceux de cette version ; ils sont verifies par
+# tests/unit/config/test_searxng_settings.py contre les moteurs que le code
+# attend (AXIS_PREFERENCE, ENGINE_INTERVALS dans app/).
+#
+# Le format JSON est INDISPENSABLE : le service interroge /search?format=json
+# et /config. Par defaut seul "html" est actif, et toutes les recherches
 # echouent sans que la cause soit evidente.
+#
+# Secret : jamais ici. SearXNG remplace secret_key par la variable
+# d'environnement SEARXNG_SECRET (obligatoire, voir docker-compose.yml et
+# start_all.sh).
 use_default_settings: true
 
 server:
-  secret_key: "!!! remplace par SEARXNG_SECRET via l'environnement !!!"
+  secret_key: "ultrasecretkey"  # remplace par SEARXNG_SECRET
   limiter: false
   image_proxy: false
 
@@ -15,3 +25,247 @@ search:
     - json
   safe_search: 0
   autocomplete: ""
+
+# Chaque moteur attendu par le code est liste ici, actif ("disabled: false"
+# et "inactive: false" : plusieurs sont inactifs ou desactives par defaut en
+# amont). Les categories sont celles qui placent le moteur sur le bon axe
+# de app/services/engine_catalog.py (CATEGORY_TO_AXIS) :
+#   generaliste -> general/web ; academique -> science ;
+#   actualite -> news ; technique -> it ; encyclopedique -> wikimedia.
+# "wikipedia search" n'existe pas en amont : c'est le moteur mediawiki sur
+# l'API de recherche de Wikipedia (le moteur amont "wikipedia" ne fait
+# qu'un acces par titre exact).
+engines:
+  - name: wikipedia search
+    engine: mediawiki
+    shortcut: wps
+    base_url: "https://{language}.wikipedia.org/"
+    search_type: "text"
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: wiby
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: wikibooks
+    categories: [general, wikimedia]
+    disabled: false
+    inactive: false
+
+  - name: swisscows
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: neosearch
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: searchzee
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: startpagina
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: resulthunter
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: seznam
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: yacy
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: naver
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: google cse
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: duckduckgo
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: brave
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: startpage
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: wikiversity
+    categories: [general, wikimedia]
+    disabled: false
+    inactive: false
+
+  - name: wikisource
+    categories: [general, wikimedia]
+    disabled: false
+    inactive: false
+
+  - name: google
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: bing
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: mojeek
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: qwant
+    categories: [general, web]
+    disabled: false
+    inactive: false
+
+  - name: google scholar
+    categories: [science, scientific publications]
+    disabled: false
+    inactive: false
+
+  - name: semantic scholar
+    categories: [science, scientific publications]
+    disabled: false
+    inactive: false
+
+  - name: pubmed
+    categories: [science, scientific publications]
+    disabled: false
+    inactive: false
+
+  - name: arxiv
+    categories: [science, scientific publications]
+    disabled: false
+    inactive: false
+
+  - name: crossref
+    categories: [science, scientific publications]
+    disabled: false
+    inactive: false
+
+  - name: openairepublications
+    categories: [science, scientific publications]
+    disabled: false
+    inactive: false
+
+  - name: openairedatasets
+    categories: [science, scientific publications]
+    disabled: false
+    inactive: false
+
+  - name: google news
+    categories: [news]
+    disabled: false
+    inactive: false
+
+  - name: reuters
+    categories: [news]
+    disabled: false
+    inactive: false
+
+  - name: bing news
+    categories: [news]
+    disabled: false
+    inactive: false
+
+  - name: duckduckgo news
+    categories: [news]
+    disabled: false
+    inactive: false
+
+  - name: brave.news
+    categories: [news]
+    disabled: false
+    inactive: false
+
+  - name: yahoo news
+    categories: [news]
+    disabled: false
+    inactive: false
+
+  - name: startpage news
+    categories: [news]
+    disabled: false
+    inactive: false
+
+  - name: github
+    categories: [it, repos]
+    disabled: false
+    inactive: false
+
+  - name: stackoverflow
+    categories: [it, "q&a"]
+    disabled: false
+    inactive: false
+
+  - name: pypi
+    categories: [it, packages]
+    disabled: false
+    inactive: false
+
+  - name: docker hub
+    categories: [it, packages]
+    disabled: false
+    inactive: false
+
+  - name: askubuntu
+    categories: [it, "q&a"]
+    disabled: false
+    inactive: false
+
+  - name: superuser
+    categories: [it, "q&a"]
+    disabled: false
+    inactive: false
+
+  - name: arch linux wiki
+    categories: [it, software wikis]
+    disabled: false
+    inactive: false
+
+  - name: gentoo
+    categories: [it, software wikis]
+    disabled: false
+    inactive: false
+
+  - name: wikipedia
+    categories: [wikimedia]
+    disabled: false
+    inactive: false
+
+  - name: wikidata
+    categories: [wikimedia]
+    disabled: false
+    inactive: false
+
+  - name: wikinews
+    categories: [wikimedia]
+    disabled: false
+    inactive: false
