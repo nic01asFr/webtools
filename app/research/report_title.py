@@ -23,9 +23,11 @@ def short_title(query: str, max_chars: int = MAX_TITLE_CHARS) -> str:
     first = _SENTENCE_END.split(text, maxsplit=1)[0].strip()
     first = first.rstrip(".!?\u2026:;,- ")
     if len(first) > max_chars:
-        cut = first[:max_chars]
+        # Un caractere reserve aux points de suspension qui signalent la coupe.
+        limit = max_chars - 1
+        cut = first[:limit]
         # Coupe au dernier espace si la coupure tombe dans un mot.
-        if first[max_chars] != " " and " " in cut:
+        if first[limit] != " " and " " in cut:
             cut = cut.rsplit(" ", 1)[0]
-        first = cut.rstrip(" ,;:-")
+        first = cut.rstrip(" ,;:-") + "…"
     return first[:1].upper() + first[1:]

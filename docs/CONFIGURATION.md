@@ -50,7 +50,7 @@ périmé ou si un champ manque.
 | `clean_title` | bool | `false` | `WEBTOOLS_PIPELINE_CLEAN_TITLE` | titre court derive de la consigne au lieu de "Analyse: ..." (C41) | M3 | `true` |
 | `summary_mode` | str | `"extract"` | `WEBTOOLS_PIPELINE_SUMMARY_MODE` | "extract" (2 premieres phrases) ou "none" (resume vide) (C07) | M3 | `none` |
 | `enrichment_enabled` | bool | `true` | `WEBTOOLS_PIPELINE_ENRICHMENT_ENABLED` | faux : saute l'enrichissement iteratif (C42) | M3 | `false` |
-| `coherence_append_enabled` | bool | `true` | `WEBTOOLS_PIPELINE_COHERENCE_APPEND_ENABLED` | faux : ne colle plus les suggestions de coherence (C40) | M3 | `false` |
+| `coherence_append_enabled` | bool | `false` | `WEBTOOLS_PIPELINE_COHERENCE_APPEND_ENABLED` | vrai : colle les suggestions de coherence en fin de section | M3 | `false` |
 | `regenerate_v2` | bool | `false` | `WEBTOOLS_PIPELINE_REGENERATE_V2` | vrai : regeneration de section avec langue, citations et schema (C43) | M3 (essai isole si M3 reste dans le bruit) | `true` |
 | `validate_cited_urls` | bool | `false` | `WEBTOOLS_PIPELINE_VALIDATE_CITED_URLS` | rapproche ou retire les URL citees non fournies (C45) | M4 | `true` |
 | `bibliography_cited_only` | bool | `false` | `WEBTOOLS_PIPELINE_BIBLIOGRAPHY_CITED_ONLY` | bibliographie limitee aux sources citees (C45) | M4 | `true` |

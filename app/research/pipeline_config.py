@@ -82,7 +82,10 @@ class PipelineConfig:
 
     # --- Lot V3-5 : enrichissement et coherence ---
     enrichment_enabled: bool = True  # faux : saute l'enrichissement iteratif (C42)
-    coherence_append_enabled: bool = True  # faux : ne colle plus les suggestions de coherence (C40)
+    # Faux par defaut depuis le 12/11/2026 : constate en production, la
+    # suggestion du modele ("Une fois la section corrigee, ajouter...") etait
+    # collee telle quelle dans le rapport (C40).
+    coherence_append_enabled: bool = False  # vrai : colle les suggestions de coherence en fin de section
     regenerate_v2: bool = False  # vrai : regeneration de section avec langue, citations et schema (C43)
 
     # --- Lot V3-4 : collecte (requetes, langue, plafonds) ---

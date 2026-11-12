@@ -26,6 +26,9 @@ REFUS_REEL = (
         "Je ne peux pas rédiger cette section : les sources fournies ne permettent pas de répondre.",
         "I cannot write this section because the provided sources do not contain relevant data.",
         "The provided data does not contain any information about bees.",
+        # Variante reelle du 12/11/2026, non detectee par le premier motif.
+        "Il est important de noter que les données fournies dans le contexte ne contiennent "
+        "aucune information scientifique concernant les néonicotinoïdes.",
     ],
 )
 def test_refus_detecte(text: str) -> None:

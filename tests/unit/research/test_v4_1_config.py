@@ -22,7 +22,7 @@ EXPECTED_DEFAULTS: dict[str, Any] = {
     "prompt_payload_minimal": False,
     "max_chunks_per_source": 0,
     "enrichment_enabled": True,
-    "coherence_append_enabled": True,
+    "coherence_append_enabled": False,
     "regenerate_v2": False,
     "separate_search_terms": False,
     "search_language_from_query": False,

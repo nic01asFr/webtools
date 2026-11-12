@@ -17,13 +17,13 @@ from __future__ import annotations
 import re
 
 # Debut de texte examine, en caracteres.
-HEAD_CHARS = 400
+HEAD_CHARS = 700
 
 _PATTERNS = [
     # Francais
     r"il (?:est|m'est) impossible de r[ée]diger",
     r"je ne (?:peux|suis pas en mesure de) (?:pas )?r[ée]diger",
-    r"(?:les|ces) (?:donn[ée]es|sources|documents) fourni(?:e)?s ne (?:contiennent|comportent|permettent) (?:aucune|pas)",
+    r"(?:les|ces) (?:donn[ée]es|sources|documents|passages|extraits) (?:disponibles|fourni(?:e)?s)(?: \S+){0,5} ne (?:contiennent|comportent|permettent|mentionnent|traitent) (?:aucune?|pas|ni)",
     r"aucune (?:des )?(?:donn[ée]es|sources) fournies? ne (?:mentionne|traite|contient|porte)",
     # Anglais
     r"\bi (?:cannot|can't|am unable to|am not able to) (?:write|draft|produce)",

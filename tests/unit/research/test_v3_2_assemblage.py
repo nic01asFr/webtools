@@ -71,7 +71,7 @@ async def test_clean_title_actif() -> None:
     report, _ = await _assemble({"A": GOOD}, query=long_query, clean_title=True)
     assert (
         report["title"]
-        == "Quel est l'impact de l'energie solaire sur l'acces a l'electricite en zone"
+        == "Quel est l'impact de l'energie solaire sur l'acces a l'electricite en zone…"
     )
     assert not report["title"].startswith("Analyse")
 
@@ -85,7 +85,8 @@ async def test_clean_title_consigne_vide_repli_note() -> None:
 def test_short_title_coupe_au_mot() -> None:
     title = short_title("word " * 60)
     assert len(title) <= 80
-    assert title.endswith("word")
+    # Un titre coupe le signale par des points de suspension.
+    assert title.endswith("word…")
     assert short_title("") == ""
 
 
