@@ -75,7 +75,7 @@ les installez jamais ensemble. L'image Docker contient les deux venvs
 Sans Docker, designez les interpreteurs par variables :
 
 ```bash
-python -m venv venv-api && venv-api/bin/pip install -r requirements.lock
+python -m venv venv-api && venv-api/bin/pip install -r requirements.lock \n    --extra-index-url https://download.pytorch.org/whl/cpu
 python -m venv venv-mcp && venv-mcp/bin/pip install -r requirements-mcp.lock
 export WEBTOOLS_API_PYTHON=$PWD/venv-api/bin/python
 export WEBTOOLS_MCP_PYTHON=$PWD/venv-mcp/bin/python
@@ -103,7 +103,10 @@ UV="$T/venv/bin/uv"
 CIBLE="--python-platform x86_64-unknown-linux-gnu --python-version 3.11 --no-header"
 # API : dependances principales de pyproject.toml. Un verrou existant sert de
 # preference : seules les lignes qui doivent changer changent.
-"$UV" pip compile $CIBLE -o requirements.lock pyproject.toml
+# torch en roues CPU (le service ne fait aucun calcul GPU) : index PyTorch
+# supplementaire, et unsafe-best-match pour que uv y prenne torch==X+cpu. Sans
+# cela le verrou tire les roues CUDA (nvidia-*, triton : plus de 3 Go).
+"$UV" pip compile $CIBLE --extra-index-url https://download.pytorch.org/whl/cpu   --index-strategy unsafe-best-match -o requirements.lock pyproject.toml
 # MCP : liste de l'extra mcp de pyproject.toml, plus httpx
 printf 'fastmcp>=3.0.0
 mcp>=1.0.0
@@ -113,8 +116,9 @@ httpx>=0.27.2
 (cd "$T" && "$UV" pip compile $CIBLE -o "$R/requirements-mcp.lock" mcp.in)
 ```
 
-Puis remettre les commentaires d'en-tete des verrous (voir `git diff`) et
-verifier que les annotations `# via -r` ne contiennent pas de chemin local
+Puis remettre les commentaires d'en-tete des verrous (voir `git diff`),
+verifier qu'il ne reste ni `nvidia-*`, ni `cuda-*`, ni `triton` dans
+`requirements.lock` (`torch` doit valoir `X+cpu`), et verifier que les annotations `# via -r` ne contiennent pas de chemin local
 (elles doivent dire `-r mcp.in`). Controle sans installer, depuis un venv
 quelconque (les roues CUDA de torch pesent plus de 3 Go) :
 
@@ -135,6 +139,32 @@ L'image n'a pas de depot git : le commit charge est passe au build, sinon
 WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build
 # ou : docker build -f docker/Dockerfile --build-arg WEBTOOLS_COMMIT=$(git rev-parse HEAD) .
 ```
+
+### Verifier un deploiement
+
+Apres un `docker compose up -d` (ou `start_all.sh`), controler les quatre
+elements. Exemple avec les ports publies localement (8000 API, 8090 MCP) ;
+`$CLE` est `WEBTOOLS_API_KEY`.
+
+```bash
+docker compose ps                          # trois services, "healthy"
+curl -s http://localhost:8000/health       # commit attendu, searxng ok, catalogue de moteurs charge
+# SearXNG depuis le conteneur de l'API : resultats reels de plusieurs moteurs
+docker compose exec webtools curl -s "http://searxng:8080/search?q=test&format=json"   | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d['results']), sorted({e for r in d['results'] for e in r.get('engines',[])}))"
+# Serveur MCP : decouverte OAuth 200, endpoint protege 401
+curl -s -o /dev/null -w '%{http_code}
+' http://localhost:8090/.well-known/oauth-authorization-server
+curl -s -o /dev/null -w '%{http_code}
+' -X POST http://localhost:8090/mcp
+# Recherche reelle et extraction (Playwright) par l'API
+curl -s -X POST http://localhost:8000/api/v1/search -H "X-API-Key: $CLE"   -H "Content-Type: application/json" -d '{"query": "test"}'
+curl -s -X POST http://localhost:8000/api/v1/extract -H "X-API-Key: $CLE"   -H "Content-Type: application/json" -d '{"url": "https://example.com"}'
+```
+
+`/health` indique `llm` en echec tant que `DEFAULT_LLM_API_KEY` n'est pas une
+vraie cle : c'est normal avec une valeur factice. Le reseau `proxy` de
+`docker-compose.yml` est externe (Traefik) : hors production, le creer avec
+`docker network create proxy`.
 
 ### Mettre a jour l'image SearXNG
 
