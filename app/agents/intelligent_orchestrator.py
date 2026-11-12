@@ -21,120 +21,12 @@ from app.services.search_service import searxng_client
 from app.manager import ExtractorManager
 from app.api.models import ExtractionOptions
 from app.core.data_extractor import GenericDataExtractor
+from app.research.context import ExecutionContext, cosine_similarity, extract_domain
 from app.research.diagnostics import Diagnostics
 from app.research.pipeline_config import PipelineConfig
+from app.research.stages.services import StageServices
 
 logger = logging.getLogger(__name__)
-
-
-def _cosine_similarity(a: list, b: list) -> float:
-    """Similarite cosinus entre deux vecteurs d'embedding (0-1)."""
-    dot = sum(x * y for x, y in zip(a, b))
-    norm_a = sum(x * x for x in a) ** 0.5
-    norm_b = sum(y * y for y in b) ** 0.5
-    if norm_a == 0 or norm_b == 0:
-        return 0.0
-    return max(0.0, dot / (norm_a * norm_b))
-
-
-def _extract_domain(url: str) -> str:
-    """Domaine racine d'une URL, pour juger de l'independance de deux sources."""
-    from urllib.parse import urlparse
-    try:
-        netloc = urlparse(url).netloc.lower()
-        return netloc[4:] if netloc.startswith("www.") else netloc
-    except Exception:
-        return url
-
-
-class ExecutionContext:
-    """Contexte d'exécution avec historique et apprentissage."""
-
-    def __init__(self, query: str, config: PipelineConfig | None = None):
-        self.query = query
-        # Configuration effective et journal des degradations de CETTE requete.
-        self.config: PipelineConfig = config if config is not None else PipelineConfig.from_env()
-        self.diagnostics: Diagnostics = Diagnostics()
-        # Langue de recherche et de redaction, decidee par le plan (langue de
-        # la consigne). "all" ne restreint rien - c'est le defaut sur, alors
-        # que "auto" fait tomber PubMed de 20 a 0 resultats (verifie).
-        self.search_language: str = "all"
-        self.steps: List[Dict] = []
-        self.datasets: Dict[str, List[Dict]] = {}
-        self.discovered_sources: List[str] = []
-        self.tool_success_rate: Dict[str, Dict] = {}
-        # Cache d'extraction partage sur toute la duree d'une requete research_deep :
-        # un meme article pertinent pour plusieurs sections (frequent) n'est
-        # extrait qu'une seule fois, pas une fois par section qui le reference.
-        self.extraction_cache: Dict[str, Any] = {}
-
-        # Cache d'embeddings partage entre le croisement de sources (recherche
-        # de corroboration) et la selection semantique de chunks - un meme
-        # contenu ne fait jamais l'objet de deux appels d'embedding distincts,
-        # peu importe l'ordre d'appel des deux fonctions qui en ont besoin.
-        self.embedding_cache: Dict[str, list] = {}
-
-        # Historique de tous les chunks extraits, tous sujets confondus, pour
-        # pouvoir chercher des corroborations cross-sections (pas seulement
-        # au sein d'une section) : {url, domain, content, embedding}
-        self.all_extracted_chunks: List[Dict[str, Any]] = []
-
-        # NOUVEAU: Contenu final structuré avec accumulation par section
-        self.final_content: Dict[str, Any] = {
-            "sections": {},  # {section_name: {"raw_data": [], "content": "", "metadata": {}}}
-            "global_metadata": {
-                "sources_used": [],
-                "extraction_timestamps": [],
-                "all_structured_data": []
-            }
-        }
-
-    def initialize_sections(self, section_names: List[str]):
-        """Initialise les sections du rapport."""
-        for section_name in section_names:
-            self.final_content["sections"][section_name] = {
-                "raw_data": [],
-                "content": "",
-                "metadata": {"data_count": 0, "sources": []}
-            }
-        logger.info(f"📋 Sections initialisées: {', '.join(section_names)}")
-
-    def add_step(self, tool: str, action: str, input_data: Any, output_data: Any, success: bool):
-        """Enregistre une étape."""
-        preview_chars = self.config.step_preview_chars
-        input_str = str(input_data)[:preview_chars]
-        output_str = str(output_data)[:preview_chars] if output_data else ""
-
-        self.steps.append({
-            "step_number": len(self.steps) + 1,
-            "tool": tool,
-            "action": action,
-            "success": success,
-            "timestamp": datetime.now().isoformat(),
-            "input_preview": input_str,
-            "output_preview": output_str
-        })
-
-        # Mettre à jour taux de succès
-        if tool not in self.tool_success_rate:
-            self.tool_success_rate[tool] = {"success": 0, "failures": 0}
-
-        if success:
-            self.tool_success_rate[tool]["success"] += 1
-        else:
-            self.tool_success_rate[tool]["failures"] += 1
-
-    def add_dataset(self, name: str, data: List[Dict]):
-        """Ajoute un dataset."""
-        self.datasets[name] = data
-        logger.info(f"💾 Dataset '{name}' ajouté: {len(data)} items")
-
-    def get_all_data(self) -> List[Dict]:
-        """Récupère toutes les données."""
-        all_data = []
-        for dataset in self.datasets.values():
-            all_data.extend(dataset)
-        return all_data
 
 
 class IntelligentOrchestrator:
@@ -163,21 +55,41 @@ class IntelligentOrchestrator:
         self.extractor_manager = extractor_manager if extractor_manager is not None else ExtractorManager()
         self.data_extractor = GenericDataExtractor(llm_client)
 
-    def _set_search_language(self, ctx: "ExecutionContext", context: Any, lang: str) -> None:
-        """Pose la langue de la requete sur son contexte.
+    def services(self) -> StageServices:
+        """Services injectes dans les etapes, lus a l'instant de l'appel.
 
-        self._search_language reste synchronise pour les lectures des autres
-        etapes (synthese) qui ne sont pas encore migrees vers ctx.
+        Lus a chaque appel (et non fixes a la construction) : un appelant peut
+        remplacer `config` ou `search_client` sur l'instance entre deux
+        requetes. Les etapes n'ecrivent jamais sur l'orchestrateur.
         """
-        ctx.search_language = lang
-        if isinstance(context, dict):
-            context['search_language'] = lang
-        self._search_language = lang
+        return StageServices(
+            llm_client=self.llm_client,
+            search_client=self.search_client,
+            extractor_manager=self.extractor_manager,
+            data_extractor=self.data_extractor,
+            config=self.config,
+            timeout=self.timeout,
+            sleep=asyncio.sleep,
+        )
 
     async def execute_intelligent_research(
         self,
         query: str,
         context: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Recherche intelligente adaptative : cree le contexte de la requete.
+
+        Tout l'etat de la requete vit dans l'ExecutionContext ; aucun attribut
+        de l'orchestrateur n'est ecrit (deux requetes successives sur la meme
+        instance n'interferent pas).
+        """
+        return await self._run_pipeline(query, context, ExecutionContext(query, config=self.config))
+
+    async def _run_pipeline(
+        self,
+        query: str,
+        context: Optional[Dict[str, Any]],
+        ctx: ExecutionContext,
     ) -> Dict[str, Any]:
         """
         Recherche intelligente adaptative - ARCHITECTURE REFONDÉE.
@@ -202,10 +114,8 @@ class IntelligentOrchestrator:
         logger.info(f"🧠 Recherche intelligente REFONDÉE: {query}")
         start_time = datetime.now()
 
-        ctx = ExecutionContext(query, config=self.config)
-        # Contexte vivant de cette requete : execute_with_deadline y lit ce qui
-        # est deja redige quand le delai global expire.
-        self._active_ctx = ctx
+        # Le contexte est cree par l'appelant : execute_with_deadline y lit ce
+        # qui est deja redige quand le delai global expire.
         context = context or {}
 
         # Contraintes de sources fournies par l'appelant. Elles arrivaient
@@ -215,13 +125,7 @@ class IntelligentOrchestrator:
         # Lues ICI, avant l'exploration : celle-ci alimente le plan, donc un
         # filtrage plus tardif laisserait des domaines exclus orienter la
         # structure du rapport.
-        _ctx = context if isinstance(context, dict) else {}
-        self._domains_whitelist = [d.lower().strip() for d in (_ctx.get("domains_whitelist") or []) if d]
-        self._domains_exclusions = [d.lower().strip() for d in (_ctx.get("sources_exclusions") or []) if d]
-        if self._domains_whitelist:
-            logger.info(f"  🔒 Whitelist active : {self._domains_whitelist}")
-        if self._domains_exclusions:
-            logger.info(f"  🚫 Exclusions actives : {self._domains_exclusions}")
+        ctx.set_domain_constraints(context)
 
         # ===================================================================
         # PHASE 1: EXPLORATION + PLAN DÉTAILLÉ avec canvas complet
@@ -234,7 +138,7 @@ class IntelligentOrchestrator:
         # declaree par le plan est retenue plus bas.
         from app.utils.language import detect_language
         _detected = detect_language(query)
-        self._set_search_language(ctx, context, _detected)
+        ctx.set_search_language(context, _detected)
 
         # Étape 1.1: Exploration initiale restreinte pour évaluer le champ
         exploration_data = await self._exploratory_phase(query, context, ctx=ctx)
@@ -255,7 +159,7 @@ class IntelligentOrchestrator:
         _lang = _detected if _detected != 'all' else _declared
         if _detected != 'all' and _declared not in ('all', _detected):
             logger.debug(f"Langue: detectee '{_detected}', LLM disait '{_declared}' - detection retenue")
-        self._set_search_language(ctx, context, _lang)
+        ctx.set_search_language(context, _lang)
         logger.info(f"  🌐 Langue de recherche et rédaction : {_lang}")
 
         # Initialiser les sections du canvas
@@ -653,17 +557,16 @@ class IntelligentOrchestrator:
         devient une reponse success=False qui garde les diagnostics : la forme
         du resultat est la meme dans tous les cas.
         """
-        self._active_ctx = None
         started = datetime.now()
-        task = asyncio.ensure_future(self.execute_intelligent_research(query, context))
+        # Contexte vivant de cette requete, cree ici pour que le rapport
+        # partiel lise ce qui est deja redige quand le delai expire.
+        ctx = ExecutionContext(query, config=self.config)
+        task = asyncio.ensure_future(self._run_pipeline(query, context, ctx))
         try:
             done, _ = await asyncio.wait({task}, timeout=deadline_seconds)
         except asyncio.CancelledError:
             task.cancel()
             raise
-        ctx: Optional[ExecutionContext] = self._active_ctx
-        if ctx is None:
-            ctx = ExecutionContext(query, config=self.config)
 
         if task in done:
             try:
@@ -855,7 +758,7 @@ class IntelligentOrchestrator:
                 )
                 query_vec = vectors[0]
                 for item, vec in zip(valid_items, vectors[1:]):
-                    semantic_scores[id(item)] = _cosine_similarity(query_vec, vec)
+                    semantic_scores[id(item)] = cosine_similarity(query_vec, vec)
                 logger.info(f"  🧠 Scoring sémantique par embeddings : {len(semantic_scores)} chunks scorés")
             except Exception as e:
                 logger.warning(f"Embeddings indisponibles pour la selection semantique, repli sur mots-cles seuls: {e}")
@@ -1326,7 +1229,7 @@ CRITÈRES:
             _engines = await self._cascade_engines(search_query, ctx=ctx)
             results = await self.search_client.search(
                 search_query,
-                max_results=self._search_pool_size(cfg.targeted_search_pool_size),
+                max_results=self._search_pool_size(cfg.targeted_search_pool_size, ctx),
                 language=ctx.search_language if cfg.search_language_from_query else "all",
                 engines=",".join(_engines) if _engines else None,
             )
@@ -1335,7 +1238,7 @@ CRITÈRES:
             # complement pre-redaction reintroduisait des domaines exclus.
             if results:
                 _as_dicts = [{"url": r.url, "title": r.title} for r in results]
-                _kept = {d["url"] for d in self._filter_by_constraints(_as_dicts)}
+                _kept = {d["url"] for d in self._filter_by_constraints(_as_dicts, ctx)}
                 results = [r for r in results if r.url in _kept]
 
             if not results:
@@ -1520,7 +1423,7 @@ IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
             strip_unknown_citations,
         )
 
-        lang = getattr(ctx, "search_language", None) or getattr(self, "_search_language", "all")
+        lang = ctx.search_language or "all"
         bibliography = report.get('bibliography') or []
         current_content = current_section.get('content', '') or ''
         current_with_urls = numbered_to_source(current_content, bibliography)
@@ -1705,7 +1608,7 @@ Consignes:
         try:
             search_results = await self.search_client.search(
                 query=search_query,
-                max_results=self._search_pool_size(max_results),
+                max_results=self._search_pool_size(max_results, ctx),
                 language=language,
                 categories="general",
                 engines=engines_param,
@@ -1725,7 +1628,7 @@ Consignes:
                 # domaines exclus orienteraient la structure du rapport avant
                 # meme la phase de recherche par section. Le filtre precede la
                 # troncature, sinon des resultats exclus occupent des places.
-                urls_found = self._filter_by_constraints(urls_found)[:max_results]
+                urls_found = self._filter_by_constraints(urls_found, ctx)[:max_results]
 
             # Analyser les snippets pour identifier sous-thèmes
             topics_found = self._extract_topics_from_snippets(urls_found, config=cfg)
@@ -1762,14 +1665,14 @@ Consignes:
 
     _SEARCH_OPERATORS = ("filetype:", "site:", "inurl:", "intitle:", '"')
 
-    def _search_pool_size(self, wanted: int) -> int:
+    def _search_pool_size(self, wanted: int, ctx: Optional[ExecutionContext] = None) -> int:
         """Nombre de resultats a demander au moteur pour en garder `wanted`.
 
         Avec des contraintes de domaines, le filtre s'applique APRES la
         recherche : demander exactement `wanted` resultats laisserait des
         domaines exclus occuper les places avant le filtre (C35).
         """
-        if getattr(self, "_domains_whitelist", None) or getattr(self, "_domains_exclusions", None):
+        if ctx is not None and (ctx.domains_whitelist or ctx.domains_exclusions):
             return wanted * self.config.search_pool_multiplier
         return wanted
 
@@ -1863,7 +1766,9 @@ Consignes:
         "sources consultees", "sources consultées", "demarche", "démarche",
     )
 
-    def _filter_by_constraints(self, sources: List[Dict]) -> List[Dict]:
+    def _filter_by_constraints(
+        self, sources: List[Dict], ctx: Optional[ExecutionContext] = None
+    ) -> List[Dict]:
         """
         Applique whitelist et exclusions de domaines aux resultats de
         recherche.
@@ -1879,8 +1784,8 @@ Consignes:
         sans qu'on sache pourquoi, alors qu'un filtrage a posteriori est
         explicite et journalisable.
         """
-        wl = getattr(self, "_domains_whitelist", None) or []
-        ex = getattr(self, "_domains_exclusions", None) or []
+        wl = ctx.domains_whitelist if ctx is not None else []
+        ex = ctx.domains_exclusions if ctx is not None else []
         if not wl and not ex:
             return sources
 
@@ -2593,7 +2498,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         async def _search_one(q: str) -> List[Any]:
             engines = await self._cascade_engines(q, axis=axis, ctx=context)
             engines_param = ",".join(engines) if engines else None
-            pool = self._search_pool_size(max_sources)
+            pool = self._search_pool_size(max_sources, context)
             found = await self.search_client.search(
                 query=q, max_results=pool, language=language, engines=engines_param
             )
@@ -2663,7 +2568,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
 
                 # Le filtre de domaines precede la troncature : sinon des
                 # resultats exclus occupent les places demandees (C35).
-                sources = self._filter_by_constraints(sources)[:max_sources]
+                sources = self._filter_by_constraints(sources, context)[:max_sources]
 
                 # Tracker la recherche
                 context.add_step(
@@ -2885,7 +2790,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
         for data_point in new_data:
             enriched_point = data_point.copy()
             enriched_point["cross_references"] = []
-            source_domain = _extract_domain(data_point.get("source", ""))
+            source_domain = extract_domain(data_point.get("source", ""))
             vec = new_embeddings.get(id(data_point))
 
             # Niveau 1 : meme URL reutilisee dans une autre section
@@ -2907,7 +2812,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                 for prior in context.all_extracted_chunks:
                     if prior["domain"] == source_domain or not prior.get("embedding"):
                         continue
-                    sim = _cosine_similarity(vec, prior["embedding"])
+                    sim = cosine_similarity(vec, prior["embedding"])
                     if CORROBORATION_MIN <= sim <= CORROBORATION_MAX:
                         corroborating_domains.add(prior["domain"])
                         enriched_point["cross_references"].append({
@@ -3056,7 +2961,7 @@ SECTIONS DÉJÀ RÉDIGÉES DANS CE RAPPORT (pour éviter les répétitions, cons
         # or le respect de la consigne est l'un des quatre criteres notes par
         # RACE : un rapport dans la mauvaise langue echoue sur ce critere
         # quelle que soit la qualite du fond.
-        _lang = getattr(self, "_search_language", "all")
+        _lang = context.search_language or "all"
         _lang_names = {
             "fr": "français", "en": "anglais", "es": "espagnol",
             "de": "allemand", "it": "italien", "pt": "portugais",

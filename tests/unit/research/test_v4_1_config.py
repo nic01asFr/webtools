@@ -6,7 +6,7 @@ le vouloir fait echouer ce test.
 
 from typing import Any
 
-from app.agents.intelligent_orchestrator import IntelligentOrchestrator
+from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrchestrator
 from app.research.pipeline_config import PipelineConfig
 
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch
@@ -190,5 +190,6 @@ def test_la_requete_de_recherche_lit_sa_configuration() -> None:
 def test_la_taille_du_pool_lit_sa_configuration() -> None:
     orch = _orch(PipelineConfig(search_pool_multiplier=7))
     assert orch._search_pool_size(5) == 5
-    orch._domains_whitelist = ["example.org"]
-    assert orch._search_pool_size(5) == 35
+    ctx = ExecutionContext("q", config=orch.config)
+    ctx.domains_whitelist = ["example.org"]
+    assert orch._search_pool_size(5, ctx) == 35

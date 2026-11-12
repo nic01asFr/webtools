@@ -69,16 +69,12 @@ async def test_langue_detectee_avant_la_premiere_recherche(flag: bool) -> None:
     assert {c.language for c in search.queries} == {expected}
 
 
-async def test_langue_du_contexte_et_synchronisation_de_l_instance() -> None:
+async def test_langue_du_contexte() -> None:
     orch, _search, _pages = make_orch()
     ctx = ExecutionContext("q", config=orch.config)
     context: dict[str, Any] = {}
-    orch._set_search_language(ctx, context, "fr")
-    assert (ctx.search_language, context["search_language"], orch._search_language) == (
-        "fr",
-        "fr",
-        "fr",
-    )
+    ctx.set_search_language(context, "fr")
+    assert (ctx.search_language, context["search_language"]) == ("fr", "fr")
 
 
 @pytest.mark.parametrize("flag", [False, True])
@@ -105,8 +101,8 @@ async def test_filtre_de_domaines_avant_la_troncature() -> None:
     good = [make_result(f"https://good.org/{i}", "t", "s") for i in range(3)]
     search = FakeSearch(default=bad + good)
     orch, search, _pages = make_orch(search=search)
-    orch._domains_exclusions = ["bad.com"]
     ctx = ExecutionContext("q", config=orch.config)
+    ctx.domains_exclusions = ["bad.com"]
 
     data = await orch._section_research_phase("q", "S", SECTION, {}, ctx)
 
