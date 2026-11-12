@@ -10,8 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.core.config import settings
-from app.api.v1.endpoints import extract, vision, search_site, research_deep, search, research_quick
-from app.api.v1.endpoints import research as research_old
+from app.api.v1.endpoints import extract, vision, research_deep, search, research_quick
 
 from app.api.models import HealthResponse
 from app.api.auth import require_api_key, verify_auth_configuration
@@ -361,35 +360,6 @@ app.include_router(
     tags=["research"],
     dependencies=[Depends(require_api_key)]
 )
-
-
-# ====================================================================
-# ANCIENS ENDPOINTS - DEPRECATED (retirés de l'OpenAPI, code conservé)
-# ====================================================================
-
-# Les anciens routers sont conservés dans le code mais exclus de la documentation
-# pour simplifier l'API publique. Ils restent fonctionnels en interne si besoin.
-
-app.include_router(
-    research_old.router,
-    prefix="/api/v1",
-    tags=["deprecated"],
-    include_in_schema=False,  # Masquer de l'OpenAPI
-    dependencies=[Depends(require_api_key)]
-)
-
-app.include_router(
-    search_site.router,
-    prefix="/api/v1",
-    tags=["deprecated"],
-    include_in_schema=False,
-    dependencies=[Depends(require_api_key)]
-)
-
-
-
-
-
 
 
 # Refus de demarrer sans cle d'API (decision D6) : controle au demarrage du

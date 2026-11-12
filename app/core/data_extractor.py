@@ -6,8 +6,7 @@ indépendamment du domaine (IA, démographie, économie, santé, etc.)
 """
 
 import logging
-import re
-from typing import Dict, Any, List, Optional
+from typing import List, Optional
 from dataclasses import dataclass, asdict
 from datetime import datetime
 
@@ -271,61 +270,3 @@ RÈGLES CRITIQUES:
             extraction_timestamp=datetime.now().isoformat(),
             overall_confidence=0.0
         )
-
-
-class DataValidator:
-    """Valide et compare les données extraites de multiples sources"""
-
-    @staticmethod
-    def find_common_metrics(data_list: List[StructuredData]) -> Dict[str, List[NumericalData]]:
-        """Trouve les métriques présentes dans plusieurs sources"""
-
-        metrics_by_name = {}
-
-        for data in data_list:
-            for num in data.numerical:
-                metric_key = num.metric.lower().strip()
-                if metric_key not in metrics_by_name:
-                    metrics_by_name[metric_key] = []
-                metrics_by_name[metric_key].append(num)
-
-        # Garder seulement les métriques présentes dans au moins 2 sources
-        common_metrics = {
-            k: v for k, v in metrics_by_name.items()
-            if len(v) >= 2
-        }
-
-        return common_metrics
-
-    @staticmethod
-    def validate_numerical_coherence(
-        metrics: Dict[str, List[NumericalData]]
-    ) -> List[Dict[str, Any]]:
-        """Valide la cohérence entre valeurs similaires de différentes sources"""
-
-        validations = []
-
-        for metric_name, values in metrics.items():
-            if len(values) < 2:
-                continue
-
-            # Calculer variance
-            nums = [v.value for v in values]
-            mean_val = sum(nums) / len(nums)
-            variance = sum((x - mean_val) ** 2 for x in nums) / len(nums)
-            std_dev = variance ** 0.5
-
-            # Déterminer cohérence
-            coherent = (std_dev / mean_val) < 0.1 if mean_val != 0 else False
-
-            validations.append({
-                "metric": metric_name,
-                "values": nums,
-                "sources": [v.source_sentence for v in values],
-                "mean": mean_val,
-                "std_dev": std_dev,
-                "coherent": coherent,
-                "recommended_value": mean_val if coherent else None
-            })
-
-        return validations

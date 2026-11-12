@@ -39,24 +39,6 @@ EXCLUDED_ENGINES = {"chefkoch", "wttr.in", "currency", "dictzone", "wordnik",
                     "etymonline", "wiktionary", "lingva", "libretranslate",
                     "deepl", "mymemory translated"}
 
-# Profils de repli. Ils ne CONTRAIGNENT pas le choix du LLM : ils servent
-# quand il ne se prononce pas, quand sa selection est vide apres
-# validation, ou quand il prefere un raccourci a une enumeration.
-# Les noms sont valides contre le catalogue reel au moment de l'usage :
-# un moteur absent de la configuration est simplement ignore.
-FALLBACK_PROFILES: Dict[str, List[str]] = {
-    "general": ["google", "duckduckgo", "bing", "brave", "startpage", "wikipedia"],
-    "academic": ["google scholar", "semantic scholar", "arxiv", "pubmed",
-                 "crossref", "openairedatasets", "wikipedia"],
-    "news": ["google news", "bing news", "reuters", "yahoo news", "duckduckgo"],
-    "technical": ["github", "stackexchange", "pypi", "arch linux wiki",
-                  "docker hub", "duckduckgo"],
-    "reference": ["wikipedia", "wikidata", "wikibooks", "duckduckgo", "google"],
-}
-
-DEFAULT_PROFILE = "general"
-
-
 # --- Regroupement en axes -----------------------------------------------
 #
 # Les categories de SearXNG servent les ONGLETS de son interface web ("je
@@ -221,43 +203,6 @@ class EngineCatalog:
     def available(self) -> bool:
         return self._loaded
 
-    def validate(self, names: Optional[List[str]]) -> List[str]:
-        """Ne garde que les moteurs reellement presents. Un nom inconnu est
-        ecarte sans erreur : le LLM peut se tromper, cela ne doit pas faire
-        echouer une recherche."""
-        if not names or not self._loaded:
-            return []
-        valid, unknown = [], []
-        for n in names:
-            key = str(n).strip().lower()
-            match = next((real for real in self._engines if real.lower() == key), None)
-            (valid.append(match) if match else unknown.append(n))
-        if unknown:
-            logger.debug(f"Moteurs inconnus ignores : {unknown}")
-        return valid
-
-    def resolve(
-        self,
-        engines: Optional[List[str]] = None,
-        profile: Optional[str] = None,
-    ) -> List[str]:
-        """
-        Selection finale, par ordre de priorite :
-          1. moteurs explicites choisis par le LLM (valides)
-          2. profil de repli demande
-          3. profil general
-        """
-        chosen = self.validate(engines)
-        if chosen:
-            return chosen
-
-        if profile:
-            chosen = self.validate(FALLBACK_PROFILES.get(profile.lower().strip(), []))
-            if chosen:
-                return chosen
-
-        return self.validate(FALLBACK_PROFILES[DEFAULT_PROFILE])
-
     # --- Disponibilite ---------------------------------------------------
     #
     # UNIQUEMENT la disponibilite, jamais la pertinence.
@@ -337,27 +282,6 @@ class EngineCatalog:
             selected.extend(kept)
 
         return selected
-
-    def prompt_listing(self, max_per_category: int = 6) -> str:
-        """
-        Liste compacte pour le prompt du plan, groupee par categorie.
-
-        Bornee volontairement : le prompt du plan porte deja la structure, les
-        objectifs, les questions cles et les requetes. Y deverser 40 noms
-        bruts risquerait de degrader le reste - un LLM qui fait cinq choses
-        correctement en fait rarement sept.
-        """
-        if not self._loaded:
-            return ""
-        by_cat: Dict[str, List[str]] = {}
-        for name, meta in self._engines.items():
-            for cat in meta["categories"]:
-                by_cat.setdefault(cat, []).append(name)
-        lines = []
-        for cat in sorted(by_cat):
-            names = sorted(by_cat[cat])[:max_per_category]
-            lines.append(f"  {cat}: {', '.join(names)}")
-        return "\n".join(lines)
 
 
 engine_catalog = EngineCatalog()

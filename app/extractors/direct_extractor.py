@@ -3,7 +3,6 @@ Extractor direct utilisant Playwright sans agent IA.
 Rapide mais limité pour le contenu dynamique.
 """
 
-import re
 import logging
 from contextlib import asynccontextmanager
 from typing import Dict, Any
@@ -195,28 +194,3 @@ class DirectExtractor(BaseExtractor):
                 url=url,
                 error_message=f"Erreur lors de l'extraction: {str(e)}"
             )
-
-    def _clean_content(self, content: str) -> str:
-        """
-        Nettoie le contenu extrait.
-
-        Args:
-            content: Contenu brut
-
-        Returns:
-            Contenu nettoyé
-        """
-        if not content:
-            return ""
-
-        # Supprimer les lignes vides multiples
-        content = re.sub(r'\n\s*\n', '\n\n', content)
-
-        # Supprimer les espaces multiples
-        content = re.sub(r' +', ' ', content)
-
-        # Nettoyer les lignes
-        lines = content.split('\n')
-        cleaned_lines = [line.strip() for line in lines if line.strip()]
-
-        return '\n'.join(cleaned_lines)

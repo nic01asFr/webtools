@@ -166,40 +166,6 @@ class SourceRegistry:
         self.websites.append(website_source)
         logger.debug(f"[SourceRegistry] Added Website: {url} ({status})")
 
-    def add_dataset(
-        self,
-        url: str,
-        status: SourceStatus,
-        format: str,
-        **kwargs
-    ):
-        """Ajouter une source dataset"""
-        dataset_source = DatasetSource(
-            url=url,
-            status=status.value if isinstance(status, SourceStatus) else status,
-            format=format,
-            **kwargs
-        )
-        self.datasets.append(dataset_source)
-        logger.debug(f"[SourceRegistry] Added Dataset: {url} ({status})")
-
-    def add_search_engine(
-        self,
-        engines: List[str],
-        query: str,
-        results_found: int,
-        **kwargs
-    ):
-        """Ajouter une source search engine"""
-        search_source = SearchEngineSource(
-            engines=engines,
-            query=query,
-            results_found=results_found,
-            **kwargs
-        )
-        self.search_engines.append(search_source)
-        logger.debug(f"[SourceRegistry] Added Search Engines: {engines}")
-
     def update_source_status(self, url: str, new_status: SourceStatus):
         """Mettre à jour le statut d'une source existante"""
         # Chercher dans les websites
@@ -247,17 +213,6 @@ class SourceRegistry:
             result["search_engines"] = [engine.to_dict() for engine in self.search_engines]
 
         return result
-
-    def get_successful_apis(self) -> List[APISource]:
-        """Obtenir uniquement les APIs réussies"""
-        return [api for api in self.apis if api.status == SourceStatus.SUCCESS.value]
-
-    def get_failed_sources(self) -> Dict[str, List]:
-        """Obtenir toutes les sources ayant échoué"""
-        return {
-            "apis": [api.to_dict() for api in self.apis if api.status == SourceStatus.FAILED.value],
-            "websites": [ws.to_dict() for ws in self.websites if ws.status == SourceStatus.FAILED.value]
-        }
 
     def get_statistics(self) -> Dict[str, Any]:
         """Obtenir des statistiques sur les sources"""

@@ -6,7 +6,6 @@ import pytest
 from app.services.engine_catalog import (
     AXIS_PREFERENCE,
     FAILURE_COOLDOWN_SECONDS,
-    FALLBACK_PROFILES,
     EngineCatalog,
 )
 
@@ -149,7 +148,6 @@ async def test_load_abandonne_apres_les_tentatives(monkeypatch: pytest.MonkeyPat
     assert faux.appels == 3
     assert cat.available is False
     assert cat.cascade() == []
-    assert cat.validate(["github"]) == []
 
 
 async def test_load_reponse_sans_moteur_est_un_echec(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -184,32 +182,10 @@ async def test_ensure_loaded_sans_url_connue() -> None:
     assert await EngineCatalog().ensure_loaded() is False
 
 
-# --- validate / resolve ------------------------------------------------------
-
-
-def test_validate_insensible_a_la_casse_et_ecarte_les_inconnus(catalogue: EngineCatalog) -> None:
-    assert catalogue.validate([" GitHub ", "inconnu", "ArXiv"]) == ["github", "arxiv"]
-    assert catalogue.validate(None) == []
-    assert catalogue.validate([]) == []
-
-
 def test_catalogue_non_charge() -> None:
     cat = EngineCatalog()
     assert cat.available is False
-    assert cat.validate(["github"]) == []
-    assert cat.resolve(["github"], "general") == []
     assert cat.cascade() == []
-    assert cat.prompt_listing() == ""
-
-
-def test_resolve_priorite_explicite_puis_profil_puis_general(catalogue: EngineCatalog) -> None:
-    assert catalogue.resolve(["arxiv", "bidon"]) == ["arxiv"]
-    academique = catalogue.resolve(["bidon"], "Academic")
-    assert set(academique) <= set(FALLBACK_PROFILES["academic"])
-    assert "arxiv" in academique
-    general = catalogue.resolve(None, "profil inconnu")
-    assert set(general) <= set(FALLBACK_PROFILES["general"])
-    assert general == catalogue.resolve()
 
 
 # --- axes et cascade ----------------------------------------------------------
@@ -290,17 +266,6 @@ def test_tous_les_moteurs_d_un_axe_en_echec_vide_l_axe(catalogue: EngineCatalog)
     for n in ("google scholar", "semantic scholar", "pubmed", "arxiv"):
         catalogue.mark_failure(n)
     assert catalogue.cascade(per_axis=3, axes=["academique"]) == []
-
-
-# --- listing --------------------------------------------------------------------
-
-
-def test_prompt_listing_borne_par_categorie(catalogue: EngineCatalog) -> None:
-    texte = catalogue.prompt_listing(max_per_category=2)
-    lignes = {ligne.split(":")[0].strip(): ligne for ligne in texte.splitlines()}
-    assert "images" not in lignes
-    assert lignes["science"].count(",") == 1
-    assert "github" in lignes["it"]
 
 
 def test_preferences_ne_contiennent_pas_de_doublons() -> None:

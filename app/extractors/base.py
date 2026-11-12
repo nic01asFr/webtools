@@ -32,8 +32,3 @@ class BaseExtractor(ABC):
             WebResult avec le contenu extrait
         """
         pass
-
-
-class ExtractionError(Exception):
-    """Exception levée en cas d'erreur lors de l'extraction."""
-    pass
