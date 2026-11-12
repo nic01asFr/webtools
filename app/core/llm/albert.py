@@ -3,15 +3,16 @@ Client LLM pour Albert API.
 Adapté depuis Colaig pour être autonome et réutilisable.
 """
 
+from typing import Any
+
 import httpx
-from typing import List, Dict, Any, Optional
-from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, AIMessage, HumanMessage
 from langchain_core.callbacks.manager import AsyncCallbackManagerForLLMRun
+from langchain_core.language_models import BaseChatModel
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from pydantic import Field, PrivateAttr
 
-from .base import BaseLLMClient, LLMClientError
+from .base import BaseLLMClient, LLMClientError, LLMEmptyContentError
 
 
 class AlbertLLMClient(BaseLLMClient):
@@ -20,11 +21,16 @@ class AlbertLLMClient(BaseLLMClient):
     Albert est le LLM gouvernemental français développé par Etalab.
     """
 
+    supports_structured = False
+    supports_embeddings = False
+    supports_vision = True
+
     def __init__(
         self,
         api_key: str,
         base_url: str = "https://albert.api.etalab.gouv.fr",
-        model: str = "AgentPublic/llama3-instruct-8b"
+        model: str = "AgentPublic/llama3-instruct-8b",
+        transport: httpx.AsyncBaseTransport | None = None
     ):
         """
         Initialise le client Albert.
@@ -33,6 +39,7 @@ class AlbertLLMClient(BaseLLMClient):
             api_key: Clé API Albert
             base_url: URL de base de l'API Albert
             model: Nom du modèle Albert à utiliser
+            transport: transport httpx injecte (tests sans reseau)
         """
         super().__init__(api_key=api_key, base_url=base_url, model=model)
 
@@ -43,7 +50,9 @@ class AlbertLLMClient(BaseLLMClient):
         # eviter la reutilisation de connexions perimees sur les sessions
         # longues (memes symptomes et meme cause que sur le client OpenAI -
         # voir app/core/llm/openai.py).
+        http_kwargs = {"transport": transport} if transport is not None else {}
         self.http_client = httpx.AsyncClient(
+            **http_kwargs,
             timeout=120.0,
             headers={
                 "Authorization": f"Bearer {self.api_key}",
@@ -59,7 +68,7 @@ class AlbertLLMClient(BaseLLMClient):
 
     async def generate(
         self,
-        messages: List[Dict[str, Any]],
+        messages: list[dict[str, Any]],
         **kwargs
     ) -> str:
         """
@@ -85,6 +94,7 @@ class AlbertLLMClient(BaseLLMClient):
         # integre (contrairement au SDK OpenAI utilise ailleurs) - on aligne
         # le niveau de resilience entre les deux clients.
         import asyncio
+        self._record_finish_reason(None)
         last_error = None
         for attempt in range(3):
             try:
@@ -93,10 +103,20 @@ class AlbertLLMClient(BaseLLMClient):
                 result = response.json()
 
                 if "choices" in result and len(result["choices"]) > 0:
-                    return result["choices"][0]["message"]["content"]
+                    choice = result["choices"][0]
+                    content = (choice.get("message") or {}).get("content")
+                    finish_reason = choice.get("finish_reason")
+                    self._record_finish_reason(finish_reason)
+                    if content is None or not str(content).strip():
+                        raise LLMEmptyContentError(
+                            f"Contenu vide rendu par Albert (finish_reason={finish_reason})"
+                        )
+                    return content
                 else:
                     raise LLMClientError("Réponse inattendue de l'API Albert")
 
+            except LLMClientError:
+                raise
             except httpx.HTTPStatusError as e:
                 raise LLMClientError(
                     f"Erreur HTTP {e.response.status_code}: {e.response.text}"
@@ -106,9 +126,9 @@ class AlbertLLMClient(BaseLLMClient):
                 if attempt < 2:
                     await asyncio.sleep(1.5 * (attempt + 1))
                     continue
-                raise LLMClientError(f"Erreur de connexion après {attempt + 1} tentatives: {str(e)}")
+                raise LLMClientError(f"Erreur de connexion après {attempt + 1} tentatives: {e!s}")
             except Exception as e:
-                raise LLMClientError(f"Erreur lors de la génération: {str(e)}")
+                raise LLMClientError(f"Erreur lors de la génération: {e!s}")
 
     def get_langchain_wrapper(self) -> BaseChatModel:
         """
@@ -128,7 +148,7 @@ class AlbertLLMClient(BaseLLMClient):
         self,
         text: str,
         image_url: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         **kwargs
     ) -> str:
         """
@@ -182,7 +202,7 @@ class AlbertLLMClient(BaseLLMClient):
         # Utiliser la méthode generate standard
         return await self.generate(messages, **kwargs)
 
-    async def close(self):
+    async def _aclose(self) -> None:
         """Ferme le client HTTP."""
         await self.http_client.aclose()
 
@@ -206,7 +226,7 @@ class AlbertAgentWrapper(BaseChatModel):
         api_key: str,
         base_url: str,
         model_name: str,
-        albert_client: Optional[AlbertLLMClient] = None,
+        albert_client: AlbertLLMClient | None = None,
         **kwargs
     ):
         """Initialise le wrapper avec les informations d'API Albert."""
@@ -232,7 +252,7 @@ class AlbertAgentWrapper(BaseChatModel):
         """Retourne le type de LLM pour la compatibilité LangChain."""
         return "albert_api"
 
-    def _generate(self, messages: List[BaseMessage], stop=None, run_manager=None, **kwargs):
+    def _generate(self, messages: list[BaseMessage], stop=None, run_manager=None, **kwargs):
         """
         Méthode synchrone requise par BaseChatModel.
         Non implémentée car nous utilisons uniquement l'interface asynchrone.
@@ -243,9 +263,9 @@ class AlbertAgentWrapper(BaseChatModel):
 
     async def _agenerate(
         self,
-        messages: List[BaseMessage],
-        stop: Optional[List[str]] = None,
-        run_manager: Optional[AsyncCallbackManagerForLLMRun] = None,
+        messages: list[BaseMessage],
+        stop: list[str] | None = None,
+        run_manager: AsyncCallbackManagerForLLMRun | None = None,
         **kwargs
     ) -> ChatResult:
         """
