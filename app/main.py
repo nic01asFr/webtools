@@ -14,7 +14,8 @@ from app.api.v1.endpoints import extract, vision, search_site, research_deep, se
 from app.api.v1.endpoints import research as research_old
 
 from app.api.models import HealthResponse
-from app.api.auth import require_api_key
+from app.api.auth import require_api_key, verify_auth_configuration
+from app.core import build_info
 from app.core.browser.playwright_manager import ensure_playwright_installed, is_playwright_available
 
 # Configuration du logging
@@ -383,6 +384,21 @@ app.include_router(
 
 
 
+# Refus de demarrer sans cle d'API (decision D6) : controle au demarrage du
+# service et non a l'import, pour que les tests puissent importer l'application.
+_lifespan_applicatif = app.router.lifespan_context
+
+
+@asynccontextmanager
+async def _lifespan_avec_controle_auth(application: FastAPI):
+    verify_auth_configuration()
+    async with _lifespan_applicatif(application) as etat:
+        yield etat
+
+
+app.router.lifespan_context = _lifespan_avec_controle_auth
+
+
 @app.get("/", response_class=JSONResponse)
 async def root():
     """Endpoint racine."""
@@ -394,15 +410,72 @@ async def root():
     }
 
 
+# --- Sante -----------------------------------------------------------------
+
+LLM_PROBE_TTL_SECONDS = 60.0
+LLM_PROBE_TIMEOUT_SECONDS = 10.0
+
+# (horodatage monotone, resultat) du dernier appel reel au LLM.
+_llm_probe_cache: tuple[float, dict] | None = None
+
+
+async def _probe_llm() -> dict:
+    """Appel minimal (1 token) au LLM ; ne leve jamais."""
+    import asyncio
+    import os
+
+    if not os.getenv("DEFAULT_LLM_API_KEY", ""):
+        return {"configured": False, "ok": False, "detail": "cle LLM absente"}
+    try:
+        from app.core.llm import get_llm_client
+
+        client = await get_llm_client()
+        await asyncio.wait_for(
+            client.generate(
+                [{"role": "user", "content": "ping"}], max_tokens=1
+            ),
+            timeout=LLM_PROBE_TIMEOUT_SECONDS,
+        )
+        return {"configured": True, "ok": True, "detail": "ok"}
+    except Exception as exc:  # noqa: BLE001 - la sonde ne doit jamais lever
+        return {"configured": True, "ok": False, "detail": f"{type(exc).__name__}: {exc}"[:200]}
+
+
+async def _llm_status() -> dict:
+    """Etat du LLM, mis en cache 60 s pour ne pas consommer de quota."""
+    import time
+
+    global _llm_probe_cache
+    now = time.monotonic()
+    if _llm_probe_cache and now - _llm_probe_cache[0] < LLM_PROBE_TTL_SECONDS:
+        return _llm_probe_cache[1]
+    result = await _probe_llm()
+    _llm_probe_cache = (now, result)
+    return result
+
+
+def _engine_catalog_status() -> dict:
+    from app.services.engine_catalog import engine_catalog
+
+    par_axe: dict[str, int] = {}
+    # Lecture seule du contenu du catalogue (aucun accesseur public).
+    for name in engine_catalog._engines:
+        axe = engine_catalog.axis_of(name)
+        par_axe[axe] = par_axe.get(axe, 0) + 1
+    return {
+        "ok": engine_catalog.available,
+        "engines_total": sum(par_axe.values()),
+        "engines_per_axis": par_axe,
+    }
+
+
 @app.get("/health", response_model=HealthResponse, tags=["monitoring"])
 async def health_check():
     """
-    Endpoint de sante du service. Verifie aussi les dependances externes
-    (SearXNG, config LLM) - un /health qui ne teste que le process FastAPI
-    lui-meme donne une fausse impression de sante si une dependance est
-    indisponible.
+    Endpoint de sante du service. `healthy` exige Playwright, SearXNG et un
+    LLM qui repond (sonde minimale, mise en cache 60 s). Le commit charge et
+    l'heure de demarrage permettent de savoir quel code tourne.
     """
-    import os
     from app.services.search_service import searxng_client
 
     playwright_ok = is_playwright_available()
@@ -412,16 +485,26 @@ async def health_check():
     except Exception:
         searxng_ok = False
 
-    llm_configured = bool(os.getenv("DEFAULT_LLM_API_KEY", ""))
+    llm = await _llm_status()
+    catalog = _engine_catalog_status()
 
-    overall_status = "healthy" if (playwright_ok and llm_configured) else "degraded"
+    overall_status = "healthy" if (playwright_ok and searxng_ok and llm["ok"]) else "degraded"
 
     return HealthResponse(
         status=overall_status,
         version=settings.api_version,
         playwright_available=playwright_ok,
         searxng_available=searxng_ok,
-        llm_configured=llm_configured
+        llm_configured=llm["configured"],
+        commit=build_info.COMMIT,
+        commit_dirty=build_info.COMMIT_DIRTY,
+        started_at=build_info.STARTED_AT,
+        dependencies={
+            "playwright": {"ok": playwright_ok},
+            "searxng": {"ok": searxng_ok},
+            "llm": llm,
+            "engine_catalog": catalog,
+        },
     )
 
 

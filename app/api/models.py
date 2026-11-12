@@ -223,6 +223,13 @@ class HealthResponse(BaseModel):
     playwright_available: bool = Field(description="Playwright est-il disponible?")
     searxng_available: Optional[bool] = Field(default=None, description="SearXNG est-il accessible?")
     llm_configured: Optional[bool] = Field(default=None, description="Une cle LLM est-elle configuree?")
+    commit: str = Field(default="unknown", description="Commit git du code charge")
+    commit_dirty: bool = Field(default=False, description="Arbre de travail modifie au chargement")
+    started_at: str = Field(default="", description="Heure de demarrage du processus (ISO 8601 UTC)")
+    dependencies: Dict[str, Dict[str, Any]] = Field(
+        default_factory=dict,
+        description="Etat detaille de chaque dependance (playwright, searxng, llm, engine_catalog)",
+    )
 
 
 # ============================================================================
