@@ -27,7 +27,7 @@ RACINE = Path(__file__).resolve().parent.parent
 if str(RACINE) not in sys.path:
     sys.path.insert(0, str(RACINE))
 
-from app.research.pipeline_config import ENV_PREFIX, PipelineConfig  # noqa: E402
+from app.research.pipeline_config import ENV_PREFIX, PipelineConfig
 
 FICHIER = RACINE / "docs" / "CONFIGURATION.md"
 DEBUT = "<!-- DEBUT-GENERE : ne pas modifier a la main, voir docs/generer_configuration.py -->"

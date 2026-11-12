@@ -14,9 +14,9 @@ from pathlib import Path
 from types import ModuleType
 
 import pytest
-
 from app.agents.intelligent_orchestrator import IntelligentOrchestrator
 from app.research.pipeline_config import PipelineConfig
+from pydantic import ValidationError
 
 RACINE = Path(__file__).resolve().parents[3]
 CONFIGURATION = RACINE / "docs" / "CONFIGURATION.md"
@@ -127,7 +127,7 @@ def test_les_champs_retires_sont_bien_refuses() -> None:
     from app.api.v1.endpoints.research_deep import DeepResearchRequest
 
     for champ in ("max_steps", "max_results", "stream", "max_sources"):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             DeepResearchRequest(topic="sujet de test", **{champ: 1})
 
 
