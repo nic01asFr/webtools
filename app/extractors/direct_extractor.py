@@ -12,7 +12,6 @@ from .base import BaseExtractor, ExtractionError
 from app.api.models import WebResult
 from app.core.llm.base import BaseLLMClient
 from app.core.browser.playwright_manager import ensure_playwright_installed
-from app.core.content_cleaner import AdvancedContentCleaner
 
 logger = logging.getLogger(__name__)
 
@@ -22,10 +21,6 @@ class DirectExtractor(BaseExtractor):
     Extractor utilisant Playwright directement sans agent IA.
     Bon pour les sites statiques ou peu dynamiques.
     """
-
-    def __init__(self):
-        """Initialise l'extracteur avec le nettoyeur de contenu."""
-        self.content_cleaner = AdvancedContentCleaner()
 
     async def extract(
         self,

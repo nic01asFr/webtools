@@ -1,0 +1,30 @@
+name: check
+
+on: [push]
+
+jobs:
+  api:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Installer l'API et les outils de test
+        run: pip install -e ".[dev]"
+      - name: Verifier
+        run: make check
+
+  # Environnement distinct : mcp exige pydantic>=2.12, browser-use pydantic<2.11.
+  # Tant que mcp_server.py importe app/ (lot V1-6), on verifie seulement que
+  # l'extra se resout seul.
+  mcp:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verifier la resolution de la liste de l extra mcp
+        run: make check-mcp

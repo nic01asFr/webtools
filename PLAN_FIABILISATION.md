@@ -898,6 +898,7 @@ marqués « recoupé » ont été relus ou exécutés une seconde fois.
 | C78 | `engine_catalog.py`, `load` | Si SearXNG n'est pas prêt au démarrage, le catalogue reste vide pour toute la vie du processus |
 | C79 | `app/core/data_extractor.py` | Un seul item mal formé fait perdre toutes les données extraites, sans journal ; entrée coupée à 8 000 caractères ; `DataValidator` reçoit toujours des listes vides |
 | C80 | `language.py`, `content_detector.py` | Reproduit pour la langue. Les élisions françaises font échouer la détection. Le type de contenu est déduit par sous-chaînes (`capital.fr` devient « documentation ») |
+| C81 | `pyproject.toml` ; `mcp_server.py` | Mesuré à l'intégration. Les dépendances ne se résolvent pas en un seul environnement : `browser-use==0.1.41` exige `pydantic<2.11`, `langchain-core==0.3.49`, `langchain-openai==0.3.11` et `langchain-anthropic==0.3.3`, tandis que les `mcp` récents (tirés par `fastmcp>=3`) exigent `pydantic>=2.12` ; pip échoue en « resolution too deep ». En production le serveur MCP tourne déjà sous un autre interpréteur que l'API. Traité par V0-1 (extra `mcp` séparé) puis V1-6 (le MCP devient un client HTTP de l'API) |
 
 ## Annexe B. Ce qui n'a pas été vérifié
 
