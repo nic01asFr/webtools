@@ -1020,6 +1020,22 @@ Au 12 novembre 2026, version 3.0.0.
     « douze pays » tiré des connaissances du modèle contre la source.
   - Débit du proxy LLM mesuré à ~39 jetons/s en charge, et non 10 : le
     profil « modèle lent » repose sur une mesure prise en forte charge.
+  - Référence mesurée (juge `qwen3-8-27b`, audit manuel 96 % d'accord) :
+    affirmations soutenues par leurs sources 84,6 % en recherche rapide,
+    43,0 % en recherche approfondie ; en approfondie, 162 fautes sur 181
+    viennent de la rédaction (embellissements), 47 % des phrases ne portent
+    aucune citation. Détail dans `benchmarks/CITATIONS.md`.
+  - C90, ouvert (recherche rapide) : le modèle ne voit que les 2 000
+    premiers caractères de chaque source (`quick_uses_chunk_selection`
+    désactivé). Mesuré sur R2 : la réécriture vérifiée affirme « les sources
+    ne mentionnent pas l'année » alors que la page la donne plus bas. Le
+    contexte conditionne la vérification ; R3 mesure la sélection des
+    passages.
+  - C91, mesuré : 25 % d'affirmations soutenues dans les sections rédigées
+    après le repli de sélection, contre 51 % après une sélection normale.
+    Drapeau `selection_fallback_enabled`.
+  - Repli de recherche (C86) mesuré sur R1 : collectes de section vides
+    22/55 → 0/52, refus du modèle 12 → 3, citations par corpus 434 → 744.
 - **Où commencer** : construire l'image
   (`WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build`), lancer les
   trois services, vérifier le harnais sur une tâche (`benchmarks/INSTALL.md`,
