@@ -1,7 +1,22 @@
-.PHONY: help install dev-install test clean run docker-build docker-up docker-down docker-logs
+.PHONY: help check check-mcp install dev-install test clean run docker-build docker-up docker-down docker-logs
+
+PYTHON ?= python
 
 help: ## Affiche cette aide
+	@echo "Deux environnements Python distincts (leurs dependances sont incompatibles) :"
+	@echo "  API : pip install -e \".[dev]\"   (browser-use impose pydantic<2.11)"
+	@echo "  MCP : pip install -e \".[mcp]\"   (mcp/fastmcp exigent pydantic>=2.12)"
+	@echo "Ne jamais installer les deux extras dans le meme venv. 'make check' vise l'API ;"
+	@echo "'make check-mcp' verifie seulement que l'extra mcp se resout seul."
+	@echo
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+
+check: ## Verification API : ruff (F821,F811,E9) puis pytest hors tests live
+	$(PYTHON) -m ruff check --select F821,F811,E9 .
+	$(PYTHON) -m pytest tests -q -m "not live"
+
+check-mcp: ## Verifie que l'extra mcp se resout seul (dry-run, aucune installation)
+	$(PYTHON) -m pip install --dry-run ".[mcp]"
 
 install: ## Installe les dépendances
 	pip install -e .
