@@ -25,6 +25,10 @@ _PATTERNS = [
     r"je ne (?:peux|suis pas en mesure de) (?:pas )?r[ée]diger",
     r"(?:les|ces) (?:donn[ée]es|sources|documents|passages|extraits) (?:disponibles|fourni(?:e)?s)(?: \S+){0,5} ne (?:contiennent|comportent|permettent|mentionnent|traitent) (?:aucune?|pas|ni)",
     r"aucune (?:des )?(?:donn[ée]es|sources) fournies? ne (?:mentionne|traite|contient|porte)",
+    # Variante reelle du 12/11/2026 (recul du trait de cote, sources sur le
+    # recul de l'emploi industriel).
+    r"incompatibilit[ée] (?:\S+ )?entre les (?:donn[ée]es|sources) fournies et la demande",
+    r"(?:elles|ils|celles-ci|ceux-ci) ne contiennent aucune information sur",
     # Anglais
     r"\bi (?:cannot|can't|am unable to|am not able to) (?:write|draft|produce)",
     r"it is (?:not possible|impossible) to (?:write|draft|produce)",
@@ -32,10 +36,16 @@ _PATTERNS = [
     r"none of the (?:provided|supplied) (?:sources|data|documents)",
 ]
 _REFUSAL = re.compile("|".join(_PATTERNS), re.IGNORECASE)
+# Marqueurs de citation du texte brut ([SOURCE:url]) : une URL longue peut
+# repousser le refus hors de la fenetre examinee. Observe le 12/11/2026 : le
+# refus passait le filtre a la redaction, puis etait detecte par l'invariant
+# une fois les marqueurs convertis en [n].
+_SOURCE_MARKER = re.compile(r"\[SOURCE:[^\]]*\]?")
 
 
 def is_refusal(text: str | None) -> bool:
     """Vrai si le texte commence par un refus de rediger."""
     if not text:
         return False
-    return bool(_REFUSAL.search(text.strip()[:HEAD_CHARS]))
+    head = _SOURCE_MARKER.sub("[n]", text).strip()[:HEAD_CHARS]
+    return bool(_REFUSAL.search(head))

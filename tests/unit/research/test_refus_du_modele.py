@@ -35,6 +35,38 @@ def test_refus_detecte(text: str) -> None:
     assert is_refusal(text)
 
 
+# Cas reel du 12/11/2026, texte brut avant conversion des citations : les
+# marqueurs [SOURCE:url] repoussaient le refus hors de la fenetre examinee.
+REFUS_TRAIT_DE_COTE = (
+    "Il est important de noter une incompatibilité fondamentale entre les données fournies et la "
+    "demande rédactionnelle. Les trois sources bibliographiques citées traitent exclusivement du "
+    "**recul de l'emploi industriel en France entre 1980 et 2007** (désindustrialisation, "
+    "externalisation, concurrence internationale) "
+    "[SOURCE:https://www.insee.fr/fr/statistiques/1281136?sommaire=1281148&q=recul+emploi+industriel+1980+2007]. "
+    "Elles ne contiennent aucune information sur le recul du trait de côte.\n\n"
+    "Conformément à la règle de fidélité des données, il est impossible de rédiger une section "
+    "factuelle et vérifiable sur la mise en œuvre du recul du trait de côte."
+)
+
+
+def test_refus_avec_marqueurs_source_longs() -> None:
+    assert is_refusal(REFUS_TRAIT_DE_COTE)
+    # Refus place a ~450 caracteres une fois les citations converties, mais
+    # au-dela de 700 dans le texte brut a cause des URL : detecte.
+    long_url = "[SOURCE:https://www.example.org/" + "a" * 150 + "]"
+    raw = (
+        f"Les trois sources citées traitent d'un autre sujet {long_url} {long_url} {long_url}. "
+        + "Elles portent sur l'industrie. " * 8
+        + "Il est impossible de rédiger cette section à partir de ces passages."
+    )
+    assert len(raw.split("Il est impossible")[0]) > 700
+    assert is_refusal(raw)
+    # Seule la formule d'incompatibilite, sans les autres : detectee aussi.
+    assert is_refusal(
+        "Il existe une incompatibilité fondamentale entre les données fournies et la demande."
+    )
+
+
 @pytest.mark.parametrize(
     "text",
     [
