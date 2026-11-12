@@ -42,14 +42,63 @@ DEFAULT_OVERLAP_RATIO = 0.15
 MIN_CHUNK_CHARS = 200
 
 
+def _split_on_whitespace(text: str, chunk_chars: int, overlap: int) -> list[str]:
+    """Coupe un texte sans ponctuation sur une espace, avec chevauchement.
+
+    Mode v2 seulement : la coupe nette a chunk_chars tranche un nombre ou un
+    mot en deux et ne laisse aucun contexte commun entre deux morceaux."""
+    pieces: list[str] = []
+    start = 0
+    while start < len(text):
+        end = min(start + chunk_chars, len(text))
+        if end < len(text):
+            ws = text.rfind(" ", start + chunk_chars // 2, end)
+            if ws > start:
+                end = ws
+        piece = text[start:end].strip()
+        if piece:
+            pieces.append(piece)
+        if end >= len(text):
+            break
+        # Reprise un peu avant la coupe, sur une frontiere de mot.
+        nxt = text.find(" ", max(end - overlap, start + 1), end)
+        start = nxt + 1 if nxt != -1 else end
+    return pieces
+
+
+def _merge_short_chunks(chunks: list[str]) -> list[str]:
+    """Rattache chaque fragment trop court a son voisin au lieu de le perdre."""
+    out: list[str] = []
+    carry = ""
+    for c in chunks:
+        if carry:
+            c = f"{carry}\n\n{c}"
+            carry = ""
+        if len(c) < MIN_CHUNK_CHARS:
+            carry = c
+        else:
+            out.append(c)
+    if carry:
+        if not out:
+            out.append(carry)
+        elif carry not in out[-1]:
+            out[-1] = f"{out[-1]}\n\n{carry}"
+    return out
+
+
 def split_into_chunks(
     content: str,
     chunk_chars: int = DEFAULT_CHUNK_CHARS,
     overlap_ratio: float = DEFAULT_OVERLAP_RATIO,
+    v2: bool = False,
 ) -> List[str]:
     """
     Decoupe un texte en fragments qui se chevauchent, en respectant les
     frontieres naturelles (paragraphes, puis phrases).
+
+    v2 (type B, desactive par defaut) : un fragment de moins de
+    MIN_CHUNK_CHARS est rattache a son voisin au lieu d'etre supprime, et un
+    texte sans ponctuation est coupe sur une espace, avec chevauchement.
     """
     content = (content or "").strip()
     if not content:
@@ -78,6 +127,10 @@ def split_into_chunks(
                         units.append(buf)
                     # Une phrase seule depassant la taille cible est coupee
                     # net : cas rare (listes, tableaux mal convertis).
+                    if v2 and len(sent) > chunk_chars:
+                        pieces = _split_on_whitespace(sent, chunk_chars, overlap)
+                        units.extend(pieces[:-1])
+                        sent = pieces[-1]
                     while len(sent) > chunk_chars:
                         units.append(sent[:chunk_chars])
                         sent = sent[chunk_chars:]
@@ -105,6 +158,8 @@ def split_into_chunks(
     if current:
         chunks.append(current)
 
+    if v2:
+        return _merge_short_chunks(chunks)
     return [c for c in chunks if len(c) >= MIN_CHUNK_CHARS] or [content[:chunk_chars]]
 
 
@@ -113,12 +168,13 @@ def document_to_chunk_items(
     title: str,
     content: str,
     chunk_chars: int = DEFAULT_CHUNK_CHARS,
+    v2: bool = False,
 ) -> List[Dict]:
     """
     Transforme un document extrait en items de chunk, chacun conservant
     l'identite de son parent (pattern parent-enfant).
     """
-    parts = split_into_chunks(content, chunk_chars=chunk_chars)
+    parts = split_into_chunks(content, chunk_chars=chunk_chars, v2=v2)
     total = len(parts)
     return [
         {
