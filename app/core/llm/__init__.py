@@ -2,6 +2,8 @@
 
 import os
 
+from app.core.config import settings
+
 from .base import (
     BaseLLMClient,
     GenerationResult,
@@ -27,21 +29,49 @@ def _parse_total_timeout(raw: str | None) -> float | None:
     return value if value > 0 else None
 
 
+def resolve_llm_config() -> tuple[str, str, str, str | None]:
+    """
+    Fournisseur, modele, cle d'API et URL du LLM par defaut, lus dans
+    `settings` (app/core/config.py), source unique. La cle suit le
+    fournisseur (OPENAI_API_KEY, ANTHROPIC_API_KEY, ALBERT_API_KEY), puis
+    DEFAULT_LLM_API_KEY ; Albert a sa propre URL.
+
+    Returns:
+        (fournisseur, modele, cle, url)
+    """
+    provider = settings.default_llm_provider
+    base_url = settings.default_llm_base_url
+    specifique = {
+        "openai": settings.openai_api_key,
+        "anthropic": settings.anthropic_api_key,
+        "albert": settings.albert_api_key,
+    }.get(provider.lower(), "")
+    if provider.lower() == "albert":
+        base_url = settings.albert_api_url
+    api_key = specifique or settings.default_llm_api_key
+    return provider, settings.default_llm_model, api_key, base_url
+
+
 async def get_llm_client() -> BaseLLMClient:
     """
-    Rend le client LLM partage du processus, configure par les variables
-    d'environnement. Deux appels avec la meme configuration rendent le meme
-    objet ; close() est sans effet dessus (voir close_llm_client).
+    Rend le client LLM partage du processus, configure par `settings`. Deux
+    appels avec la meme configuration rendent le meme objet ; close() est
+    sans effet dessus (voir close_llm_client).
 
     Returns:
         Instance de BaseLLMClient configurée
-    """
-    provider = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
-    model = os.getenv("DEFAULT_LLM_MODEL", "qwen3-6-35b-moe")
-    api_key = os.getenv("DEFAULT_LLM_API_KEY", "")
-    base_url = os.getenv("DEFAULT_LLM_BASE_URL", "https://llm.lab.sspcloud.fr/api")
 
-    key = (provider.lower(), model, base_url, api_key)
+    Raises:
+        ValueError: si aucune cle d'API n'est configuree pour le fournisseur
+    """
+    provider, model, api_key, base_url = resolve_llm_config()
+    if not api_key:
+        raise ValueError(
+            f"Clé API manquante pour le provider {provider}. "
+            f"Configurez la variable d'environnement appropriée."
+        )
+
+    key = (provider.lower(), model, base_url or "", api_key)
     client = _shared_clients.get(key)
     if client is None:
         client = LLMFactory.create(
@@ -75,4 +105,5 @@ __all__ = [
     "LLMTruncatedError",
     "close_llm_client",
     "get_llm_client",
+    "resolve_llm_config",
 ]

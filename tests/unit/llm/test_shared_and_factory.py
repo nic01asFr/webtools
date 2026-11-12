@@ -9,10 +9,13 @@ from app.core.llm.base import BaseLLMClient, LLMClientError
 @pytest.fixture(autouse=True)
 def environnement_llm(monkeypatch):
     llm._shared_clients.clear()
-    monkeypatch.setenv("DEFAULT_LLM_PROVIDER", "openai")
-    monkeypatch.setenv("DEFAULT_LLM_MODEL", "gpt-test")
-    monkeypatch.setenv("DEFAULT_LLM_API_KEY", "cle-test")
-    monkeypatch.setenv("DEFAULT_LLM_BASE_URL", "https://llm.test/api")
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "default_llm_provider", "openai")
+    monkeypatch.setattr(settings, "default_llm_model", "gpt-test")
+    monkeypatch.setattr(settings, "default_llm_api_key", "cle-test")
+    monkeypatch.setattr(settings, "openai_api_key", "")
+    monkeypatch.setattr(settings, "default_llm_base_url", "https://llm.test/api")
     monkeypatch.delenv("DEFAULT_LLM_TOTAL_TIMEOUT", raising=False)
     yield
     llm._shared_clients.clear()
@@ -27,7 +30,7 @@ async def test_deux_appels_rendent_le_meme_objet() -> None:
 
 async def test_configuration_differente_autre_instance(monkeypatch) -> None:
     first = await get_llm_client()
-    monkeypatch.setenv("DEFAULT_LLM_MODEL", "autre-modele")
+    monkeypatch.setattr(llm.settings, "default_llm_model", "autre-modele")
     second = await get_llm_client()
     assert first is not second
     await close_llm_client()
@@ -100,7 +103,7 @@ async def test_fabrique_extensible_par_nom() -> None:
 async def test_get_llm_client_utilise_un_fournisseur_enregistre(monkeypatch) -> None:
     LLMFactory.register("faux", build_faux)
     try:
-        monkeypatch.setenv("DEFAULT_LLM_PROVIDER", "faux")
+        monkeypatch.setattr(llm.settings, "default_llm_provider", "faux")
         client = await get_llm_client()
         assert isinstance(client, FauxClient)
         assert await get_llm_client() is client

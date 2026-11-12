@@ -14,7 +14,6 @@ from urllib.parse import urlparse, parse_qs
 from app.api.models import WebResult, ExtractionOptions
 from app.core.config import settings
 from app.core.llm.base import BaseLLMClient
-from app.core.llm.factory import LLMFactory
 from app.extractors.direct_extractor import DirectExtractor
 from app.extractors.agent_extractor import AgentExtractor
 from app.extractors.rss_extractor import RssExtractor, COMMON_FEED_PATHS
@@ -286,38 +285,13 @@ class ExtractorManager:
 
     async def _create_default_llm_client(self) -> BaseLLMClient:
         """
-        Crée un client LLM avec la configuration par défaut.
-
-        Returns:
-            Instance de BaseLLMClient
+        Rend le client LLM partage du processus (configuration par defaut).
+        Il est partage : l'appelant ne le ferme pas, un client cree par
+        extraction fuirait son pool HTTP.
 
         Raises:
-            Exception: Si la configuration est invalide
+            ValueError: Si aucune cle d'API n'est configuree
         """
-        provider = settings.default_llm_provider
-        api_key = ""
-        base_url = settings.default_llm_base_url
+        from app.core.llm import get_llm_client
 
-        # Récupérer la clé API selon le provider
-        if provider == "openai":
-            api_key = settings.openai_api_key or settings.default_llm_api_key
-        elif provider == "anthropic":
-            api_key = settings.anthropic_api_key or settings.default_llm_api_key
-        elif provider == "albert":
-            api_key = settings.albert_api_key or settings.default_llm_api_key
-            base_url = settings.albert_api_url
-        else:
-            api_key = settings.default_llm_api_key
-
-        if not api_key:
-            raise ValueError(
-                f"Clé API manquante pour le provider {provider}. "
-                f"Configurez la variable d'environnement appropriée."
-            )
-
-        return LLMFactory.create(
-            provider=provider,
-            api_key=api_key,
-            model=settings.default_llm_model,
-            base_url=base_url
-        )
+        return await get_llm_client()
