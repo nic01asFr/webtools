@@ -3,7 +3,7 @@ name = "webtools-service"
 version = "3.0.0"
 description = "Service autonome d'extraction de contenu web avec support multi-LLM"
 authors = [
-    { name = "WebExtract Team" }
+    { name = "Webtools" }
 ]
 requires-python = ">= 3.11"
 readme = "README.md"

@@ -240,7 +240,7 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
     # soit d'un prompt sans donnees exploitables, soit d'un refus du
     # modele. Journaliser la taille reelle du prompt et le volume de
     # donnees transmis permet de trancher sans relancer un run complet.
-    # Pas de re-limitation ici : _semantic_chunk_selection a deja applique
+    # Pas de re-limitation ici : semantic_chunk_selection a deja applique
     # max_chars ET max_chunks_target. Un plafond supplementaire annulerait
     # silencieusement le budget accorde — c'est exactement le defaut
     # corrige plus haut (max_chunks_target=4 plafonnait a 4 000 chars
@@ -370,7 +370,7 @@ Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
 
     # Echec definitif : marqueur reconnaissable en aval (permet de
     # compter les sections perdues et de ne pas rendre un rapport vide
-    # avec success=true, cf. _final_assembly).
+    # avec success=true, cf. final_assembly).
     logger.error(
         f"       ❌ Synthèse '{section_name}' abandonnée après {max_attempts} essais: {last_error}"
     )

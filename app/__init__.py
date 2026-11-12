@@ -1,5 +1,5 @@
 """
-WebExtract Service - Service autonome d'extraction de contenu web.
+Webtools - API de recherche et d'extraction web, et pipeline de rapports sourcés.
 """
 
-__version__ = "1.0.0"
+__version__ = "3.0.0"

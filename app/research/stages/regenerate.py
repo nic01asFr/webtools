@@ -113,7 +113,7 @@ async def regenerate_section_v2(
     """Regeneration de section (drapeau regenerate_v2, C43).
 
     Au moment de l'enrichissement les sections portent des [n] (la
-    conversion a eu lieu dans _final_assembly) : on les remet en
+    conversion a eu lieu dans final_assembly) : on les remet en
     [SOURCE:url] avant l'appel, le modele les conserve, et la conversion
     finale reprend les memes numeros (bibliographie existante conservee).
     Toute erreur ou perte de citation rend la section d'origine.

@@ -526,7 +526,7 @@ async def webtools_research_quick(
     """
     Repond a une question factuelle en quelques secondes : trouve des sources
     via SearXNG, les extrait, synthetise une reponse courte avec citations
-    [1][2][3] et un niveau de confiance (high/medium/low).
+    [1][2][3] et le detail des sources tentees, extraites et ecartees.
     """
     body = await _api_post("/api/v1/research/quick", {"query": query}, _QUICK_TIMEOUT)
     sources = body.get("sources")

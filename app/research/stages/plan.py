@@ -259,7 +259,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {", ".join(topics_f
             )
             # Conversion vers le format interne historique (sections=liste
             # de strings, section_targets=dict) attendu par tout le reste
-            # du pipeline (Phase 2, _final_assembly, etc.) - zero
+            # du pipeline (Phase 2, final_assembly, etc.) - zero
             # changement requis ailleurs dans le fichier.
             plan = {
                 "complexity_analysis": structured["complexity_analysis"],
@@ -270,7 +270,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {", ".join(topics_f
                         "depth": s["depth"],
                         "objectives": s["objectives"],
                         "key_questions": s["key_questions"],
-                        # Transmis jusqu'a _section_research_phase, sinon le
+                        # Transmis jusqu'a section_research_phase, sinon le
                         # champ serait genere par le LLM puis jamais lu —
                         # exactement le defaut de cablage rencontre ailleurs
                         # (sources_per_section, categories/engines...).

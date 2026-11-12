@@ -20,7 +20,7 @@ from typing import Any
 INTERNAL_MARKERS = ("[SOURCE:", "[SECTION_SANS_SOURCE]", "[SYNTHESE_ECHOUEE]")
 
 # Titres qui decrivent la demarche de travail. Meme liste que
-# IntelligentOrchestrator._META_SECTION_PATTERNS, dupliquee pour que ce module
+# stages.plan_prompt.META_SECTION_PATTERNS, dupliquee pour que ce module
 # reste sans dependance.
 META_SECTION_PATTERNS = (
     "structure du rapport",

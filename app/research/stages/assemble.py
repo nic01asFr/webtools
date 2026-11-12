@@ -111,7 +111,7 @@ async def final_assembly(
     title = report_title(query, context)
 
     # Le summary est un EXTRAIT de la premiere section. Il etait construit
-    # ICI, avant _convert_sources_to_bibliography : il embarquait donc des
+    # ICI, avant convert_sources_to_bibliography : il embarquait donc des
     # marqueurs [SOURCE:url] bruts, que la conversion ne rattrapait pas
     # ensuite (l'URL avait deja ete remplacee dans la section, donc elle
     # n'etait plus cherchee sous cette forme).
@@ -249,7 +249,7 @@ def add_complete_traces(
 def strip_source_markers(final_answer: Dict[str, Any]) -> None:
     """Retire du rapport les marqueurs [SOURCE:...] residuels (modifie en place)."""
     # Nettoyage FINAL des marqueurs residuels, apres toutes les etapes.
-    # Le filet pose dans _final_assembly ne suffit pas : l'enrichissement
+    # Le filet pose dans final_assembly ne suffit pas : l'enrichissement
     # iteratif puis cette conversion s'executent APRES lui et peuvent
     # reintroduire un resume non nettoye. Ici, plus rien ne s'execute
     # ensuite — c'est le dernier point ou agir.

@@ -10,7 +10,9 @@ appels LLM.
 Variables d'environnement (lues par `read_replay_env()`) :
 
 - `WEBTOOLS_REPLAY_MODE` : `record` ou `replay` (absent : desactive).
-- `WEBTOOLS_REPLAY_DIR` : repertoire de la tache (un repertoire par tache).
+- `WEBTOOLS_REPLAY_DIR` : repertoire d'enregistrement. Il est lu par le service,
+  donc commun a toutes les taches d'un run : les fichiers sont nommes par empreinte
+  de la requete ou de l'URL, plusieurs taches peuvent y coexister.
 
 1. Enregistrer : `record`, run normal sur le web reel. Chaque recherche est
    ecrite dans `<dir>/search/<empreinte>.json`, chaque page dans
@@ -59,12 +61,8 @@ URLs : lot V3-4) invalide l'enregistrement : les requetes ne correspondent
 plus et le rejeu echoue. Ce type de changement se mesure sur le web reel,
 avec un nouvel enregistrement.
 
-## Branchement (hors de ce lot)
+## Branchement
 
-A l'endroit ou l'orchestrateur est construit (endpoint ou harnais) :
-
-    from app.research.replay import build_replay_clients, read_replay_env
-    mode, directory = read_replay_env()
-    if mode:
-        search_client, extractor_manager = build_replay_clients(
-            mode, directory, search_client, extractor_manager)
+Le rejeu est branche dans `create_orchestrator` (`app/api/v1/endpoints/research_deep.py`) : il suffit de poser
+`WEBTOOLS_REPLAY_MODE` (`record` ou `replay`) et `WEBTOOLS_REPLAY_DIR` dans l'environnement du service.
+Le bilan (`served`, `missed`, `recorded`) est rendu dans `diagnostics.replay` de chaque reponse.

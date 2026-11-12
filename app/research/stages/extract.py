@@ -82,7 +82,7 @@ async def section_extraction_phase(
                     #
                     # Desormais le document entier est decoupe en chunks
                     # qui se chevauchent ; la selection semantique
-                    # (_semantic_chunk_selection) choisit ensuite les plus
+                    # (semantic_chunk_selection) choisit ensuite les plus
                     # pertinents. La TOTALITE du document est donc
                     # candidate, quelle que soit sa taille.
                     from app.utils.chunking import document_to_chunk_items

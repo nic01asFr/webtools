@@ -35,7 +35,7 @@ async def cross_reference_data(
     enriched = []
 
     # Embeddings des nouveaux chunks, avec cache partage (evite un
-    # recalcul si _semantic_chunk_selection traite le meme contenu ensuite)
+    # recalcul si semantic_chunk_selection traite le meme contenu ensuite)
     new_embeddings = {}
     if not svc.llm_client.supports_embeddings:
         if new_data:
