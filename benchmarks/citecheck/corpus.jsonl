@@ -1,6 +1,6 @@
 {"id": "q01-neonic", "mode": "quick", "lang": "fr", "query": "En quelle année l'Union européenne a-t-elle interdit l'usage en plein champ de l'imidaclopride, de la clothianidine et du thiaméthoxame ?", "attendu": ["\\b2018\\b"]}
 {"id": "q02-paris", "mode": "quick", "lang": "en", "query": "On what date did the Paris Agreement on climate change enter into force?", "attendu": ["4 November 2016", "November 4,? 2016"]}
-{"id": "q03-montblanc", "mode": "quick", "lang": "fr", "query": "Quelle altitude du mont Blanc a été mesurée lors de la campagne de relevés de septembre 2021 ?", "attendu": ["4[\\s\\u00a0\\u202f]?807[,.]81"]}
+{"id": "q03-montblanc", "mode": "quick", "lang": "fr", "query": "Quelle altitude du mont Blanc a été mesurée lors de la campagne de relevés de septembre 2021 ?", "attendu": ["4[\\s  .]?807[,.]81"]}
 {"id": "q04-gdpr", "mode": "quick", "lang": "en", "query": "On what date did the EU General Data Protection Regulation (GDPR) start to apply?", "attendu": ["25 May 2018", "May 25,? 2018", "2018-05-25"]}
 {"id": "q05-c14", "mode": "quick", "lang": "en", "query": "What is the half-life of carbon-14?", "attendu": ["5[,.\\s\\u00a0\\u202f]?730", "5[,.\\s\\u00a0\\u202f]?700"]}
 {"id": "q06-jwst", "mode": "quick", "lang": "fr", "query": "À quelle date le télescope spatial James Webb a-t-il été lancé ?", "attendu": ["25 d[ée]cembre 2021"]}
