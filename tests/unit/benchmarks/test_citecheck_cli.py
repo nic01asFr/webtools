@@ -356,3 +356,24 @@ async def test_page_en_cache_sans_navigateur_reessayee_avec(tmp_path: Path) -> N
 
         second = await PageStore(tmp_path, client, browser=browser).get("https://a.example/vide")
     assert first.status == "vide" and second.ok and second.method == "navigateur"
+
+
+async def test_pubmed_lu_par_l_api_officielle() -> None:
+    from citecheck.pages import official_api_url
+
+    assert official_api_url("https://www.ncbi.nlm.nih.gov/pubmed/37419366") == (
+        "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id=37419366&rettype=abstract&retmode=text"
+    )
+    assert official_api_url("https://pubmed.ncbi.nlm.nih.gov/37419366/").endswith("id=37419366&rettype=abstract&retmode=text")
+    assert official_api_url("https://example.org/pubmed/1") is None
+
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.url.host)
+        return httpx.Response(200, text="Resume de l'article. " * 20, headers={"content-type": "text/plain"})
+
+    async with default_client(httpx.MockTransport(handler)) as client:
+        page = await fetch_page(client, "https://pubmed.ncbi.nlm.nih.gov/37419366/")
+    assert page.ok and page.method == "api" and seen == ["eutils.ncbi.nlm.nih.gov"]
+    assert page.url == "https://pubmed.ncbi.nlm.nih.gov/37419366/"

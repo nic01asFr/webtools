@@ -261,6 +261,7 @@ async def evaluate_item(item: dict[str, Any], store: PageStore, judge: Judge,
     page = await store.get(item["url"])
     result["page_status"] = page.status
     result["page_error"] = page.error
+    result["page_method"] = page.method
     if page.ok:
         judgement = await judge.judge(item["claim"], item["context"], page.text, item["url"], key=item["url"])
     else:
@@ -337,8 +338,19 @@ async def cmd_evaluate(
     eval_dir.mkdir(parents=True, exist_ok=True)
     results_path = eval_dir / "citations.jsonl"
     done = {r["key"]: r for r in read_jsonl(results_path)}
-    pending = [i for i in items if i["key"] not in done]
+
+    def needs_judging(item: dict[str, Any]) -> bool:
+        previous = done.get(item["key"])
+        if previous is None:
+            return True
+        # Page inaccessible lors d'une evaluation sans repli (navigateur ou
+        # API officielle) : elle est retentee.
+        return (previous["status"] == "inverifiable" and not args.sans_navigateur
+                and previous.get("page_method") not in ("http+navigateur", "api", "navigateur"))
+
+    pending = [i for i in items if needs_judging(i)]
     print(f"{len(items)} citation(s) distincte(s), {len(pending)} a juger, juge {args.juge}")
+    progress = {"n": 0}
 
     endpoint = judge_endpoint(env, llm_transport, args.raisonnement)
     embedder = None if args.plongements == "aucun" else embedder_for(endpoint, args.plongements)
@@ -356,8 +368,9 @@ async def cmd_evaluate(
                 with results_path.open("a", encoding="utf-8") as f:
                     f.write(json.dumps(result, ensure_ascii=False) + "\n")
                 done[result["key"]] = result
-                print(f"  [{len(done)}/{len(items)}] {result['status']:<13} {result['task_id']} [{result['ref']}]",
-                      flush=True)
+                progress["n"] += 1
+                print(f"  [{progress['n']}/{len(pending)}] {result['status']:<13} {result['task_id']} "
+                      f"[{result['ref']}]", flush=True)
 
         await asyncio.gather(*(worker(i) for i in pending))
 

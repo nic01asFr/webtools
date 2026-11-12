@@ -144,13 +144,30 @@ def request_headers(url: str) -> dict[str, str]:
     return {}
 
 
+# PubMed refuse les clients programmatiques (403, navigateur headless
+# compris) ; son API officielle E-utilities rend le resume, qui est le
+# contenu de la page citee.
+_PUBMED = re.compile(r"^https?://(?:www\.)?(?:pubmed\.ncbi\.nlm\.nih\.gov/|ncbi\.nlm\.nih\.gov/pubmed/)(\d+)")
+PUBMED_EFETCH = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=pubmed&id={}&rettype=abstract&retmode=text"
+
+
+def official_api_url(url: str) -> str | None:
+    """URL de l'API officielle qui sert le meme contenu, quand le site en a une."""
+    match = _PUBMED.match(url.strip())
+    if match:
+        return PUBMED_EFETCH.format(match.group(1))
+    return None
+
+
 async def fetch_page(client: httpx.AsyncClient, url: str) -> Page:
     """Une requete, un nouvel essai sur 429/503 ou erreur reseau."""
+    api_url = official_api_url(url)
+    target = api_url or url
     last_error = ""
     for attempt in range(2):
         try:
             response = await client.get(
-                url, timeout=TIMEOUT_S, follow_redirects=True, headers=request_headers(url)
+                target, timeout=TIMEOUT_S, follow_redirects=True, headers=request_headers(target)
             )
         except httpx.HTTPError as exc:
             last_error = f"{type(exc).__name__}: {exc}"[:300]
@@ -162,8 +179,11 @@ async def fetch_page(client: httpx.AsyncClient, url: str) -> Page:
         if response.status_code in (429, 503) and attempt == 0:
             await asyncio.sleep(3)
             continue
-        return page_from_response(url, response)
-    return Page(url=url, status="erreur", error=last_error)
+        page = page_from_response(url, response)
+        if api_url:
+            page.method = "api"
+        return page
+    return Page(url=url, status="erreur", error=last_error, method="api" if api_url else "http")
 
 
 def default_client(transport: httpx.AsyncBaseTransport | None = None) -> httpx.AsyncClient:
@@ -268,7 +288,10 @@ class PageStore:
             page = None
             if path.exists():
                 page = Page(**json.loads(path.read_text(encoding="utf-8")))
-                if page.ok or self.browser is None or page.method != "http":
+                if not page.ok and page.method != "api" and official_api_url(url):
+                    # Lue avant que l'API officielle soit prise en charge.
+                    page = None
+                elif page.ok or self.browser is None or page.method != "http":
                     return page
             if page is None:
                 async with self._semaphore:
