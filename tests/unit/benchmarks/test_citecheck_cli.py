@@ -377,3 +377,60 @@ async def test_pubmed_lu_par_l_api_officielle() -> None:
         page = await fetch_page(client, "https://pubmed.ncbi.nlm.nih.gov/37419366/")
     assert page.ok and page.method == "api" and seen == ["eutils.ncbi.nlm.nih.gov"]
     assert page.url == "https://pubmed.ncbi.nlm.nih.gov/37419366/"
+
+
+def test_page_de_verification_anti_robot_non_comptee_comme_lue() -> None:
+    from citecheck.pages import block_reason, page_from_response
+
+    challenge = ("Client Challenge A required part of this site couldn't load. This may be due to a "
+                 "browser extension, network issues, or browser settings. Please check your connection, "
+                 "disable any ad blockers, or try using a different browser.")
+    response = httpx.Response(200, text=f"<html><body><p>{challenge}</p></body></html>",
+                              headers={"content-type": "text/html"},
+                              request=httpx.Request("GET", "https://oadoi.org/x"))
+    page = page_from_response("https://oadoi.org/x", response)
+    assert page.status == "bloquee" and not page.ok and page.browser_may_help
+    # Un long article qui parle de captcha reste un article.
+    assert block_reason("Les captcha sont etudies dans cet article. " * 200) is None
+
+
+async def test_page_bloquee_en_cache_requalifiee(tmp_path: Path) -> None:
+    from dataclasses import asdict
+
+    from citecheck.pages import Page
+
+    url = "https://oadoi.org/x"
+    async with default_client(_page_transport()) as client:
+        store = PageStore(tmp_path, client)
+        store._path(url).write_text(json.dumps(asdict(Page(
+            url=url, status="ok", text="Client Challenge A required part of this site couldn't load. " * 3))),
+            encoding="utf-8")
+        page = await store.get(url)
+    assert page.status == "bloquee"
+
+
+async def test_citation_rejugee_si_la_page_change(tmp_path: Path) -> None:
+    import hashlib
+
+    out = tmp_path / "run"
+    (out / "raw").mkdir(parents=True)
+    (out / "raw" / "q1.json").write_text(json.dumps({
+        "id": "q1", "mode": "quick", "query": "q", "attendu": [], "payload": QUICK_PAYLOAD,
+    }), encoding="utf-8")
+    env = {"CITECHECK_LLM_API_KEY": "j"}
+    args = argparse.Namespace(sortie=str(out), juge="j", plongements="aucun", concurrence=2,
+                              sans_pipeline=True, raisonnement=False, sans_navigateur=True)
+    calls: list[str] = []
+    await cli.cmd_evaluate(args, env, llm_transport=_judge_transport(calls), page_transport=_page_transport())
+    first = len(calls)
+    await cli.cmd_evaluate(args, env, llm_transport=_judge_transport(calls), page_transport=_page_transport())
+    assert len(calls) == first
+
+    # La page en cache change : sa citation est rejugee, les autres non.
+    url = "https://a.example/page"
+    cached = out / "pages" / f"{hashlib.sha256(url.encode('utf-8')).hexdigest()[:24]}.json"
+    page = json.loads(cached.read_text(encoding="utf-8"))
+    page["text"] = page["text"] + "\nParagraphe ajoute depuis le premier jugement."
+    cached.write_text(json.dumps(page), encoding="utf-8")
+    await cli.cmd_evaluate(args, env, llm_transport=_judge_transport(calls), page_transport=_page_transport())
+    assert len(calls) == first + 1

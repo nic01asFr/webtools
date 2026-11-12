@@ -262,6 +262,8 @@ async def evaluate_item(item: dict[str, Any], store: PageStore, judge: Judge,
     result["page_status"] = page.status
     result["page_error"] = page.error
     result["page_method"] = page.method
+    # Empreinte du texte juge : une page qui change entraine un nouveau jugement.
+    result["page_sha"] = hashlib.sha256(page.text.encode("utf-8")).hexdigest()[:16]
     if page.ok:
         judgement = await judge.judge(item["claim"], item["context"], page.text, item["url"], key=item["url"])
     else:
@@ -339,27 +341,33 @@ async def cmd_evaluate(
     results_path = eval_dir / "citations.jsonl"
     done = {r["key"]: r for r in read_jsonl(results_path)}
 
-    def needs_judging(item: dict[str, Any]) -> bool:
-        previous = done.get(item["key"])
-        if previous is None:
-            return True
-        # Page inaccessible lors d'une evaluation sans repli (navigateur ou
-        # API officielle) : elle est retentee.
-        return (previous["status"] == "inverifiable" and not args.sans_navigateur
-                and previous.get("page_method") not in ("http+navigateur", "api", "navigateur"))
-
-    pending = [i for i in items if needs_judging(i)]
-    print(f"{len(items)} citation(s) distincte(s), {len(pending)} a juger, juge {args.juge}")
-    progress = {"n": 0}
-
     endpoint = judge_endpoint(env, llm_transport, args.raisonnement)
     embedder = None if args.plongements == "aucun" else embedder_for(endpoint, args.plongements)
     judge = Judge(endpoint, args.juge, embedder)
     semaphore = asyncio.Semaphore(args.concurrence)
     lock = asyncio.Lock()
+    progress = {"n": 0}
     browser_cm = contextlib.nullcontext() if args.sans_navigateur else BrowserFetcher()
     async with default_client(page_transport) as http, browser_cm as browser:
         store = PageStore(out / "pages", http, browser=browser)
+
+        async def needs_judging(item: dict[str, Any]) -> bool:
+            """Nouvelle citation, ou page dont le texte ou l'acces a change
+            depuis le jugement (repli navigateur, page de blocage detectee)."""
+            previous = done.get(item["key"])
+            if previous is None:
+                return True
+            if item["url"] is None:
+                return False
+            page = await store.get(item["url"])
+            sha = hashlib.sha256(page.text.encode("utf-8")).hexdigest()[:16]
+            if previous.get("page_sha") and previous["page_sha"] != sha:
+                return True
+            return (previous.get("page_status") == "ok") != page.ok
+
+        flags = await asyncio.gather(*(needs_judging(i) for i in items))
+        pending = [i for i, flag in zip(items, flags) if flag]
+        print(f"{len(items)} citation(s) distincte(s), {len(pending)} a juger, juge {args.juge}")
 
         async def worker(item: dict[str, Any]) -> None:
             async with semaphore:
@@ -381,7 +389,11 @@ async def cmd_evaluate(
         groups_path = eval_dir / "affirmations.jsonl"
         groups_done = {g["key"]: g for g in read_jsonl(groups_path)}
         groups = build_groups(records)
-        signature = {k: sorted(m["key"] for m in g["members"]) for k, g in groups.items()}
+        # Une affirmation est reevaluee si ses citations ou leurs verdicts changent.
+        signature = {
+            k: sorted(f"{m['key']}:{m['status']}:{m.get('page_sha', '')}" for m in g["members"])
+            for k, g in groups.items()
+        }
 
         async def group_worker(group: dict[str, Any]) -> None:
             async with semaphore:
@@ -402,6 +414,10 @@ async def cmd_evaluate(
 
     claims = [groups_done[k] for k in groups]
     report = build_summary(records, tasks, judge_label(args.juge, args.raisonnement), claims)
+    from generate import repo_state
+
+    instrument_commit, instrument_dirty = repo_state()
+    report["instrument"] = {"commit": instrument_commit, "modifie": instrument_dirty}
     write_json(eval_dir / "resume.json", report)
     (eval_dir / "RAPPORT.md").write_text(render_report(report, records, out), encoding="utf-8")
     print(f"Resultats : {eval_dir}")

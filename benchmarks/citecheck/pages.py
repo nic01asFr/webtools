@@ -44,6 +44,31 @@ TIMEOUT_S = 45.0
 STATUS_OK = "ok"
 
 
+# Pages de verification anti-robot servies avec un code 200 : leur texte
+# n'est pas celui de la page citee. Observe sur le run de reference :
+# "Client Challenge ..." (226 caracteres) servi pour un article Springer,
+# compte comme lu, et ses 8 citations jugees non soutenues a tort.
+_BLOCK_PAGE = re.compile(
+    r"client challenge|just a moment\.\.\.|checking your browser|attention required|"
+    r"verify(?:ing)? (?:that )?you are (?:a )?human|are you a robot|captcha|access denied|"
+    r"request blocked|unusual traffic|enable javascript and cookies",
+    re.IGNORECASE,
+)
+BLOCK_PAGE_MAX_CHARS = 3000
+
+
+def block_reason(text: str) -> str | None:
+    """Motif de blocage si le texte est une page de verification, sinon None.
+
+    Seules les pages courtes sont examinees : un article qui mentionne un
+    captcha reste un article.
+    """
+    if len(text) > BLOCK_PAGE_MAX_CHARS:
+        return None
+    match = _BLOCK_PAGE.search(text)
+    return match.group(0) if match else None
+
+
 @dataclass
 class Page:
     url: str
@@ -58,6 +83,14 @@ class Page:
     @property
     def ok(self) -> bool:
         return self.status == STATUS_OK
+
+    def check_block(self) -> "Page":
+        """Requalifie en 'bloquee' une page lue dont le texte est une page de verification."""
+        reason = block_reason(self.text) if self.ok else None
+        if reason:
+            self.status = "bloquee"
+            self.error = f"page de verification : {reason}"
+        return self
 
     @property
     def browser_may_help(self) -> bool:
@@ -128,7 +161,7 @@ def page_from_response(url: str, response: httpx.Response) -> Page:
         return page
     page.status = STATUS_OK
     page.text = text
-    return page
+    return page.check_block()
 
 
 def declared_user_agent() -> str:
@@ -257,7 +290,7 @@ class BrowserFetcher:
             result.status, result.error = "vide", f"{len(text)} caracteres"
             return result
         result.status = STATUS_OK
-        return result
+        return result.check_block()
 
 
 class PageStore:
@@ -287,7 +320,7 @@ class PageStore:
             path = self._path(url)
             page = None
             if path.exists():
-                page = Page(**json.loads(path.read_text(encoding="utf-8")))
+                page = Page(**json.loads(path.read_text(encoding="utf-8"))).check_block()
                 if not page.ok and page.method != "api" and official_api_url(url):
                     # Lue avant que l'API officielle soit prise en charge.
                     page = None
