@@ -1,60 +1,46 @@
-# Guide de Démarrage - WebExtract Service
+# Guide de démarrage - webtools
 
-## 🎉 Félicitations !
+Ce guide installe et lance webtools : une API REST de recherche et d'extraction
+web, un serveur MCP qui l'appelle, et SearXNG. Pour ce que fait le service,
+voir `README.md`. Pour tous les réglages, voir `docs/CONFIGURATION.md`.
 
-Votre service **WebExtract** a été créé avec succès ! Ce service autonome d'extraction de contenu web est basé sur le système d'extraction de Colaig, mais entièrement indépendant et multi-LLM.
+## Démarrage rapide
 
-## 📊 Statistiques du Projet
-
-- **36 fichiers** créés
-- **27 fichiers Python** (~2076 lignes de code)
-- **Architecture modulaire** et extensible
-- **Tests unitaires** inclus
-- **Docker ready** avec Dockerfile et docker-compose
-
-## 🚀 Démarrage Rapide
-
-### Option 1 : Démarrage Local
+### Avec Docker (recommandé)
 
 ```bash
-# 1. Aller dans le répertoire du projet
-cd /home/user/webextract-service
-
-# 2. Installer les dépendances
-make install
-# ou
-pip install -e .
-playwright install chromium
-
-# 3. Configurer les variables d'environnement
+# 1. Variables d'environnement
 cp .env.example .env
-# Éditer .env avec vos clés API
+# Renseigner les variables marquées OBLIGATOIRE : WEBTOOLS_API_KEY,
+# DEFAULT_LLM_API_KEY, SEARXNG_SECRET, SEARXNG_CONTACT_URL, MCP_ACCESS_TOKEN
 
-# 4. Lancer le service
-make run
-# ou
-uvicorn app.main:app --reload
-```
+# 2. Construire (le commit est passé au build pour /health) et lancer
+docker network create proxy       # une fois, hors production
+WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build
+docker compose up -d
 
-Le service sera accessible à : **http://localhost:8000**
-
-### Option 2 : Démarrage avec Docker (Recommandé)
-
-```bash
-# 1. Configurer les variables d'environnement
-cp .env.example .env
-# Éditer .env avec vos clés API
-
-# 2. Construire et lancer
-make docker-build
-make docker-up
-
-# 3. Vérifier les logs
-make docker-logs
-
-# 4. Tester le service
+# 3. Vérifier
+docker compose ps
 curl http://localhost:8000/health
 ```
+
+L'API écoute sur le port 8000, le serveur MCP sur le port 8090. SearXNG n'est
+pas exposé.
+
+### Sans Docker
+
+Les dépendances de l'API et du serveur MCP sont incompatibles : deux
+environnements Python 3.11 (voir la section suivante).
+
+```bash
+# API, en développement
+make dev-install PYTHON=<python du venv API>
+cp .env.example .env              # puis renseigner les variables obligatoires
+python -m uvicorn app.main:app --reload     # ou : make run
+```
+
+Sans `WEBTOOLS_API_KEY`, l'API refuse de démarrer. Pour un essai local sans
+authentification, poser `WEBTOOLS_ALLOW_ANONYMOUS=1`.
 
 ## Deploiement : trois services, deux environnements Python
 
@@ -75,7 +61,8 @@ les installez jamais ensemble. L'image Docker contient les deux venvs
 Sans Docker, designez les interpreteurs par variables :
 
 ```bash
-python -m venv venv-api && venv-api/bin/pip install -r requirements.lock \n    --extra-index-url https://download.pytorch.org/whl/cpu
+python -m venv venv-api && venv-api/bin/pip install -r requirements.lock \
+    --extra-index-url https://download.pytorch.org/whl/cpu
 python -m venv venv-mcp && venv-mcp/bin/pip install -r requirements-mcp.lock
 export WEBTOOLS_API_PYTHON=$PWD/venv-api/bin/python
 export WEBTOOLS_MCP_PYTHON=$PWD/venv-mcp/bin/python
@@ -108,11 +95,7 @@ CIBLE="--python-platform x86_64-unknown-linux-gnu --python-version 3.11 --no-hea
 # cela le verrou tire les roues CUDA (nvidia-*, triton : plus de 3 Go).
 "$UV" pip compile $CIBLE --extra-index-url https://download.pytorch.org/whl/cpu   --index-strategy unsafe-best-match -o requirements.lock pyproject.toml
 # MCP : liste de l'extra mcp de pyproject.toml, plus httpx
-printf 'fastmcp>=3.0.0
-mcp>=1.0.0
-starlette>=0.37.0
-httpx>=0.27.2
-' > "$T/mcp.in"
+printf '%s\n' 'fastmcp>=3.0.0' 'mcp>=1.0.0' 'starlette>=0.37.0' 'httpx>=0.27.2' > "$T/mcp.in"
 (cd "$T" && "$UV" pip compile $CIBLE -o "$R/requirements-mcp.lock" mcp.in)
 ```
 
@@ -152,10 +135,8 @@ curl -s http://localhost:8000/health       # commit attendu, searxng ok, catalog
 # SearXNG depuis le conteneur de l'API : resultats reels de plusieurs moteurs
 docker compose exec webtools curl -s "http://searxng:8080/search?q=test&format=json"   | python3 -c "import sys,json; d=json.load(sys.stdin); print(len(d['results']), sorted({e for r in d['results'] for e in r.get('engines',[])}))"
 # Serveur MCP : decouverte OAuth 200, endpoint protege 401
-curl -s -o /dev/null -w '%{http_code}
-' http://localhost:8090/.well-known/oauth-authorization-server
-curl -s -o /dev/null -w '%{http_code}
-' -X POST http://localhost:8090/mcp
+curl -s -o /dev/null -w '%{http_code}\n' http://localhost:8090/.well-known/oauth-authorization-server
+curl -s -o /dev/null -w '%{http_code}\n' -X POST http://localhost:8090/mcp
 # Recherche reelle et extraction (Playwright) par l'API
 curl -s -X POST http://localhost:8000/api/v1/search -H "X-API-Key: $CLE"   -H "Content-Type: application/json" -d '{"query": "test"}'
 curl -s -X POST http://localhost:8000/api/v1/extract -H "X-API-Key: $CLE"   -H "Content-Type: application/json" -d '{"url": "https://example.com"}'
@@ -172,212 +153,112 @@ vraie cle : c'est normal avec une valeur factice. Le reseau `proxy` de
 le reporter dans `docker-compose.yml`, puis lancer `pytest tests/unit/config`
 et verifier `/config` de l'instance (moteurs presents et actifs).
 
-## 🔧 Configuration Minimale
+## Configuration minimale
 
-Éditez le fichier `.env` avec au moins une configuration LLM :
+Les valeurs par défaut du LLM sont celles de `app/core/config.py` : fournisseur
+`openai` (tout service compatible OpenAI), modèle `qwen3-6-35b-moe`, URL
+`https://llm.lab.sspcloud.fr/api`. Il suffit de fournir la clé :
 
 ```bash
-# Pour OpenAI
-DEFAULT_LLM_PROVIDER=openai
-DEFAULT_LLM_MODEL=gpt-4o
-OPENAI_API_KEY=sk-votre-clé-ici
-
-# OU pour Anthropic
-DEFAULT_LLM_PROVIDER=anthropic
-DEFAULT_LLM_MODEL=claude-3-5-sonnet-20241022
-ANTHROPIC_API_KEY=sk-ant-votre-clé-ici
-
-# OU pour Albert
-DEFAULT_LLM_PROVIDER=albert
-DEFAULT_LLM_MODEL=AgentPublic/llama3-instruct-8b
-ALBERT_API_KEY=votre-clé-albert
-ALBERT_API_URL=https://albert.api.etalab.gouv.fr
+WEBTOOLS_API_KEY=une_cle_pour_l_api
+DEFAULT_LLM_API_KEY=la_cle_du_llm
 ```
 
-## 📖 Documentation de l'API
+Pour un autre fournisseur compatible OpenAI, ajouter `DEFAULT_LLM_MODEL` et
+`DEFAULT_LLM_BASE_URL`. Les fournisseurs `anthropic` et `albert` existent
+(`DEFAULT_LLM_PROVIDER`, `ANTHROPIC_API_KEY`, `ALBERT_API_KEY`), mais sans
+sorties structurées ni embeddings : le pipeline de recherche approfondie y
+tourne en mode dégradé. Détail des variables : `docs/CONFIGURATION.md`.
 
-Une fois le service lancé, accédez à :
+## Documentation de l'API
 
-- **Documentation interactive Swagger** : http://localhost:8000/docs
-- **Documentation ReDoc** : http://localhost:8000/redoc
-- **Schéma OpenAPI** : http://localhost:8000/openapi.json
+Une fois le service lancé :
 
-## 🧪 Tester le Service
+- Swagger : http://localhost:8000/docs
+- ReDoc : http://localhost:8000/redoc
+- Schéma OpenAPI : http://localhost:8000/openapi.json
 
-### Test de Santé
+## Tester le service
+
+`$CLE` est la valeur de `WEBTOOLS_API_KEY`.
 
 ```bash
 curl http://localhost:8000/health
-```
 
-### Extraction Simple
-
-```bash
 curl -X POST "http://localhost:8000/api/v1/extract" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://www.example.com",
-    "extraction_type": "general",
-    "llm_config": {
-      "provider": "openai",
-      "api_key": "sk-votre-clé",
-      "model": "gpt-4o"
-    },
-    "options": {
-      "use_agent": true,
-      "timeout": 45
-    }
-  }'
+  -H "X-API-Key: $CLE" -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com", "extraction_type": "general"}'
+
+curl -X POST "http://localhost:8000/api/v1/search" \
+  -H "X-API-Key: $CLE" -H "Content-Type: application/json" \
+  -d '{"query": "FastAPI tutorial", "max_results": 5}'
 ```
 
-### Extraction d'Article
+## Architecture du dépôt
+
+```
+app/
+  main.py                    application FastAPI, /health, /ready
+  api/                       modèles Pydantic, authentification, endpoints (v1/endpoints/)
+  agents/                    intelligent_orchestrator.py : enchaînement de la recherche approfondie
+  research/                  configuration, contexte, citations, invariants, rejeu
+    stages/                  une étape du pipeline par module
+  core/                      configuration, clients LLM (llm/), navigateur (browser/)
+  extractors/                extraction directe, agent navigateur, PDF, RSS
+  services/                  client SearXNG, catalogue de moteurs
+  manager.py                 chaîne d'extraction et cache
+  utils/                     découpage en passages, langue, garde SSRF
+mcp_server.py                serveur MCP, client HTTP de l'API
+benchmarks/                  harnais DeepResearch Bench
+docker/                      Dockerfile, configuration SearXNG
+docs/                        CONFIGURATION.md et son générateur
+tests/                       unit/, contract/, fakes/
+```
+
+## Commandes utiles (Makefile)
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/extract" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://blog.example.com/mon-article",
-    "extraction_type": "article"
-  }'
+make help           # liste les commandes
+make dev-install    # installe l'API et les outils de développement (PYTHON=...)
+make install-mcp    # installe l'environnement MCP (MCP_PYTHON=...)
+make check          # ruff (F821, F811, E9) puis pytest hors tests live (API)
+make check-mcp      # tests du serveur MCP (interpréteur MCP)
+make run            # lance l'API en local
+make docker-build   # docker-compose build
+make docker-up      # docker-compose up -d
+make docker-logs    # journaux des conteneurs
 ```
 
-## 🏗️ Architecture
+Les tests n'appellent ni le réseau ni un LLM réel. Un test marqué `live` est
+exclu par défaut.
 
-```
-webextract-service/
-├── app/
-│   ├── api/                    # API REST
-│   │   ├── models.py           # Modèles Pydantic
-│   │   └── v1/endpoints/       # Endpoints
-│   ├── core/                   # Core components
-│   │   ├── config.py           # Configuration
-│   │   ├── browser/            # Gestion Playwright
-│   │   └── llm/                # Clients LLM
-│   │       ├── base.py         # Interface
-│   │       ├── albert.py       # Albert
-│   │       ├── openai.py       # OpenAI
-│   │       ├── anthropic.py    # Anthropic
-│   │       └── factory.py      # Factory
-│   ├── extractors/             # Extractors
-│   │   ├── base.py             # Interface
-│   │   ├── direct_extractor.py # Playwright direct
-│   │   └── agent_extractor.py  # Agent IA
-│   ├── utils/                  # Utilitaires
-│   │   ├── content_detector.py # Détection type
-│   │   └── prompts.py          # Templates prompts
-│   ├── manager.py              # Orchestrateur
-│   └── main.py                 # FastAPI app
-├── tests/                      # Tests
-├── docker/                     # Docker
-└── pyproject.toml              # Dépendances
-```
-
-## 🔑 Points Clés
-
-### Support Multi-LLM
-
-Le service supporte plusieurs providers LLM :
-- **OpenAI** : GPT-4, GPT-4o, etc.
-- **Anthropic** : Claude 3, Claude 3.5
-- **Albert** : LLM gouvernemental français
-- Tout provider compatible OpenAI API
-
-### Stratégies d'Extraction
-
-1. **Direct Playwright** : Rapide, pour sites statiques
-2. **Agent IA** : Intelligent, gère contenu dynamique
-3. **Fallback automatique** : Si agent échoue → direct
-
-### Détection Automatique
-
-Le service détecte automatiquement le type de contenu :
-- GitHub/GitLab → `repository`
-- Sites docs → `documentation`
-- E-commerce → `product`
-- Blogs/news → `article`
-- Autre → `webpage`
-
-## 📝 Commandes Utiles (Makefile)
+## Dépannage
 
 ```bash
-make help           # Affiche l'aide
-make install        # Installe les dépendances
-make run            # Lance le service localement
-make test           # Lance les tests
-make test-cov       # Tests avec couverture
-make clean          # Nettoie les fichiers temp
+# Journaux détaillés en local
+LOG_LEVEL=DEBUG python -m uvicorn app.main:app --reload
 
 # Docker
-make docker-build   # Construit l'image
-make docker-up      # Lance le service
-make docker-down    # Arrête le service
-make docker-logs    # Affiche les logs
-make docker-shell   # Ouvre un shell dans le conteneur
+docker compose logs -f webtools
+docker compose logs -f webtools-mcp
 ```
 
-## 🐛 Debugging
+- `/health` renvoie `degraded` tant qu'un de ces éléments manque : Playwright,
+  SearXNG, un LLM qui répond, le catalogue de moteurs. Le détail est dans
+  `dependencies`.
+- Le service ne démarre pas : vérifier `WEBTOOLS_API_KEY` (ou
+  `WEBTOOLS_ALLOW_ANONYMOUS=1`).
+- `/health.commit` vaut `unknown` : l'image a été construite sans
+  `WEBTOOLS_COMMIT`.
 
-### Logs Détaillés
+## Sécurité
 
-```bash
-# Local
-LOG_LEVEL=DEBUG uvicorn app.main:app --reload
+- Ne jamais versionner `.env`.
+- Toute URL fournie par l'appelant passe par une garde contre les adresses non
+  publiques.
+- En production, placer l'API derrière HTTPS (Traefik dans `docker-compose.yml`).
 
-# Docker
-docker-compose logs -f webextract
-```
+## Licence
 
-### Tester Playwright
-
-```python
-from playwright.sync_api import sync_playwright
-
-with sync_playwright() as p:
-    browser = p.chromium.launch(headless=True)
-    page = browser.new_page()
-    page.goto("https://example.com")
-    print(page.title())
-    browser.close()
-```
-
-## 🔒 Sécurité
-
-**Important** :
-- Ne committez jamais vos clés API
-- Utilisez des variables d'environnement
-- En production : HTTPS + authentification
-
-## 🤝 Prochaines Étapes
-
-1. **Tester le service** avec vos URLs
-2. **Ajuster les prompts** dans `app/utils/prompts.py`
-3. **Ajouter des tests** dans `tests/`
-4. **Configurer CI/CD** (GitHub Actions, GitLab CI)
-5. **Déployer en production** (Kubernetes, Cloud Run, etc.)
-
-## 📧 Support
-
-Pour toute question :
-- Ouvrez une issue sur GitHub
-- Consultez la documentation API à `/docs`
-- Vérifiez les logs pour les erreurs
-
-## 🎯 Différences avec Colaig
-
-| Aspect | Colaig | WebExtract Service |
-|--------|--------|-------------------|
-| **Dépendance LLM** | Albert uniquement | Multi-provider |
-| **Interface** | Matrix bot | API REST |
-| **Configuration** | Config Colaig | Standalone simple |
-| **Déploiement** | Intégré | Service Docker indépendant |
-| **Complexité** | ~26K lignes | ~2K lignes focused |
-
-## 📜 License
-
-MIT License - Voir [LICENSE](LICENSE)
-
-Adapté depuis [Colaig](https://github.com/etalab-ia/albert-tchap) par Etalab.
-
----
-
-**Bon développement ! 🚀**
+MIT. Voir `LICENSE`. Le projet est parti du système d'extraction de Colaig
+(Etalab), dont il est désormais indépendant.
