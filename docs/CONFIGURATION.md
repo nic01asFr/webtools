@@ -28,6 +28,8 @@ périmé ou si un champ manque.
 - La configuration est lue à chaque requête, pas au démarrage du service.
   Elle est jointe à chaque réponse de `/research/deep`
   (`diagnostics.config`) et au manifeste de run du harnais de benchmark.
+- `max_sources_per_section` est aussi un champ de la requête
+  `/research/deep` : la valeur de la requête remplace celle de la variable.
 - Un drapeau de type B est livré désactivé : sa valeur par défaut reproduit
   le comportement d'avant les correctifs. Il ne s'adopte qu'après la
   campagne de mesure indiquée (`PLAN_FIABILISATION.md`, section 8 ;
