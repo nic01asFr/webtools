@@ -73,8 +73,20 @@ def test_degradation_info_defaults_and_nested() -> None:
     assert degradation_info({"success": True}) == {
         "success": True,
         "degraded": False,
+        "timed_out": False,
         "failed_sections": [],
         "unsourced_sections": [],
+        "missing_sections": [],
     }
     nested = degradation_info({"result": {"degraded": True, "failed_sections": ["x"]}})
     assert nested["degraded"] is True and nested["failed_sections"] == ["x"]
+
+
+def test_bibliography_numbers_follow_api_ids() -> None:
+    payload = {"result": {"summary": "s", "bibliography": [
+        {"id": 1, "title": "A", "url": "https://a.org"},
+        {"id": 2, "title": "sans url", "url": ""},
+        {"id": 3, "title": "C", "url": "https://c.org"},
+    ]}}
+    lines = report_to_markdown(payload).splitlines()
+    assert "[1] A. https://a.org" in lines and "[3] C. https://c.org" in lines

@@ -59,12 +59,16 @@ def report_to_markdown(payload: Dict[str, Any]) -> str:
     if biblio:
         parts.append("\n## References\n")
         for i, item in enumerate(biblio, start=1):
+            # Les [n] du texte sont les identifiants de la bibliographie de
+            # l'API : les reutiliser garde la correspondance meme si une
+            # entree sans url est sautee. Position si l'id est absent.
+            number = item.get("id") if isinstance(item.get("id"), int) else i
             url = (item.get("url") or "").strip()
             btitle = (item.get("title") or url or "").strip()
             if not url:
                 continue
             # Format explicite [n] Titre. URL  -> lisible par l'extracteur FACT
-            parts.append(f"[{i}] {btitle}. {url}")
+            parts.append(f"[{number}] {btitle}. {url}")
 
     return "\n".join(parts).strip()
 
@@ -103,8 +107,10 @@ def degradation_info(payload: Dict[str, Any]) -> Dict[str, Any]:
     return {
         "success": payload.get("success", True),
         "degraded": bool(pick("degraded", False)),
+        "timed_out": bool(pick("timed_out", False)),
         "failed_sections": list(pick("failed_sections", [])),
         "unsourced_sections": list(pick("unsourced_sections", [])),
+        "missing_sections": list(pick("missing_sections", [])),
     }
 
 

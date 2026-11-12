@@ -212,3 +212,15 @@ async def test_allow_mismatch_starts_and_traces_warnings(env: Settings) -> None:
     await run(env, server, make_args(allow_mismatch=True))
     assert read_manifest(env)["mismatch_warnings"]
     assert len(server.posted) == 3
+
+
+async def test_max_sources_per_section_is_sent_and_recorded(env: Settings) -> None:
+    server = Server()
+    await run(env, server, make_args(limit=1, max_sources_per_section=3))
+    assert server.bodies == [{"topic": "p1", "max_sources_per_section": 3}]
+    assert read_manifest(env)["max_sources_per_section"] == 3
+
+
+async def test_max_sources_per_section_absent_by_default(env: Settings) -> None:
+    await run(env, Server(), make_args(limit=1))
+    assert read_manifest(env)["max_sources_per_section"] is None

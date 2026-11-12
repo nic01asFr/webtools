@@ -199,6 +199,7 @@ def build_manifest(
         "model": args.get("llm_model") or health.get("llm_model") or "unknown",
         "judge": args.get("judge"),
         "lang": args.get("lang"),
+        "max_sources_per_section": args.get("max_sources_per_section"),
         "task_ids": task_ids,
         "searxng_engines": engines,
         "diagnostics_config": None,
@@ -213,7 +214,11 @@ def write_json(path: Path, data: Mapping[str, Any]) -> None:
 
 
 async def run_one(
-    client: httpx.AsyncClient, settings: Settings, task: Mapping[str, Any], timeout_s: float
+    client: httpx.AsyncClient,
+    settings: Settings,
+    task: Mapping[str, Any],
+    timeout_s: float,
+    max_sources_per_section: int | None = None,
 ) -> tuple[dict[str, Any] | None, dict[str, Any], dict[str, Any] | None]:
     """Un rapport. Retourne (record | None, diagnostic, diagnostics.config)."""
     tid, prompt = task["id"], task["prompt"]
@@ -222,10 +227,13 @@ async def run_one(
     def elapsed() -> float:
         return round(time.time() - t0, 1)
 
+    request_body: dict[str, Any] = {"topic": prompt}
+    if max_sources_per_section is not None:
+        request_body["max_sources_per_section"] = max_sources_per_section
     try:
         resp = await client.post(
             f"{settings.api}/api/v1/research/deep",
-            json={"topic": prompt},
+            json=request_body,
             headers=auth_headers(settings.api_key),
             timeout=timeout_s,
         )
@@ -318,7 +326,9 @@ async def run_batch(
 
     async def worker(task: Mapping[str, Any]) -> None:
         async with sem:
-            record, diag, config = await run_one(client, settings, task, args.timeout)
+            record, diag, config = await run_one(
+                client, settings, task, args.timeout, args.max_sources_per_section
+            )
             async with out_lock:
                 # Ecriture immediate : une interruption ne perd que la tache
                 # en cours, jamais celles deja terminees.
@@ -385,6 +395,9 @@ def build_parser() -> argparse.ArgumentParser:
                     help="modele LLM du service, pour le manifeste (sinon lu dans /health)")
     ap.add_argument("--judge", default=os.environ.get("JUDGE", "sovereign"),
                     help="juge prevu pour evaluate.sh, pour le manifeste")
+    ap.add_argument("--max-sources-per-section", type=int, default=None,
+                    help="plafond de sources par section (absent : selon la profondeur), "
+                         "inscrit dans le manifeste")
     ap.add_argument("--concurrency", type=int, default=2)
     ap.add_argument("--timeout", type=int, default=1200)
     ap.add_argument("--out-dir", default=None,
