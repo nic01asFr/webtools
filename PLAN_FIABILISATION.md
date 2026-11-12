@@ -922,31 +922,58 @@ marqués « recoupé » ont été relus ou exécutés une seconde fois.
 
 ## Annexe C. Tableau d'état
 
-Tenu par l'intégrateur seul.
+Tenu par l'intégrateur seul. Relevé au 12 novembre 2026 sur la branche
+`fiabilisation`, d'après `git log --merges`. Chaque lot est fusionné par un
+commit de fusion de sa branche `lot/<ID>`.
 
-| Lot | État | Branche | Fusionné le | Remarques |
+| Lot | État | Branche | Commit de fusion (12 nov. 2026) | Remarques |
 |---|---|---|---|---|
-| V0-1 | à faire | | | |
-| V1-1 | à faire | | | |
-| V1-2 | à faire | | | |
-| V1-3 | à faire | | | |
-| V1-4 | à faire | | | |
-| V1-5 | à faire | | | |
-| V1-6 | à faire | | | |
-| V1-7 | à faire | | | |
-| V1-8 | à faire | | | |
-| V1-9 | à faire | | | |
-| V2-1 | à faire | | | |
-| V3-1 | à faire | | | |
-| V3-2 | à faire | | | |
-| V3-3 | à faire | | | |
-| V3-4 | à faire | | | |
-| V3-5 | à faire | | | |
-| V3-6 | à faire | | | |
-| V3-7 | à faire | | | |
-| V3-8 | à faire | | | |
-| V4-1 | à faire | | | |
-| V4-2 | à faire | | | |
-| V4-3 | à faire | | | |
-| V5-1 | à faire | | | |
-| V5-2 | à faire | | | |
+| V0-1 | fusionné | `lot/V0-1` | `a198269` | Environnement, `make check`, extra `mcp` |
+| V1-1 | fusionné | `lot/V1-1` | `58f87a2` | Harnais honnête, manifeste, `compare.py`, `INSTALL.md` |
+| V1-2 | fusionné | `lot/V1-2` | `bf6c28d` | `/health` : commit, démarrage, dépendances |
+| V1-3 | fusionné | `lot/V1-3` | `83e5caa` | Tests des mécanismes déterministes, correctifs trouvés |
+| V1-4 | fusionné | `lot/V1-4` | `1163cd4` | Doublures, test de contrat du pipeline |
+| V1-5 | fusionné | `lot/V1-5` | `9107edf` | Configuration et déploiement uniques |
+| V1-6 | fusionné | `lot/V1-6` | `6c30424` | Serveur MCP client HTTP de l'API |
+| V1-7 | fusionné | `lot/V1-7` | `0f833cf` | Client LLM fiable |
+| V1-8 | fusionné | `lot/V1-8` | `24aaea8` | Suite : garde SSRF asynchrone du manager, `1dced4a` |
+| V1-9 | fusionné | `lot/V1-9` | `1415869` | Extracteurs robustes, garde SSRF |
+| V2-1 | fusionné | `lot/V2-1` | `d72de73` | Code mort supprimé, routes héritées retirées |
+| V3-1 | fusionné | `lot/V3-1` | `82e5990` | Citations et bibliographie (drapeaux B) |
+| V3-2 | fusionné | `lot/V3-2` | `f56a9e3` | Assemblage du rapport (drapeaux B) |
+| V3-3 | fusionné | `lot/V3-3` | `0dff659` | Contrat de `/research/deep` |
+| V3-4 | fusionné | `lot/V3-4` | `ebe422c` | Collecte : requêtes, langue, plafonds (drapeaux B) |
+| V3-5 | fusionné | `lot/V3-5` | `943e807` | Enrichissement et cohérence (drapeaux B) |
+| V3-6 | fusionné | `lot/V3-6` | `c2a9a81` | Sélection des passages (drapeaux B) |
+| V3-7 | fusionné | `lot/V3-7` | `53ae1fc` | Plan de recherche (drapeau B) |
+| V3-8 | fusionné | `lot/V3-8` | `8f2da79` | Endpoints simples |
+| V4-1 | fusionné | `lot/V4-1` | `1edd102` | Budgets et seuils dans `PipelineConfig` |
+| V4-2 | fusionné | `lot/V4-2` | `c7f7341` | Orchestrateur découpé en étapes |
+| V4-3 | fusionné | `lot/V4-3` | `11c24ae` | Enregistrement et rejeu de la collecte |
+| V4-4 | fusionné | `lot/V4-4` | `98b9f16` | Ajouté après D1 : sources requises, sections imposées |
+| R1 | fusionné | `lot/R1` | `663a54d` | Ajouté : correctifs de la relecture de la vague 1 |
+| R2 | fusionné | `lot/R2` | `7ec3ee7` | Ajouté : correctifs de la relecture de la vague 3 |
+| D1 | fusionné | `lot/D1` | `ee0b50d` | Ajouté : image construite, déploiement vérifié localement |
+| E2E | fusionné | `lot/E2E` | `c10e886` | Ajouté : vérification de bout en bout avec LLM substitut (`scripts/`, `tests/e2e/`) |
+| V5-1 | réalisé, à fusionner | `lot/V5-1` | | Documentation, `docs/CONFIGURATION.md`, version 3.0.0 |
+| V5-2 | en attente des mesures | | | Dépend des campagnes M2 à M5 (section 8) |
+
+## État d'avancement
+
+Au 12 novembre 2026, version 3.0.0.
+
+- **Fait** : les lots des vagues 0 à 4, plus V4-4, R1, R2, D1 et E2E, sont
+  fusionnés dans `fiabilisation` (annexe C). V5-1 est réalisé, à fusionner.
+- **Aucun changement de type B n'est actif** : les 20 drapeaux sont à leur
+  défaut (`docs/CONFIGURATION.md`).
+- **Reste, la mesure** : campagnes M0 à M6 (section 8), conduites par le
+  responsable du projet sur un serveur avec web, LLM SSPCloud, SearXNG et juge.
+- **Reste, le code** : V5-2 (retrait des drapeaux tranchés), après les campagnes.
+- **Points ouverts** : URL et commit de DeepResearch Bench à compléter dans
+  `benchmarks/INSTALL.md` ; la configuration SearXNG du pod d'origine est
+  perdue, M0 repart de `docker/searxng/settings.yml`.
+- **Où commencer** : fusionner `lot/V5-1`, construire l'image
+  (`WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build`), lancer les
+  trois services, vérifier le harnais sur une tâche (`benchmarks/INSTALL.md`,
+  section 4), puis M0 et M1 en mode `record` (`benchmarks/PROTOCOLE.md`).
+- **Vérification** : `make check` (API) et `make check-mcp` (serveur MCP).

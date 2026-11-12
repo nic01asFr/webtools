@@ -11,7 +11,7 @@ class Settings(BaseSettings):
 
     # API Configuration
     api_title: str = "WebTools API"
-    api_version: str = "2.0.0"
+    api_version: str = "3.0.0"
     api_host: str = "0.0.0.0"
     api_port: int = 8000
 

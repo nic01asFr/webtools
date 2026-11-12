@@ -76,111 +76,52 @@ app = FastAPI(
     description="""
 # WebTools API
 
-5 endpoints pour extraction et recherche web.
-
-## Ce Que Vous Obtenez
+Extraction de contenu web et recherche sourcée : 5 endpoints sous `/api/v1`.
+Tous exigent l'en-tête `X-API-Key`. Le LLM par défaut est un modèle compatible
+OpenAI hébergé sur SSPCloud (`qwen3-6-35b-moe`) ; la recherche passe par SearXNG.
 
 ### `/api/v1/extract`
-**Input** : URL
-**Output** : Contenu nettoyé (texte, liens, images, métadonnées)
-
-Options :
-- `clean_html: true` → Article sans navigation/pub (~87% réduction)
-- `extract_images: true` → Liste URLs images
-- `extract_links: true` → Liens du contenu
-
-Exemple :
-```json
-{
-  "url": "https://example.com/article",
-  "title": "Titre de l'article",
-  "content": "Texte principal...",
-  "images": ["https://example.com/img1.jpg"],
-  "word_count": 1500
-}
-```
+**Entrée** : `url`, et en option `prompt`, `extraction_type`
+(`general`, `article`, `product`, `repository`, `documentation`), `llm_config`
+(LLM propre à la requête) et `options` (`use_agent`, `timeout` de 5 à 300 s,
+`try_rss_first`, `rss_tier_root_only`, `single_llm_pass_enabled`, `headless`,
+`enable_ocr`).
+**Sortie** : `success`, `url`, `content_type`, `title`, `content`, `metadata`,
+`error`. Les adresses non publiques sont refusées.
 
 ---
 
 ### `/api/v1/vision`
-**Input** : URL image + question
-**Output** : Analyse textuelle selon la question
-
-Selon votre question :
-- "extraire le texte" → OCR complet
-- "décrire l'image" → Description objets/couleurs/contexte
-- "analyser le graphique" → Données extraites
-- "identifier les logos" → Liste marques détectées
-
-Exemple :
-```json
-{
-  "image_url": "https://example.com/chart.png",
-  "analysis": "Graphique en barres montrant...",
-  "confidence": 0.95
-}
-```
+**Entrée** : `image_url`, `prompt` (5 à 1000 caractères) et en option
+`system_prompt`, `temperature` (0 à 2, défaut 0,15), `max_tokens` (50 à 4096,
+défaut 500).
+**Sortie** : `analysis`, `model_used`, `processing_time_seconds`. Erreurs HTTP :
+400 (URL non publique), 501 (modèle sans vision), 502 ou 504 (échec ou délai du
+modèle), 503 (aucune clé LLM).
 
 ---
 
 ### `/api/v1/search`
-**Input** : Requête de recherche
-**Output** : Liste résultats (titre, URL, snippet)
-
-Options :
-- `max_results: 20` → Jusqu'à 20 résultats (défaut: 10)
-- `language: "fr"` → Résultats français uniquement
-- `time_range: "month"` → Résultats du dernier mois
-- `target_url` + `scope: "site"` → Rechercher dans un site spécifique
-
-Exemple :
-```json
-{
-  "query": "Claude AI",
-  "results": [
-    {
-      "title": "What is Claude?",
-      "url": "https://anthropic.com/claude",
-      "snippet": "Claude is an AI assistant..."
-    }
-  ],
-  "total": 10
-}
-```
+**Entrée** : `query` et en option `max_results` (1 à 50, défaut 10), `language`
+(défaut `fr`), `categories` et `engines` (noms SearXNG).
+**Sortie** : `results` (`title`, `url`, `snippet`), `total`. Aucun appel LLM.
 
 ---
 
 ### `/api/v1/research/quick`
-**Input** : Question factuelle
-**Output** : Réponse synthétique + sources citées
-
-Selon la complexité :
-- Question simple → Réponse directe + 3-5 sources
-- Question multi-aspects → Réponse structurée + 5-10 sources
-- `max_sources: 15` → Plus de sources
-
-Options de contrainte :
-- `sources.strategy: "priority"` → Essayer ces URLs d'abord
-- `sources.strategy: "exclusive"` → UNIQUEMENT ces URLs
-- `sources.strategy: "complement"` → Ajouter aux résultats web
-
-Exemple :
-```json
-{
-  "query": "Capitale du Japon?",
-  "answer": "Tokyo est la capitale depuis 1868. [1][2]",
-  "sources": [
-    {"title": "Tokyo - Wikipedia", "url": "https://...", "relevance": 0.95}
-  ],
-  "confidence": "high"
-}
-```
+**Entrée** : `query` (5 à 2000 caractères) et en option `max_sources` (1 à 15,
+défaut 5).
+**Sortie** : `answer` avec citations `[1]`, `[2]`, `sources` (`title`, `url`,
+`relevance` si le moteur fournit un score), `sources_attempted`,
+`sources_extracted`, `sources_discarded`, `discarded`. `confidence` n'est pas
+calculée (toujours `null`). Un moteur ou un LLM en échec donne une erreur HTTP
+(502, 504).
 
 ---
 
 ### `/api/v1/research/deep`
-**Input** : Sujet de recherche
-**Output** : Rapport structuré en sections + bibliographie
+**Entrée** : `topic`, avec les paramètres ci-dessous
+**Sortie** : rapport structuré en sections avec bibliographie
 
 Réponse JSON unique (pas de flux), de même forme en succès, en rapport dégradé
 et en échec : `success`, `degraded`, `timed_out`, `error`, `result`
@@ -242,74 +183,23 @@ Exemple (réponse abrégée) :
 }
 ```
 
-## 🎯 URLs Optionnelles
 
-Tous les endpoints de **recherche** acceptent des URLs pour guider/contraindre:
+## Endpoints de service
 
-**`/search`**: `target_url` + `scope` (site/domain/page)
-- Rechercher dans un site spécifique
-- Recherche interactive sur page
+- `/health` : état réel (Playwright, SearXNG, LLM, catalogue de moteurs), commit
+  et heure de démarrage du code chargé.
+- `/ready` : sonde de disponibilité.
+- `/docs`, `/redoc`, `/openapi.json` : documentation générée.
 
-**`/research/quick`**: `sources.urls` + `strategy`
-- `priority`: Essayer d'abord ces URLs
-- `exclusive`: UNIQUEMENT ces URLs
-- `complement`: Ajouter aux résultats web
-
-**`/research/deep`**: Contraintes avancées
-- `required`: URLs à utiliser
-- `domains_whitelist`: Limiter à domaines
-- `exclusions`: Exclure domaines
-
-## 📌 Endpoints
-
-| Endpoint | Usage | Temps | Autonomie |
-|----------|-------|-------|-----------|
-| `/extract` | 1 page web | 2-30s | ⭐ |
-| `/vision` | 1 image | 1-10s | ⭐ |
-| `/search` | Découverte sources | 1-5s | ⭐⭐ |
-| `/research/quick` | Question précise | 15-60s | ⭐⭐⭐ |
-| `/research/deep` | Rapport complet | 60-300s | ⭐⭐⭐⭐⭐ |
-
-## 🚀 Quick Start
+## Exemples
 
 ```bash
-# Recherche simple avec enrichissement IA
-curl -X POST "http://localhost:8000/api/v1/search" \\
-  -H "Content-Type: application/json" \\
-  -d '{"query": "FastAPI tutorial", "llm_enrichment": true, "dorking": true}'
+curl -X POST "http://localhost:8000/api/v1/search" -H "X-API-Key: $WEBTOOLS_API_KEY" -H "Content-Type: application/json" -d '{"query": "FastAPI tutorial", "max_results": 5}'
 
-# Question avec source prioritaire (API)
-curl -X POST "http://localhost:8000/api/v1/research/quick" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "query": "3 plus grandes villes de France",
-    "sources": {
-      "urls": ["https://geo.api.gouv.fr"],
-      "strategy": "priority"
-    }
-  }'
-
-# Rapport approfondi avec contraintes
-curl -X POST "http://localhost:8000/api/v1/research/deep" \\
-  -H "Content-Type: application/json" \\
-  -d '{
-    "topic": "Démographie Île-de-France",
-    "sources": {
-      "required": ["https://api.insee.fr", "https://geo.api.gouv.fr"]
-    },
-    "max_sources_per_section": 5
-  }'
+curl -X POST "http://localhost:8000/api/v1/research/deep" -H "X-API-Key: $WEBTOOLS_API_KEY" -H "Content-Type: application/json" -d '{"topic": "Démographie Île-de-France", "sources": {"required": ["https://www.insee.fr/fr/accueil"]}, "max_sources_per_section": 5}'
 ```
 
-## 📚 Documentation Complète
-
-- **Interactive Swagger**: `/docs`
-- **ReDoc**: `/redoc`
-- **Guide complet**: `API_DOCUMENTATION.md`
-
----
-
-**V2.0.0 | Propulsé par Albert API 🇫🇷**
+Guides : `README.md`, `DEEP_RESEARCH_ARCHITECTURE.md`, `docs/CONFIGURATION.md`.
     """,
     lifespan=lifespan,
     docs_url="/docs",
