@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional
 
 from browser_use import Agent
 
-from .base import BaseExtractor, ExtractionError
+from .base import BaseExtractor
 from .direct_extractor import DirectExtractor
 from app.api.models import WebResult
 from app.core.llm.base import BaseLLMClient
