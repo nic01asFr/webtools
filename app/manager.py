@@ -67,7 +67,6 @@ class ExtractorManager:
         dur ici, donc changer CACHE_TTL_SECONDS en production n'avait aucun
         effet observable.
         """
-        from app.core.config import settings
         self.pdf_extractor = PdfExtractor()
         self.rss_extractor = RssExtractor()
         self.direct_extractor = DirectExtractor()
