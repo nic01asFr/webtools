@@ -81,6 +81,9 @@ class PipelineConfig:
 
     # --- Lot V3-7 : plan de recherche ---
     plan_prompt_v2: bool = False  # prompt de plan sans ancien JSON ni exemples, contexte reduit (C33)
+    # --- Lot V3-6 : selection des passages et donnees du prompt ---
+    prompt_payload_minimal: bool = False  # le prompt de synthese ne recoit que source, title, content, corroboration_count (C39)
+    max_chunks_per_source: int = 0  # plafond de passages retenus par source ; 0 = pas de plafond (C38)
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":

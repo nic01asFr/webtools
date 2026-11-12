@@ -24,9 +24,10 @@ class _DemoConfig(PipelineConfig):
     maybe: int | None = None
 
 
-def test_config_defauts_exposes_par_to_dict() -> None:
-    base = PipelineConfig()
-    assert base.to_dict() == {f.name: getattr(base, f.name) for f in dataclasses.fields(base)}
+def test_config_vide_par_defaut() -> None:
+    # Chaque champ vaut son defaut : aucune valeur n'est imposee sans variable.
+    expected = {f.name: f.default for f in dataclasses.fields(PipelineConfig)}
+    assert PipelineConfig().to_dict() == expected
     assert PipelineConfig.from_env({}) == PipelineConfig()
 
 
