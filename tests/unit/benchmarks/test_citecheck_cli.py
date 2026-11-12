@@ -434,3 +434,14 @@ async def test_citation_rejugee_si_la_page_change(tmp_path: Path) -> None:
     cached.write_text(json.dumps(page), encoding="utf-8")
     await cli.cmd_evaluate(args, env, llm_transport=_judge_transport(calls), page_transport=_page_transport())
     assert len(calls) == first + 1
+
+
+async def test_lecture_navigateur_sans_fin_bornee(tmp_path: Path) -> None:
+    import asyncio
+
+    async def hung(url: str):
+        await asyncio.sleep(3600)
+
+    async with default_client(_page_transport()) as client:
+        page = await PageStore(tmp_path, client, browser=hung, browser_deadline_s=0.05).get("https://a.example/vide")
+    assert not page.ok and page.method == "http+navigateur" and "echeance" in page.error

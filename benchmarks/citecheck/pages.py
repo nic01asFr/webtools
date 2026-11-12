@@ -303,11 +303,16 @@ class PageStore:
         client: httpx.AsyncClient,
         concurrency: int = 6,
         browser=None,
+        browser_deadline_s: float = 120.0,
     ) -> None:
         self.directory = Path(directory)
         self.directory.mkdir(parents=True, exist_ok=True)
         self.client = client
         self.browser = browser
+        # Echeance globale d'une lecture par navigateur : observe sur le pod,
+        # une lecture sans fin (contenu ou fermeture de contexte) bloquait
+        # toute l'evaluation.
+        self.browser_deadline_s = browser_deadline_s
         self._semaphore = asyncio.Semaphore(concurrency)
         self._locks: dict[str, asyncio.Lock] = {}
 
@@ -330,7 +335,11 @@ class PageStore:
                 async with self._semaphore:
                     page = await fetch_page(self.client, url)
             if self.browser is not None and page.browser_may_help:
-                second = await self.browser(url)
+                try:
+                    second = await asyncio.wait_for(self.browser(url), timeout=self.browser_deadline_s)
+                except asyncio.TimeoutError:
+                    second = Page(url=url, status="erreur", method="navigateur",
+                                  error=f"navigateur : echeance de {self.browser_deadline_s:.0f} s depassee")
                 if second.ok:
                     page = second
                 else:
