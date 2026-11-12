@@ -149,3 +149,16 @@ def test_aucune_methode_privee_disparue_dans_les_documents(nom: str) -> None:
     cites = set(re.findall(r"`(_[a-z][a-z_0-9]*)\(", texte))
     disparues = sorted(cites - existantes)
     assert disparues == [], f"{nom} cite des methodes qui n'existent plus : {disparues}"
+
+
+def test_version_coherente_entre_pyproject_config_et_changelog() -> None:
+    import tomllib
+
+    from app.core.config import Settings
+
+    pyproject = tomllib.loads((RACINE / "pyproject.toml").read_text(encoding="utf-8"))
+    version = pyproject["project"]["version"]
+    assert Settings.model_fields["api_version"].default == version
+    journal = (RACINE / "CHANGELOG.md").read_text(encoding="utf-8")
+    premiere = re.search(r"(?m)^## \[(\d+\.\d+\.\d+)\]", journal)
+    assert premiere is not None and premiere.group(1) == version

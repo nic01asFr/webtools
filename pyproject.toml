@@ -1,6 +1,6 @@
 [project]
 name = "webtools-service"
-version = "2.0.0"
+version = "3.0.0"
 description = "Service autonome d'extraction de contenu web avec support multi-LLM"
 authors = [
     { name = "WebExtract Team" }
