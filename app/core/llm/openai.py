@@ -5,6 +5,7 @@ Client LLM pour OpenAI API.
 import asyncio
 import json
 import logging
+import re
 from types import SimpleNamespace
 from typing import Any
 
@@ -41,6 +42,22 @@ def _cause_chain(error: BaseException) -> str:
         chain.append(f"{type(cause).__name__}: {cause}")
         cause = getattr(cause, "__cause__", None)
     return " <- ".join(chain) if chain else "aucune cause sous-jacente"
+
+
+_THINK_BLOCK = re.compile(r"<think>.*?</think>", re.DOTALL | re.IGNORECASE)
+_THINK_TAG = re.compile(r"</?think>", re.IGNORECASE)
+
+
+def strip_reasoning(text: str | None) -> str | None:
+    """
+    Retire les traces de raisonnement du modele (<think>...</think>).
+
+    Observe en production (qwen3, raisonnement pourtant desactive) : une balise
+    </think> isolee apparaissait au milieu d'une phrase du rapport.
+    """
+    if not text:
+        return text
+    return _THINK_TAG.sub("", _THINK_BLOCK.sub("", text))
 
 
 def _closed_client_error(error: BaseException) -> bool:
@@ -330,7 +347,7 @@ class OpenAILLMClient(BaseLLMClient):
 
             choice = response.choices[0]
             finish_reason = getattr(choice, "finish_reason", None)
-            content = choice.message.content
+            content = strip_reasoning(choice.message.content)
             self._record_finish_reason(finish_reason)
             if content is None or not content.strip():
                 raise LLMEmptyContentError(
@@ -440,7 +457,7 @@ class OpenAILLMClient(BaseLLMClient):
 
         choice = response.choices[0]
         finish_reason = getattr(choice, "finish_reason", None)
-        content = choice.message.content
+        content = strip_reasoning(choice.message.content)
         self._record_finish_reason(finish_reason)
         truncated = finish_reason in TRUNCATION_REASONS
 

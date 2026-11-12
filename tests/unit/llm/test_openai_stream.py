@@ -156,3 +156,18 @@ async def test_autre_erreur_non_rejouee() -> None:
         await client.generate(MESSAGES)
     assert calls["n"] == 1
     await client.force_close()
+
+
+@pytest.mark.parametrize(
+    ("brut", "attendu"),
+    [
+        ("Parmi elles,</think> l'approbation", "Parmi elles, l'approbation"),
+        ("<think>raisonnement interne</think>Texte final", "Texte final"),
+        ("Sans balise", "Sans balise"),
+    ],
+)
+async def test_balises_de_raisonnement_retirees(brut: str, attendu: str) -> None:
+    # Observe en production : un </think> isole publie au milieu d'un rapport.
+    client = _client(_sse([brut]))
+    assert await client.generate(MESSAGES) == attendu
+    await client.force_close()
