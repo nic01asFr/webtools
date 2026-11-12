@@ -7,6 +7,7 @@ import pytest
 from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrchestrator
 from app.core.llm.base import LLMEmptyContentError
 from app.research.pipeline_config import PipelineConfig
+from app.research.stages.coherence import apply_coherence_improvements
 
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch
 
@@ -80,7 +81,7 @@ async def test_coherence_append_enabled(enabled: bool) -> None:
             }
         ]
     }
-    await orch._apply_coherence_improvements(analysis, ctx)
+    await apply_coherence_improvements(analysis, ctx)
     assert ("AJOUT" in ctx.final_content["sections"]["A"]["content"]) is enabled
     assert ctx.diagnostics.count("coherence.transition_collee") == (1 if enabled else 0)
     assert ctx.diagnostics.count("coherence.append_desactive") == (0 if enabled else 1)
