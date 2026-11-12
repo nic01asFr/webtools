@@ -3,6 +3,7 @@ Client LLM pour Albert API.
 Adapté depuis Colaig pour être autonome et réutilisable.
 """
 
+import asyncio
 from typing import Any
 
 import httpx
@@ -12,7 +13,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 from langchain_core.outputs import ChatGeneration, ChatResult
 from pydantic import Field, PrivateAttr
 
-from .base import BaseLLMClient, LLMClientError, LLMEmptyContentError
+from .base import BaseLLMClient, LLMClientError, LLMEmptyContentError, LLMTimeoutError
 
 
 class AlbertLLMClient(BaseLLMClient):
@@ -66,13 +67,30 @@ class AlbertLLMClient(BaseLLMClient):
             http2=True
         )
 
+    async def _with_deadline(self, awaitable: Any, total_timeout: float | None) -> Any:
+        """
+        Applique l'echeance totale (tentatives comprises), comme le client OpenAI.
+        asyncio.timeout et non wait_for : wait_for execute l'appel dans une
+        tache a part, et la raison d'arret (ContextVar) y serait perdue.
+        """
+        if not total_timeout:
+            return await awaitable
+        try:
+            async with asyncio.timeout(total_timeout):
+                return await awaitable
+        except TimeoutError:
+            raise LLMTimeoutError(
+                f"Echeance totale de {total_timeout:g}s depassee (modele {self.model})"
+            )
+
     async def generate(
         self,
         messages: list[dict[str, Any]],
         **kwargs
     ) -> str:
         """
-        Génère une réponse avec Albert.
+        Génère une réponse avec Albert, dans l'echeance totale
+        (kwarg `total_timeout`, sinon self.total_timeout ; None = sans limite).
 
         Args:
             messages: Liste de messages au format {"role": "...", "content": "..."}
@@ -82,6 +100,17 @@ class AlbertLLMClient(BaseLLMClient):
         Returns:
             Contenu de la réponse générée
         """
+        total_timeout = kwargs.pop("total_timeout", self.total_timeout)
+        return await self._with_deadline(
+            self._generate_with_retries(messages, **kwargs), total_timeout
+        )
+
+    async def _generate_with_retries(
+        self,
+        messages: list[dict[str, Any]],
+        **kwargs
+    ) -> str:
+        """Appel HTTP avec retry ; l'echeance totale est appliquee par generate."""
         url = f"{self.base_url}/v1/chat/completions"
 
         data = {
@@ -93,7 +122,6 @@ class AlbertLLMClient(BaseLLMClient):
         # Retry manuel avec backoff : httpx.AsyncClient n'a pas de retry
         # integre (contrairement au SDK OpenAI utilise ailleurs) - on aligne
         # le niveau de resilience entre les deux clients.
-        import asyncio
         self._record_finish_reason(None)
         last_error = None
         for attempt in range(3):
