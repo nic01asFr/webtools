@@ -58,6 +58,14 @@ export PLAYWRIGHT_BROWSERS_PATH="${PLAYWRIGHT_BROWSERS_PATH:-$HOME/.cache/ms-pla
 WEBTOOLS_LOG_DIR="${WEBTOOLS_LOG_DIR:-/tmp/webtools_logs}"
 mkdir -p "$WEBTOOLS_LOG_DIR" "$WEBTOOLS_STATE_DIR"
 
+# Configuration de connexion lisible par l'exploitant (URL, cle d'API, jeton
+# MCP), en droits 600 : l'identifiant affiche par Onyxia ouvre le pod, pas le
+# serveur MCP. Ecrite seulement si WEBTOOLS_CONNEXION_README est defini.
+if [ -n "${WEBTOOLS_CONNEXION_README:-}" ]; then
+  "$WEBTOOLS_API_PYTHON" scripts/config_connexion.py "$WEBTOOLS_CONNEXION_README" \
+    || echo "config_connexion.py a echoue (service lance quand meme)" >&2
+fi
+
 supervise() {
   local name="$1"
   shift

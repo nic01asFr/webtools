@@ -155,6 +155,29 @@ Le serveur MCP et l'API tournent dans deux environnements Python distincts :
 leurs dépendances sont incompatibles (`browser-use` exige `pydantic<2.11`,
 `fastmcp` exige `pydantic>=2.12`). Ne jamais les installer ensemble.
 
+### Connecter le serveur MCP (claude.ai, Claude Desktop, Claude Code)
+
+| Paramètre | Valeur |
+|---|---|
+| URL du connecteur | `<MCP_PUBLIC_URL>/mcp`, par exemple `https://user-<compte>-webtools-mcp.user.lab.sspcloud.fr/mcp` |
+| Authentification | OAuth 2.1 (découverte automatique), puis clé d'accès |
+| Clé demandée par la page d'autorisation | la valeur de `MCP_ACCESS_TOKEN` du déploiement |
+
+Étapes sur claude.ai : Paramètres, Connecteurs, ajouter un connecteur
+personnalisé, coller l'URL ci-dessus. Une page « webtools - Autorisation
+requise » s'ouvre : y coller `MCP_ACCESS_TOKEN`. La page reste valable
+10 minutes.
+
+Ne confondez pas cette clé avec l'identifiant et le mot de passe affichés par
+Onyxia dans « Mes services » : ceux-là ouvrent le pod Jupyter qui héberge le
+service, pas le serveur MCP.
+
+Sur un déploiement par `start_all.sh`, la configuration réelle (URL, clé
+d'API, jeton MCP) est écrite au démarrage dans `README-webtools.md`, à côté
+du dépôt, si `WEBTOOLS_CONNEXION_README` désigne ce fichier
+(`scripts/config_connexion.py`). Ce fichier contient des secrets : il est
+créé en droits 600 et ne doit jamais être versionné.
+
 ## Démarrage
 
 Prérequis : Docker et Docker Compose, ou deux environnements Python 3.11.

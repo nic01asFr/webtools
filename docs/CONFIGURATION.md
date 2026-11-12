@@ -330,6 +330,8 @@ Variables déclarées dans `Settings` mais que le code ne lit pas :
 | `SEARXNG_PORT`, `SEARXNG_BIND_ADDRESS` | `8081`, `127.0.0.1` | Écoute de SearXNG |
 | `WEBTOOLS_LOG_DIR` | `/tmp/webtools_logs` | Journaux des trois services |
 | `WEBTOOLS_STATE_DIR` | `/tmp/webtools_state` | État du serveur MCP |
+| `WEBTOOLS_CONNEXION_README` | absent | Si défini, fichier où écrire au démarrage la configuration de connexion (URL MCP, jeton MCP, URL et clé d'API), en droits 600 |
+| `WEBTOOLS_PUBLIC_API` | absent | URL publique de l'API, reprise dans ce fichier |
 
 ### Harnais de benchmark
 

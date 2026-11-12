@@ -80,3 +80,6 @@ id_rsa*
 
 # PDF telecharges par les tests d extraction
 *.pdf
+
+# Fichier de connexion genere au demarrage (contient des secrets)
+README-webtools.md
