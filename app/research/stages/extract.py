@@ -38,7 +38,7 @@ async def section_extraction_phase(
         # refuses depuis que le modele interdit les champs inconnus (C60).
         cfg = context.config
         options = ExtractionOptions(
-            use_agent=True,
+            use_agent=cfg.extraction_use_agent,
             headless=True,
             rss_tier_root_only=cfg.rss_tier_root_only,
             single_llm_pass_enabled=cfg.single_llm_pass_enabled,

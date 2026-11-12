@@ -52,7 +52,7 @@ async def extract_required_sources(
 
     cfg = ctx.config
     options = ExtractionOptions(
-        use_agent=True,
+        use_agent=cfg.extraction_use_agent,
         headless=True,
         rss_tier_root_only=cfg.rss_tier_root_only,
         single_llm_pass_enabled=cfg.single_llm_pass_enabled,

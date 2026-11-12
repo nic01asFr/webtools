@@ -32,6 +32,7 @@ EXPECTED_DEFAULTS: dict[str, Any] = {
     "chunking_v2": False,
     "rss_tier_root_only": True,
     "single_llm_pass_enabled": True,
+    "extraction_use_agent": True,
     "quick_uses_chunk_selection": False,
     "max_sources_per_section": None,
     "exploration_max_results": 8,

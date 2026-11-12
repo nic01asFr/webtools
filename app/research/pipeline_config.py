@@ -109,6 +109,13 @@ class PipelineConfig:
     # 5 pages extraites au plus.
     max_sources_per_section: int | None = None
 
+    # --- Extraction : agent navigateur ---
+    # Palier agent (browser-use) quand l'extraction directe echoue ou rend
+    # trop peu. Observe en production sur un modele a ~10 jetons/s : un agent
+    # pilote le LLM pas a pas, une seule page pouvait couter plusieurs minutes,
+    # et la collecte d'un rapport depassait le delai global.
+    extraction_use_agent: bool = True  # faux : extraction directe seulement (pas d'agent navigateur)
+
     # --- Lot V4-1 : budgets et seuils ---
     # Valeurs reprises a l'identique de l'orchestrateur : aucun changement de
     # comportement. Le test test_v4_1_config fige ces defauts.

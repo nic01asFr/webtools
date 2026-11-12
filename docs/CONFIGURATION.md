@@ -41,7 +41,7 @@ périmé ou si un champ manque.
 
 <!-- DEBUT-GENERE : ne pas modifier a la main, voir docs/generer_configuration.py -->
 
-### Drapeaux à mesurer (type B) : 20 champs
+### Drapeaux à mesurer (type B) : 21 champs
 
 | Nom | Type | Défaut | Variable d'environnement | Effet | Campagne | Valeur essayée |
 |---|---|---|---|---|---|---|
@@ -62,6 +62,7 @@ périmé ou si un champ manque.
 | `extraction_cap_follows_depth` | bool | `false` | `WEBTOOLS_PIPELINE_EXTRACTION_CAP_FOLLOWS_DEPTH` | extrait autant d'URL que la profondeur (3/5/8) au lieu de 5 (C35) | M5 | `true` |
 | `exploration_uses_plan_query` | bool | `false` | `WEBTOOLS_PIPELINE_EXPLORATION_USES_PLAN_QUERY` | exploration : requete reduite et moteurs de la cascade (C31) | M5 | `true` |
 | `chunking_v2` | bool | `false` | `WEBTOOLS_PIPELINE_CHUNKING_V2` | transmis a document_to_chunk_items (C73) | M5 | `true` |
+| `extraction_use_agent` | bool | `true` | `WEBTOOLS_PIPELINE_EXTRACTION_USE_AGENT` | faux : extraction directe seulement (pas d'agent navigateur) | M5 | `false` |
 | `plan_prompt_v2` | bool | `false` | `WEBTOOLS_PIPELINE_PLAN_PROMPT_V2` | prompt de plan sans ancien JSON ni exemples, contexte reduit (C33) | hors campagne | `true` |
 | `targeted_search_skip_structured` | bool | `false` | `WEBTOOLS_PIPELINE_TARGETED_SEARCH_SKIP_STRUCTURED` | recherche ciblee sans appel LLM d'extraction structuree (C36, C79) | hors campagne | `true` |
 | `quick_uses_chunk_selection` | bool | `false` | `WEBTOOLS_PIPELINE_QUICK_USES_CHUNK_SELECTION` | /research/quick: passages choisis par pertinence au lieu de 2000 car. de tete (C63) | hors campagne | `true` |
@@ -230,7 +231,7 @@ périmé ou si un champ manque.
 | `enrichment_regenerate_v2_max_tokens` | int | `6000` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_V2_MAX_TOKENS` | jetons maximaux de la regeneration de section v2 |
 | `enrichment_regenerate_temperature` | float | `0.1` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_TEMPERATURE` | temperature de la regeneration de section (v1 et v2) |
 
-Total : 132 champs, soit tous ceux de `PipelineConfig`.
+Total : 133 champs, soit tous ceux de `PipelineConfig`.
 
 <!-- FIN-GENERE -->
 

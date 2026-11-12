@@ -45,6 +45,7 @@ HORS_CAMPAGNE = "hors campagne"
 CAMPAGNES: dict[str, tuple[str, str]] = {
     "rss_tier_root_only": ("M2", "true"),
     "single_llm_pass_enabled": ("M2", "false"),
+    "extraction_use_agent": ("M5", "false"),
     "clean_title": ("M3", "true"),
     "summary_mode": ("M3", "none"),
     "coherence_append_enabled": ("M3", "false"),

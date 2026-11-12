@@ -49,7 +49,7 @@ class ExtractionOptions(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     use_agent: bool = Field(
-        default=True,
+        default_factory=lambda: _pipeline_default("extraction_use_agent"),
         description="Utiliser l'agent IA ou extraction directe seulement"
     )
     timeout: int = Field(
