@@ -55,7 +55,10 @@ def make_manager(pdf=None, rss=None, direct=None, agent=None, **kwargs: Any) -> 
 
 @pytest.fixture(autouse=True)
 def _no_dns(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setattr("app.manager.assert_safe_url", lambda url: None)
+    async def _ok(url: str, resolver=None) -> None:
+        return None
+
+    monkeypatch.setattr("app.utils.url_safety.assert_safe_url_async", _ok, raising=False)
 
 
 class FakeLLM:
@@ -260,3 +263,14 @@ async def test_paliers_suivants_recoivent_le_temps_restant() -> None:
     manager.rss_extractor = SlowRss(None)
     await manager.extract(ARTICLE, options=ExtractionOptions(use_agent=False, timeout=45))
     assert direct.options["timeout"] == pytest.approx(25.0)
+
+
+async def test_echec_pdf_explicite_rendu_tel_quel_sans_autres_paliers() -> None:
+    echec = WebResult.from_error(url=ARTICLE, error_message="telechargement PDF impossible")
+    rss = FakeTier(ok(ARTICLE))
+    direct = FakeTier(ok(ARTICLE))
+    manager = make_manager(pdf=FakeTier(echec), rss=rss, direct=direct)
+    result = await manager.extract(ARTICLE, options=ExtractionOptions(use_agent=False))
+    assert not result.success
+    assert result.error == "telechargement PDF impossible"
+    assert rss.calls == 0 and direct.calls == 0

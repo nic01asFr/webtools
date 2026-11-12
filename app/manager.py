@@ -19,7 +19,8 @@ from app.extractors.direct_extractor import DirectExtractor
 from app.extractors.agent_extractor import AgentExtractor
 from app.extractors.rss_extractor import RssExtractor, COMMON_FEED_PATHS
 from app.extractors.pdf_extractor import PdfExtractor
-from app.utils.url_safety import assert_safe_url, UnsafeURLError
+from app.utils import url_safety
+from app.utils.url_safety import UnsafeURLError
 from app.utils.content_detector import ContentDetector
 from app.utils.prompts import PromptTemplates
 
@@ -158,7 +159,7 @@ class ExtractorManager:
         # Protection SSRF : verifiee ici, au point d'entree unique de toute
         # extraction, avant toute tentative reelle de connexion.
         try:
-            assert_safe_url(url)
+            await url_safety.assert_safe_url_async(url)
         except UnsafeURLError as e:
             logger.warning(f"Extraction refusee pour {url}: {e}")
             return WebResult.from_error(url=url, error_message=str(e))
