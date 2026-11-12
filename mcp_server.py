@@ -1,50 +1,33 @@
 """
-Serveur MCP pour webtools - expose les capacites d'extraction/recherche web
-directement (sans repasser par HTTP, meme process) pour des clients type
-Claude Code et autres agents compatibles MCP.
+Serveur MCP pour webtools : client HTTP de l'API REST.
+
+Les outils appellent l'API (WEBTOOLS_API, cle WEBTOOLS_API_KEY) au lieu
+d'importer ses fonctions : ce module n'importe rien de `app/` et tourne dans
+son propre environnement Python (les dependances de l'API et du serveur MCP
+sont incompatibles entre elles).
 """
 
 import asyncio
-import os
-import sys
-import logging
-
-# Chemin dynamique (relatif a ce fichier) plutot que code en dur - ce
-# fichier a deja migre d'un pod de dev (webtools-test3) vers un pod de
-# service dedie, un chemin absolu casserait a chaque nouvelle migration.
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-
-# Configuration non secrete : valeurs par defaut acceptables en clair.
-os.environ.setdefault("OPENAI_BASE_URL", "https://llm.lab.sspcloud.fr/api")
-os.environ.setdefault("DEFAULT_LLM_PROVIDER", "openai")
-os.environ.setdefault("DEFAULT_LLM_MODEL", "qwen3-6-35b-moe")
-os.environ.setdefault("DEFAULT_LLM_BASE_URL", "https://llm.lab.sspcloud.fr/api")
-os.environ.setdefault("SEARXNG_BASE_URL", "http://localhost:8081")
-
-# Secrets : JAMAIS de valeur par defaut en dur. Le pattern
-# os.environ.setdefault("...", "<vraie_cle>") est traitre - il fonctionne
-# silencieusement, donc rien ne signale que la cle est committee en clair
-# (c'est exactement ce qui s'est produit ici avant ce correctif). Lecture
-# stricte avec echec explicite au demarrage, comme pour MCP_ACCESS_TOKEN.
-_llm_key = os.environ.get("DEFAULT_LLM_API_KEY") or os.environ.get("OPENAI_API_KEY")
-if not _llm_key:
-    raise RuntimeError(
-        "DEFAULT_LLM_API_KEY (ou OPENAI_API_KEY) doit etre defini dans "
-        "l'environnement avant de lancer le serveur MCP."
-    )
-os.environ.setdefault("OPENAI_API_KEY", _llm_key)
-os.environ.setdefault("DEFAULT_LLM_API_KEY", _llm_key)
-
-from fastmcp import FastMCP, Context
-from mcp.types import ToolAnnotations
-from typing import Annotated, Literal
-from pydantic import Field
-from fastmcp.server.auth.providers.in_memory import InMemoryOAuthProvider
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import HTMLResponse, RedirectResponse
-from starlette.requests import Request
 import hmac
+import json
+import logging
+import os
+import re
+import tempfile
 import time
+import uuid
+from typing import Annotated, Any
+
+import httpx
+from fastmcp import Context, FastMCP
+from fastmcp.server.auth.auth import ClientRegistrationOptions
+from fastmcp.server.auth.providers.in_memory import InMemoryOAuthProvider
+from mcp.types import ToolAnnotations
+from pydantic import Field
+from starlette.middleware import Middleware as StarletteMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import HTMLResponse, RedirectResponse
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("webtools-mcp")
@@ -106,7 +89,7 @@ class AuthorizeGateMiddleware(BaseHTTPMiddleware):
         logger.info(f"[GATE] dispatch appele pour path={request.url.path} method={request.method}")
         if not request.url.path.endswith("/authorize"):
             return await call_next(request)
-        logger.info(f"[GATE] /authorize intercepte")
+        logger.info("[GATE] /authorize intercepte")
 
         session = request.cookies.get(SESSION_COOKIE)
         if _is_valid_session(session):
@@ -136,9 +119,6 @@ class AuthorizeGateMiddleware(BaseHTTPMiddleware):
         return HTMLResponse(LOGIN_FORM.format(error=""))
 
 
-from fastmcp.server.auth.auth import ClientRegistrationOptions
-from starlette.middleware import Middleware as StarletteMiddleware
-
 mcp = FastMCP(
     "webtools",
     auth=InMemoryOAuthProvider(
@@ -147,98 +127,290 @@ mcp = FastMCP(
     ),
 )
 
-# --- Recherche approfondie en tache de fond -------------------------------
-# research_deep peut prendre 30s a plusieurs minutes (jusqu'a 578s observe
-# sous degradation reseau). Un appel bloquant unique fait timeout cote
-# client MCP (Claude Desktop) bien avant la fin. Solution : lancer en
-# arriere-plan (asyncio.create_task, pas de nouvelle dependance infra type
-# Redis/pydocket - disproportionne pour un usage personnel), avec un outil
-# compagnon pour interroger l'etat a la demande. Le "hint" de progression
-# est derive des logs deja emis par l'orchestrateur (aucune modification
-# de sa logique metier deja testee), via un handler de logging scope a
-# chaque tache.
-import logging as _logging
-import time as _time
-import uuid as _uuid
+# --- Client HTTP de l'API REST --------------------------------------------
 
-_TASKS: dict = {}  # task_id -> {status, phase, result, error, started_at}
+# Transport injectable : les tests y placent un httpx.MockTransport.
+_TRANSPORT: httpx.AsyncBaseTransport | None = None
+
+_QUICK_TIMEOUT = 120.0
+_DEEP_TIMEOUT = 900.0
+_SHORT_TIMEOUT = 60.0
 
 
-class _TaskPhaseCapture(_logging.Handler):
-    """Capture la derniere ligne de log de l'orchestrateur comme indice de phase en cours."""
-
-    def __init__(self, task_id: str):
-        super().__init__()
-        self.task_id = task_id
-
-    def emit(self, record):
-        try:
-            msg = record.getMessage().strip()
-            if msg and self.task_id in _TASKS:
-                _TASKS[self.task_id]["phase"] = msg
-        except Exception:
-            pass
+def _api_base() -> str:
+    return os.environ.get("WEBTOOLS_API", "http://localhost:8000").rstrip("/")
 
 
-async def _run_research_deep_background(task_id: str, topic: str, max_sources: int):
-    handler = _TaskPhaseCapture(task_id)
-    orchestrator_logger = _logging.getLogger("app.agents.intelligent_orchestrator")
-    orchestrator_logger.addHandler(handler)
+def _api_headers() -> dict[str, str]:
+    key = os.environ.get("WEBTOOLS_API_KEY", "")
+    return {"X-API-Key": key} if key else {}
+
+
+def _error_detail(response: httpx.Response) -> str:
+    """Extrait un message lisible d'une reponse HTTP en erreur."""
     try:
-        from app.api.v1.endpoints.research_deep import research_deep as _research_deep, DeepResearchRequest
-        import json as jsonlib
+        body = response.json()
+    except ValueError:
+        return response.text[:300].strip()
+    if isinstance(body, dict) and body.get("detail"):
+        return str(body["detail"])[:300]
+    return str(body)[:300]
 
-        req = DeepResearchRequest(topic=topic, max_results=max_sources)
-        response = await _research_deep(req)
-        body = b""
-        async for chunk in response.body_iterator:
-            body += chunk if isinstance(chunk, bytes) else chunk.encode("utf-8")
-        _TASKS[task_id]["status"] = "completed"
-        _TASKS[task_id]["result"] = jsonlib.loads(body)
-    except Exception as e:
-        _TASKS[task_id]["status"] = "failed"
-        _TASKS[task_id]["error"] = str(e)
-    finally:
-        orchestrator_logger.removeHandler(handler)
+
+async def _api_post(path: str, payload: dict[str, Any], timeout: float) -> dict[str, Any]:
+    """
+    POST JSON vers l'API. Rend toujours un dictionnaire : le corps decode en
+    cas de succes HTTP, sinon {"success": False, "error": ...}.
+    """
+    try:
+        async with httpx.AsyncClient(
+            base_url=_api_base(),
+            headers=_api_headers(),
+            timeout=timeout,
+            transport=_TRANSPORT,
+        ) as client:
+            response = await client.post(path, json=payload)
+    except httpx.HTTPError as exc:
+        return {"success": False, "error": f"API injoignable ({type(exc).__name__}): {exc}"}
+
+    if response.status_code != 200:
+        return {
+            "success": False,
+            "error": f"API HTTP {response.status_code}: {_error_detail(response)}",
+        }
+    try:
+        body = response.json()
+    except ValueError:
+        return {"success": False, "error": "Reponse de l'API non JSON"}
+    if not isinstance(body, dict):
+        return {"success": False, "error": "Reponse de l'API inattendue (objet JSON attendu)"}
+    return body
+
+
+# --- Conversion du rapport en markdown -------------------------------------
+
+def _scalar_items(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {k: v for k, v in value.items() if isinstance(v, (str, int, float, bool))}
+
+
+def format_deep_report(payload: dict[str, Any]) -> str:
+    """
+    Convertit la reponse de /research/deep en markdown lisible par un agent.
+    Fonction pure, tolerante aux champs absents ou ajoutes. Le champ `data`
+    des sections (passages extraits integraux) n'est jamais emis.
+    """
+    result = payload.get("result")
+    if not isinstance(result, dict):
+        result = {}
+    parts: list[str] = []
+
+    title = result.get("title") or payload.get("title") or payload.get("topic")
+    if title:
+        parts.append(f"# {title}")
+    summary = result.get("summary")
+    if summary:
+        parts.append(f"## Synthese\n\n{summary}")
+
+    sections = result.get("sections")
+    for section in sections if isinstance(sections, list) else []:
+        if not isinstance(section, dict):
+            continue
+        heading = section.get("title") or "Section"
+        content = section.get("content") or ""
+        parts.append(f"## {heading}\n\n{content}".rstrip())
+
+    biblio = result.get("bibliography")
+    lines: list[str] = []
+    for index, entry in enumerate(biblio if isinstance(biblio, list) else [], start=1):
+        if not isinstance(entry, dict):
+            continue
+        label = entry.get("title") or entry.get("url") or "Source"
+        line = f"{index}. {label}"
+        if entry.get("url") and entry.get("url") != label:
+            line += f" - {entry['url']}"
+        extras = [str(entry[k]) for k in ("type", "date") if entry.get(k)]
+        if extras:
+            line += f" ({', '.join(extras)})"
+        lines.append(line)
+    if lines:
+        parts.append("## Bibliographie\n\n" + "\n".join(lines))
+
+    return "\n\n".join(parts)
+
+
+def build_deep_diagnostics(payload: dict[str, Any]) -> dict[str, Any]:
+    """Bloc diagnostics : ce que l'API dit de l'execution, sans le contenu."""
+    diagnostics: dict[str, Any] = {}
+    api_diag = payload.get("diagnostics")
+    if isinstance(api_diag, dict):
+        diagnostics.update(api_diag)
+    for key in ("degraded", "failed_sections", "processing_time", "error"):
+        if key in payload and key not in diagnostics:
+            diagnostics[key] = payload[key]
+    execution = _scalar_items(payload.get("execution"))
+    if execution and "execution" not in diagnostics:
+        diagnostics["execution"] = execution
+    sources = payload.get("sources")
+    if isinstance(sources, (list, dict)) and "sources_count" not in diagnostics:
+        diagnostics["sources_count"] = len(sources)
+    return diagnostics
+
+
+def deep_result(payload: dict[str, Any]) -> dict[str, Any]:
+    """Resultat d'outil pour une reponse de recherche approfondie."""
+    if payload.get("success") is False:
+        return {
+            "success": False,
+            "error": payload.get("error") or "La recherche approfondie a echoue",
+            "diagnostics": build_deep_diagnostics(payload),
+        }
+    return {
+        "success": True,
+        "topic": payload.get("topic"),
+        "report_markdown": format_deep_report(payload),
+        "diagnostics": build_deep_diagnostics(payload),
+    }
+
+
+# --- Recherche approfondie en tache de fond --------------------------------
+# research_deep peut prendre de 30 s a plusieurs minutes : un appel bloquant
+# fait expirer le client MCP. La tache tourne en arriere-plan et son etat est
+# ecrit sur disque (un fichier JSON par tache) pour survivre a une relance du
+# superviseur.
+
+_TASKS: dict[str, dict[str, Any]] = {}
+_BACKGROUND: set[asyncio.Task] = set()
+_TASK_ID_RE = re.compile(r"^[0-9a-f]{12}$")
+_TASK_RETENTION_SECONDS = 3600
+
+
+def _max_concurrent_deep() -> int:
+    try:
+        return max(1, int(os.environ.get("MCP_MAX_CONCURRENT_DEEP", "2")))
+    except ValueError:
+        return 2
+
+
+def _state_dir() -> str:
+    return os.environ.get("WEBTOOLS_STATE_DIR") or os.path.join(
+        tempfile.gettempdir(), "webtools_mcp_state"
+    )
+
+
+def _persist_task(task_id: str) -> None:
+    """Ecriture atomique : fichier temporaire puis os.replace."""
+    directory = _state_dir()
+    try:
+        os.makedirs(directory, exist_ok=True)
+        fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=f".{task_id}.", suffix=".tmp")
+        try:
+            with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                json.dump(_TASKS[task_id], handle, ensure_ascii=False)
+            os.replace(tmp_path, os.path.join(directory, f"{task_id}.json"))
+        except BaseException:
+            if os.path.exists(tmp_path):
+                os.unlink(tmp_path)
+            raise
+    except OSError as exc:
+        logger.error("Persistance de la tache %s impossible: %s", task_id, exc)
+
+
+def _forget_task(task_id: str) -> None:
+    _TASKS.pop(task_id, None)
+    try:
+        os.unlink(os.path.join(_state_dir(), f"{task_id}.json"))
+    except OSError:
+        pass
+
+
+def load_tasks() -> None:
+    """
+    Recharge les taches ecrites sur disque. Une tache `running` n'a plus de
+    coroutine apres une relance : elle devient `interrupted`.
+    """
+    _TASKS.clear()
+    directory = _state_dir()
+    if not os.path.isdir(directory):
+        return
+    for name in os.listdir(directory):
+        task_id, ext = os.path.splitext(name)
+        if ext != ".json" or not _TASK_ID_RE.match(task_id):
+            continue
+        try:
+            with open(os.path.join(directory, name), encoding="utf-8") as handle:
+                task = json.load(handle)
+        except (OSError, ValueError):
+            logger.warning("Fichier de tache illisible ignore: %s", name)
+            continue
+        if not isinstance(task, dict) or "status" not in task:
+            continue
+        _TASKS[task_id] = task
+        if task["status"] == "running":
+            task["status"] = "interrupted"
+            task["error"] = "Serveur MCP relance pendant l'execution"
+            _persist_task(task_id)
+
+
+def _running_count() -> int:
+    return sum(1 for t in _TASKS.values() if t.get("status") == "running")
+
+
+async def _run_research_deep_background(task_id: str, topic: str) -> None:
+    task = _TASKS[task_id]
+    try:
+        payload = await _api_post("/api/v1/research/deep", {"topic": topic}, _DEEP_TIMEOUT)
+        outcome = deep_result(payload)
+        if outcome["success"]:
+            task["status"] = "completed"
+            task["result"] = outcome
+        else:
+            task["status"] = "failed"
+            task["error"] = outcome["error"]
+            task["result"] = None
+    except asyncio.CancelledError:
+        task["status"] = "interrupted"
+        task["error"] = "Tache annulee"
+        _persist_task(task_id)
+        raise
+    except Exception as exc:  # noqa: BLE001 - garde-fou : la tache ne doit jamais rester `running`
+        task["status"] = "failed"
+        task["error"] = f"{type(exc).__name__}: {exc}"
+    task["phase"] = "Termine"
+    _persist_task(task_id)
 
 
 @mcp.tool(
     annotations=ToolAnnotations(
         title="Extraire une page web",
-        readOnlyHint=True,      # ne modifie aucun etat, lecture seule
+        readOnlyHint=True,
         destructiveHint=False,
-        idempotentHint=True,    # meme URL -> meme contenu (cache TTL 5 min)
-        openWorldHint=True,     # accede au web ouvert, pas un systeme ferme
+        idempotentHint=True,
+        openWorldHint=True,
     )
 )
 async def webtools_extract(
     url: Annotated[str, Field(description="URL de la page a extraire (doit commencer par http:// ou https://)")],
-    extraction_type: Annotated[
-        Literal["general", "article", "product", "repository", "documentation"],
-        Field(description="Type de contenu attendu, oriente le comportement d'extraction")
-    ] = "general",
+    prompt: Annotated[
+        str | None,
+        Field(description="Consigne d'extraction personnalisee (optionnel)"),
+    ] = None,
 ) -> dict:
     """
     Extrait le contenu propre d'une page web (texte principal, sans navigation/pub).
-    Chaine d'escalade automatique : flux RSS -> extraction directe -> LLM leger ->
-    agent IA en dernier recours. Protege contre le SSRF (rejette les URLs internes).
+    Chaine d'escalade automatique cote API. Protege contre le SSRF.
     """
-    from app.manager import ExtractorManager
-    from app.api.models import ExtractionOptions
-    from app.core.llm import get_llm_client
-
-    manager = ExtractorManager()
-    llm_client = await get_llm_client()
-    result = await manager.extract(
-        url=url, extraction_type=extraction_type,
-        llm_client=llm_client, options=ExtractionOptions()
-    )
+    payload: dict[str, Any] = {"url": url}
+    if prompt:
+        payload["prompt"] = prompt
+    body = await _api_post("/api/v1/extract", payload, _QUICK_TIMEOUT)
     return {
-        "success": result.success,
-        "title": result.title,
-        "content": result.content,
-        "error": result.error,
-        "metadata": result.metadata or {}
+        "success": bool(body.get("success", False)),
+        "title": body.get("title"),
+        "content": body.get("content"),
+        "error": body.get("error"),
+        "metadata": body.get("metadata") or {},
     }
 
 
@@ -252,24 +424,27 @@ async def webtools_extract(
     )
 )
 async def webtools_search(
-    query: Annotated[str, Field(description="Termes de recherche")],
+    query: Annotated[str, Field(max_length=500, description="Termes de recherche")],
     max_results: Annotated[int, Field(ge=1, le=50, description="Nombre maximum de resultats")] = 10,
 ) -> dict:
     """
     Recherche web simple (titres, URLs, extraits) via une instance SearXNG
     auto-hebergee. Rapide, sans appel LLM.
     """
-    from app.services.search_service import searxng_client
-
-    results = await searxng_client.search(query=query, max_results=max_results)
-    return {
+    body = await _api_post(
+        "/api/v1/search", {"query": query, "max_results": max_results}, _SHORT_TIMEOUT
+    )
+    results = body.get("results")
+    results = results if isinstance(results, list) else []
+    out: dict[str, Any] = {
         "query": query,
-        "results": [
-            {"title": r.title, "url": r.url, "snippet": r.content[:300]}
-            for r in results
-        ],
-        "total": len(results)
+        "results": results,
+        "total": body.get("total", len(results)),
     }
+    if body.get("success") is False or body.get("error"):
+        out["success"] = False
+        out["error"] = body.get("error")
+    return out
 
 
 @mcp.tool(
@@ -289,16 +464,14 @@ async def webtools_vision(
     Analyse ou decrit une image a partir de son URL (OCR, description, lecture
     de graphique...).
     """
-    from app.core.llm import get_llm_client
-
-    llm_client = await get_llm_client()
-    try:
-        analysis = await llm_client.generate_with_vision(
-            text=prompt, image_url=image_url, timeout=25.0, max_retries=0
-        )
-        return {"success": True, "analysis": analysis}
-    except Exception as e:
-        return {"success": False, "error": str(e)}
+    body = await _api_post(
+        "/api/v1/vision", {"image_url": image_url, "prompt": prompt}, _QUICK_TIMEOUT
+    )
+    return {
+        "success": bool(body.get("success", False)),
+        "analysis": body.get("analysis"),
+        "error": body.get("error"),
+    }
 
 
 @mcp.tool(
@@ -306,30 +479,30 @@ async def webtools_vision(
         title="Recherche rapide sourcée",
         readOnlyHint=True,
         destructiveHint=False,
-        idempotentHint=False,  # generation LLM + resultats de recherche varient dans le temps
+        idempotentHint=False,
         openWorldHint=True,
     )
 )
 async def webtools_research_quick(
     query: Annotated[str, Field(min_length=5, max_length=500, description="Question factuelle")],
-    max_sources: Annotated[int, Field(ge=1, le=15, description="Nombre de sources a consulter")] = 5,
 ) -> dict:
     """
     Repond a une question factuelle en quelques secondes : trouve des sources
     via SearXNG, les extrait, synthetise une reponse courte avec citations
     [1][2][3] et un niveau de confiance (high/medium/low).
     """
-    from app.api.models import QuickResearchRequest
-    from app.api.v1.endpoints.research_quick import research_quick as _research_quick
-
-    req = QuickResearchRequest(query=query, max_sources=max_sources)
-    resp = await _research_quick(req)
+    body = await _api_post("/api/v1/research/quick", {"query": query}, _QUICK_TIMEOUT)
+    sources = body.get("sources")
     return {
-        "success": resp.success,
-        "answer": resp.answer,
-        "confidence": resp.confidence,
-        "sources": [{"title": s.title, "url": s.url} for s in resp.sources],
-        "error": resp.error
+        "success": bool(body.get("success", False)),
+        "answer": body.get("answer"),
+        "confidence": body.get("confidence"),
+        "sources": [
+            {"title": s.get("title"), "url": s.get("url")}
+            for s in (sources if isinstance(sources, list) else [])
+            if isinstance(s, dict)
+        ],
+        "error": body.get("error"),
     }
 
 
@@ -338,47 +511,27 @@ async def webtools_research_quick(
         title="Recherche approfondie avec rapport",
         readOnlyHint=True,
         destructiveHint=False,
-        idempotentHint=False,  # plan + synthese LLM varient d'un appel a l'autre
+        idempotentHint=False,
         openWorldHint=True,
     )
 )
 async def webtools_research_deep(
     topic: Annotated[str, Field(min_length=5, max_length=500, description="Sujet de la recherche approfondie")],
-    max_sources: Annotated[int, Field(ge=1, le=15, description="Sources par section (plus = plus long, quelques minutes possibles)")] = 2,
     ctx: Context = None,
 ) -> dict:
     """
-    Recherche approfondie complete sur un sujet large : plan structure genere
-    dynamiquement, recherche+extraction paralellisees section par section,
-    corroboration entre sources independantes, cohesion narrative, rapport
-    final avec bibliographie. Prend de 30 secondes a plusieurs minutes selon
-    l'ampleur du sujet (jusqu'a ~10 minutes observees sous forte charge
-    reseau) - ATTEND la fin complete avant de repondre, ce qui peut declencher
-    un timeout cote client sur les sujets longs. Pour un usage interactif,
-    preferer webtools_research_deep_start + webtools_research_deep_status
-    (lancement en tache de fond, sans blocage). Cet outil bloquant reste
-    adapte a un usage script/batch qui peut attendre patiemment.
+    Recherche approfondie complete sur un sujet large : rapport markdown avec
+    bibliographie et bloc diagnostics. Prend de 30 secondes a plusieurs
+    minutes (jusqu'a ~10 minutes sous forte charge) et ATTEND la fin, ce qui
+    peut declencher un timeout cote client. Pour un usage interactif,
+    preferer webtools_research_deep_start + webtools_research_deep_status.
     """
-    from app.api.v1.endpoints.research_deep import research_deep as _research_deep, DeepResearchRequest
-    import json as jsonlib
-
     if ctx:
-        await ctx.report_progress(progress=0, total=100, message=f"Démarrage de la recherche sur '{topic}'...")
-
-    req = DeepResearchRequest(topic=topic, max_results=max_sources)
-    response = await _research_deep(req)
-
-    # research_deep retourne un StreamingResponse (chunking HTTP) - on
-    # reassemble le JSON complet ici puisqu'on appelle la fonction en
-    # direct, hors contexte HTTP.
-    body = b""
-    async for chunk in response.body_iterator:
-        body += chunk if isinstance(chunk, bytes) else chunk.encode("utf-8")
-
+        await ctx.report_progress(progress=0, total=100, message=f"Demarrage de la recherche sur '{topic}'...")
+    payload = await _api_post("/api/v1/research/deep", {"topic": topic}, _DEEP_TIMEOUT)
     if ctx:
-        await ctx.report_progress(progress=100, total=100, message="Recherche terminée")
-
-    return jsonlib.loads(body)
+        await ctx.report_progress(progress=100, total=100, message="Recherche terminee")
+    return deep_result(payload)
 
 
 @mcp.tool(
@@ -392,30 +545,40 @@ async def webtools_research_deep(
 )
 async def webtools_research_deep_start(
     topic: Annotated[str, Field(min_length=5, max_length=500, description="Sujet de la recherche approfondie")],
-    max_sources: Annotated[int, Field(ge=1, le=15, description="Sources par section (plus = plus long)")] = 2,
 ) -> dict:
     """
     Démarre une recherche approfondie en tâche de fond et retourne
-    immédiatement un identifiant de tâche, sans attendre la fin (qui peut
-    prendre de 30 secondes à plusieurs minutes). Utiliser
+    immédiatement un identifiant de tâche. Utiliser
     webtools_research_deep_status(task_id) pour suivre l'avancement et
-    récupérer le résultat une fois prêt - c'est l'approche recommandée
-    pour un usage interactif, contrairement à webtools_research_deep qui
-    bloque jusqu'à la fin complète et peut déclencher un timeout côté client.
+    récupérer le résultat. Répond `busy` si le plafond de recherches
+    simultanées (MCP_MAX_CONCURRENT_DEEP) est atteint.
     """
-    task_id = _uuid.uuid4().hex[:12]
+    running = _running_count()
+    limit = _max_concurrent_deep()
+    if running >= limit:
+        return {
+            "status": "busy",
+            "running": running,
+            "max_concurrent": limit,
+            "hint": "Attendre la fin d'une recherche en cours (webtools_research_deep_status).",
+        }
+    task_id = uuid.uuid4().hex[:12]
     _TASKS[task_id] = {
         "status": "running",
-        "phase": "Démarrage...",
+        "phase": "Requete en cours aupres de l'API",
+        "topic": topic,
         "result": None,
         "error": None,
-        "started_at": _time.time(),
+        "started_at": time.time(),
     }
-    asyncio.create_task(_run_research_deep_background(task_id, topic, max_sources))
+    _persist_task(task_id)
+    handle = asyncio.create_task(_run_research_deep_background(task_id, topic))
+    _BACKGROUND.add(handle)
+    handle.add_done_callback(_BACKGROUND.discard)
     return {
         "task_id": task_id,
         "status": "started",
-        "hint": "Interrogez webtools_research_deep_status avec ce task_id pour suivre l'avancement (généralement 30s à quelques minutes)."
+        "hint": "Interrogez webtools_research_deep_status avec ce task_id (généralement 30s à quelques minutes).",
     }
 
 
@@ -424,8 +587,8 @@ async def webtools_research_deep_start(
         title="Vérifier une recherche approfondie",
         readOnlyHint=True,
         destructiveHint=False,
-        idempotentHint=True,  # interroger le statut plusieurs fois est sans effet de bord
-        openWorldHint=False,  # interroge un etat interne du serveur, pas le web ouvert
+        idempotentHint=True,
+        openWorldHint=False,
     )
 )
 async def webtools_research_deep_status(
@@ -433,30 +596,35 @@ async def webtools_research_deep_status(
 ) -> dict:
     """
     Vérifie l'état d'une recherche approfondie lancée en arrière-plan.
-    Retourne le statut ("running", "completed", "failed"), un indice de
-    phase en cours si toujours en exécution, et le résultat complet une
-    fois terminée (même structure que webtools_research_deep).
+    Statuts : "running", "completed", "failed", "interrupted" (serveur relancé
+    pendant l'exécution). Le résultat (même structure que
+    webtools_research_deep) est rendu une fois terminée.
     """
-    # Purge opportuniste des taches terminees depuis plus d'1h - evite une
-    # fuite memoire lente sur ce dict jamais autrement nettoye, sans besoin
-    # d'un scheduler separe pour un usage a ce volume.
-    now = _time.time()
-    for tid in [t for t, v in _TASKS.items() if v["status"] != "running" and now - v["started_at"] > 3600]:
-        del _TASKS[tid]
+    now = time.time()
+    for tid in [
+        t for t, v in _TASKS.items()
+        if v.get("status") != "running" and now - v.get("started_at", now) > _TASK_RETENTION_SECONDS
+    ]:
+        _forget_task(tid)
 
     task = _TASKS.get(task_id)
     if task is None:
         return {"status": "not_found", "error": f"Aucune tâche avec l'identifiant {task_id}"}
 
-    elapsed = round(_time.time() - task["started_at"], 1)
-    out = {"status": task["status"], "elapsed_seconds": elapsed}
+    out: dict[str, Any] = {
+        "status": task["status"],
+        "elapsed_seconds": round(now - task.get("started_at", now), 1),
+    }
     if task["status"] == "running":
-        out["phase_hint"] = task["phase"]
+        out["phase_hint"] = task.get("phase")
     elif task["status"] == "completed":
-        out["result"] = task["result"]
-    elif task["status"] == "failed":
-        out["error"] = task["error"]
+        out["result"] = task.get("result")
+    else:
+        out["error"] = task.get("error")
     return out
+
+
+load_tasks()
 
 
 if __name__ == "__main__":
