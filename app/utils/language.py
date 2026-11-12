@@ -38,17 +38,43 @@ STOPWORD_SETS: Dict[str, Set[str]] = {
            "en", "para", "por", "con", "sin", "que", "cual", "como",
            "es", "son", "su", "sus", "este", "esta", "entre", "sobre"},
     "de": {"der", "die", "das", "den", "dem", "des", "ein", "eine", "und",
-           "oder", "in", "auf", "fur", "von", "mit", "ohne", "dass",
-           "welche", "wie", "warum", "ist", "sind", "zu", "uber"},
+           "oder", "in", "auf", "von", "mit", "ohne", "dass",
+           "welche", "wie", "warum", "ist", "sind", "zu", "über",
+           "ueber", "für", "fuer"},
     "it": {"il", "lo", "la", "gli", "le", "di", "del", "un", "una", "e",
            "o", "in", "su", "per", "con", "senza", "che", "quale", "come",
-           "perche", "sono", "questo", "questa", "tra"},
+           "perche", "perché", "sono", "questo", "questa", "tra"},
     "pt": {"o", "a", "os", "as", "de", "do", "da", "um", "uma", "e", "ou",
            "em", "para", "por", "com", "sem", "que", "qual", "como",
-           "porque", "sao", "este", "esta", "entre", "sobre"},
+           "porque", "sao", "são", "este", "esta", "entre", "sobre"},
 }
 
 DEFAULT_LANGUAGE = "all"
+
+# Prefixes d'elision a apostrophe. "l'" et "d'" sont traites comme francais :
+# l'italien les emploie aussi mais porte des marqueurs propres (dell', all',
+# nell'...) comptes separement.
+_FR_ELISIONS = {"l", "d", "j", "n", "s", "c", "m", "t", "qu", "jusqu",
+                "lorsqu", "puisqu"}
+_IT_ELISIONS = {"dell", "all", "nell", "sull", "dall", "quest", "un"}
+
+_WORD_RE = re.compile(r"[^\W\d_]+(?:['’][^\W\d_]+)*")
+_APOSTROPHE_RE = re.compile(r"['’]")
+
+
+def _tokenize(text: str) -> tuple[list[str], Counter]:
+    """Mots du texte, elisions separees ; compte les elisions par langue."""
+    words: list[str] = []
+    elisions: Counter = Counter()
+    for token in _WORD_RE.findall(text.lower()):
+        parts = _APOSTROPHE_RE.split(token)
+        for prefix in parts[:-1]:
+            if prefix in _FR_ELISIONS:
+                elisions["fr"] += 1
+            elif prefix in _IT_ELISIONS:
+                elisions["it"] += 1
+        words.append(parts[-1])
+    return words, elisions
 
 
 def detect_language(text: str, min_words: int = 4) -> str:
@@ -61,13 +87,13 @@ def detect_language(text: str, min_words: int = 4) -> str:
     if not text:
         return DEFAULT_LANGUAGE
 
-    words = re.findall(r"[a-zA-ZÀ-ÿ']+", text.lower())
+    words, elisions = _tokenize(text)
     if len(words) < min_words:
         return DEFAULT_LANGUAGE
 
-    counts = Counter()
+    counts: Counter = Counter()
     for lang, stops in STOPWORD_SETS.items():
-        counts[lang] = sum(1 for w in words if w in stops)
+        counts[lang] = sum(1 for w in words if w in stops) + elisions[lang]
 
     best, best_score = counts.most_common(1)[0]
     if best_score == 0:
