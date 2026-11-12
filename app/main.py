@@ -18,7 +18,11 @@ from app.api.v1.endpoints import extract, vision, research_deep, search, researc
 from app.api.models import HealthResponse
 from app.api.auth import require_api_key, verify_auth_configuration
 from app.core import build_info
-from app.core.browser.playwright_manager import ensure_playwright_installed, is_playwright_available
+from app.core.browser.playwright_manager import (
+    ensure_playwright_installed,
+    is_playwright_available,
+    playwright_error,
+)
 
 # Configuration du logging
 logging.basicConfig(
@@ -532,7 +536,7 @@ async def health_check():
         commit_dirty=build_info.COMMIT_DIRTY,
         started_at=build_info.STARTED_AT,
         dependencies={
-            "playwright": {"ok": playwright_ok},
+            "playwright": {"ok": playwright_ok, "detail": playwright_error()},
             "searxng": {"ok": searxng_ok},
             "llm": llm,
             "engine_catalog": catalog,

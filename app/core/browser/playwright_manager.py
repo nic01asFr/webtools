@@ -52,6 +52,31 @@ def _has_chromium(path: Path) -> bool:
         return False
 
 
+async def _launch_probe() -> None:
+    """Lance puis ferme Chromium en mode headless ; leve si le lancement echoue.
+
+    La presence d'un dossier chromium-* ne suffit pas : chaque version de
+    Playwright attend sa propre revision du navigateur (et, en headless, un
+    chromium_headless_shell distinct). Verifie sur un poste ou seules les
+    revisions 1217 et 1223 etaient presentes alors que Playwright 1.65
+    attendait 1254 : la sante annoncait Playwright disponible et toutes les
+    extractions echouaient ("Executable doesn't exist").
+    """
+    from playwright.async_api import async_playwright
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True)
+        await browser.close()
+
+
+async def _browser_launches() -> tuple[bool, str | None]:
+    try:
+        await _launch_probe()
+        return True, None
+    except Exception as e:  # noqa: BLE001 - la cause est rendue a l'appelant
+        return False, f"{type(e).__name__}: {str(e)[:300]}"
+
+
 def _run_install() -> "subprocess.CompletedProcess[str]":
     """Installe Chromium (bloquant : a appeler depuis un thread)."""
     return subprocess.run(
@@ -87,19 +112,31 @@ async def ensure_playwright_installed() -> bool:
             logger.info("Vérification de l'installation de Playwright...")
             directory = browsers_path()
 
-            if await asyncio.to_thread(_has_chromium, directory):
-                logger.info("Navigateurs Playwright trouvés dans %s", directory)
+            # Disponible = le navigateur se lance reellement. Sinon une seule
+            # installation est tentee, puis un second essai de lancement.
+            launched, cause = (
+                await _browser_launches()
+                if await asyncio.to_thread(_has_chromium, directory)
+                else (False, "aucun navigateur Chromium dans " + str(directory))
+            )
+            if launched:
+                logger.info("Chromium se lance (navigateurs dans %s)", directory)
                 _playwright_available = True
             else:
-                logger.info("Installation de Playwright (cible : %s)...", directory)
+                logger.info("Chromium indisponible (%s) ; installation, cible %s", cause, directory)
                 result = await asyncio.to_thread(_run_install)
-                if result.returncode == 0:
-                    logger.info("Playwright installé avec succès")
-                    _playwright_available = True
-                else:
+                if result.returncode != 0:
                     _playwright_error = (result.stderr or "")[-500:]
                     logger.error("Échec de l'installation de Playwright: %s", _playwright_error)
                     _playwright_available = False
+                else:
+                    launched, cause = await _browser_launches()
+                    _playwright_available = launched
+                    if not launched:
+                        _playwright_error = cause
+                        logger.error("Chromium installe mais ne se lance pas : %s", cause)
+                    else:
+                        logger.info("Playwright installé avec succès")
         except Exception as e:
             _playwright_error = str(e)
             logger.error("Erreur lors de la configuration de Playwright: %s", e)
@@ -119,6 +156,11 @@ def is_playwright_available() -> bool:
         True si Playwright est disponible
     """
     return _playwright_available
+
+
+def playwright_error() -> str | None:
+    """Cause memorisee de l'indisponibilite de Playwright (None si disponible)."""
+    return _playwright_error
 
 
 def reset_playwright_state() -> None:
