@@ -3,6 +3,7 @@
 import pytest
 from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrchestrator
 from app.research.pipeline_config import PipelineConfig
+from app.research.stages.assemble import final_assembly
 from app.research.report_title import short_title
 
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch
@@ -35,7 +36,7 @@ async def _assemble(
     config = PipelineConfig(**flags)
     ctx = _context(query, contents, config)
     plan = {"sections": list(contents)}
-    report = await _orchestrator(config)._final_assembly(query, plan, ctx)
+    report = await final_assembly(_orchestrator(config).services(), query, plan, ctx)
     return report, ctx
 
 
