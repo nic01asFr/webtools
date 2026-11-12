@@ -8,6 +8,7 @@ import pytest
 from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrchestrator
 from app.core.llm.base import LLMTruncatedError
 from app.research.pipeline_config import PipelineConfig
+from app.research.stages.plan import create_detailed_plan
 
 from tests.fakes import FakeLLM
 
@@ -54,7 +55,7 @@ def _orch(llm: FakeLLM, v2: bool = False) -> IntelligentOrchestrator:
 async def test_exception_donne_repli_note_et_marque() -> None:
     llm = FakeLLM().on_structured("research_plan", RuntimeError("boom"))
     ctx = ExecutionContext(QUERY)
-    plan = await _orch(llm)._create_detailed_plan(QUERY, {}, EXPLORATION, ctx=ctx)
+    plan = await create_detailed_plan(_orch(llm).services(), QUERY, {}, EXPLORATION, ctx=ctx)
     assert plan["fallback"] is True
     assert plan["fallback_reason"] == "exception:RuntimeError"
     assert plan["sections"] == ["Introduction", "Analyse", "Conclusion"]
@@ -67,7 +68,7 @@ async def test_exception_donne_repli_note_et_marque() -> None:
 async def test_sortie_tronquee_notee() -> None:
     llm = FakeLLM().on_structured("research_plan", LLMTruncatedError("coupe"))
     ctx = ExecutionContext(QUERY)
-    plan = await _orch(llm)._create_detailed_plan(QUERY, {}, EXPLORATION, ctx=ctx)
+    plan = await create_detailed_plan(_orch(llm).services(), QUERY, {}, EXPLORATION, ctx=ctx)
     assert plan["fallback"] is True
     assert ctx.diagnostics.count("plan.sortie_tronquee") == 1
     assert ctx.diagnostics.count("plan.repli") == 1
@@ -78,7 +79,7 @@ async def test_toutes_sections_meta_declenchent_le_repli() -> None:
         "research_plan", _plan("Structure du rapport", "Stratégie de recherche")
     )
     ctx = ExecutionContext(QUERY)
-    plan = await _orch(llm)._create_detailed_plan(QUERY, {}, EXPLORATION, ctx=ctx)
+    plan = await create_detailed_plan(_orch(llm).services(), QUERY, {}, EXPLORATION, ctx=ctx)
     assert plan["fallback"] is True
     assert plan["fallback_reason"] == "sections_filtrees"
     assert plan["sections"]
@@ -87,7 +88,7 @@ async def test_toutes_sections_meta_declenchent_le_repli() -> None:
 
 async def test_repli_sans_ctx_ne_leve_pas() -> None:
     llm = FakeLLM().on_structured("research_plan", RuntimeError("boom"))
-    plan = await _orch(llm)._create_detailed_plan(QUERY, {}, EXPLORATION)
+    plan = await create_detailed_plan(_orch(llm).services(), QUERY, {}, EXPLORATION)
     assert plan["fallback"] is True
 
 
@@ -95,7 +96,7 @@ async def test_repli_sans_ctx_ne_leve_pas() -> None:
 async def test_plan_valide_sans_repli(v2: bool) -> None:
     llm = FakeLLM().on_structured("research_plan", _plan("Contexte", "Impacts", "Methodologie de recherche"))
     ctx = ExecutionContext(QUERY)
-    plan = await _orch(llm, v2)._create_detailed_plan(QUERY, {}, EXPLORATION, ctx=ctx)
+    plan = await create_detailed_plan(_orch(llm, v2).services(), QUERY, {}, EXPLORATION, ctx=ctx)
     assert "fallback" not in plan
     assert plan["sections"] == ["Contexte", "Impacts"]
     assert ctx.diagnostics.count("plan.repli") == 0
@@ -105,7 +106,7 @@ async def test_plan_valide_sans_repli(v2: bool) -> None:
 async def test_prompt_v1_garde_ancien_format_et_contexte_entier() -> None:
     llm = FakeLLM().on_structured("research_plan", _plan("A"))
     context = {"secret_field": "VALEUR_INUTILE", "objectives": ["obj1"]}
-    await _orch(llm, False)._create_detailed_plan(QUERY, context, EXPLORATION)
+    await create_detailed_plan(_orch(llm, False).services(), QUERY, context, EXPLORATION)
     prompt = llm.calls_for(schema_name="research_plan")[0].prompt
     assert "Retourne JSON" in prompt
     assert "VALEUR_INUTILE" in prompt
@@ -119,7 +120,7 @@ async def test_prompt_v2_sans_ancien_format_et_contexte_reduit() -> None:
         "output_sections": ["Section imposee"],
         "domains_whitelist": ["who.int"],
     }
-    await _orch(llm, True)._create_detailed_plan(QUERY, context, EXPLORATION)
+    await create_detailed_plan(_orch(llm, True).services(), QUERY, context, EXPLORATION)
     prompt = llm.calls_for(schema_name="research_plan")[0].prompt
     assert "Retourne JSON" not in prompt
     assert "EXEMPLES" not in prompt
@@ -133,7 +134,7 @@ async def test_schema_identique_dans_les_deux_positions() -> None:
     schemas = []
     for v2 in (False, True):
         llm = FakeLLM().on_structured("research_plan", _plan("A"))
-        await _orch(llm, v2)._create_detailed_plan(QUERY, {}, EXPLORATION)
+        await create_detailed_plan(_orch(llm, v2).services(), QUERY, {}, EXPLORATION)
         schemas.append(json.dumps(llm.calls_for(schema_name="research_plan")[0].schema, sort_keys=True))
     assert schemas[0] == schemas[1]
 
@@ -143,6 +144,6 @@ async def test_client_sans_sortie_structuree_prompt_v2_embarque_le_schema() -> N
         supports_structured = False
 
     llm = _TextLLM().on_text(r"CONSIGNE", json.dumps(_plan("A")))
-    plan = await _orch(llm, True)._create_detailed_plan(QUERY, {}, EXPLORATION)
+    plan = await create_detailed_plan(_orch(llm, True).services(), QUERY, {}, EXPLORATION)
     assert "schema" in llm.calls[0].prompt
     assert "fallback" not in plan
