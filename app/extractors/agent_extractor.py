@@ -4,6 +4,7 @@ Adapté depuis Colaig pour être autonome et multi-LLM.
 """
 
 import re
+import time
 import asyncio
 import logging
 from typing import Dict, Any, Optional
@@ -67,16 +68,25 @@ class AgentExtractor(BaseExtractor):
         opts = options or {}
         timeout = opts.get("timeout", 45)
         use_fallback = opts.get("use_fallback", True)
+        single_llm_pass_enabled = opts.get("single_llm_pass_enabled", True)
+        # Le timeout est un budget pour l'ensemble des etapes de cet extracteur.
+        deadline = time.monotonic() + float(timeout)
+
+        def remaining() -> float:
+            return deadline - time.monotonic()
 
         try:
             # ÉTAPE 1: Essayer l'extraction directe d'abord (plus rapide)
             logger.info(f"Tentative d'extraction directe pour {url}")
-            direct_result = await self.direct_extractor.extract(url, prompt, None, options)
+            direct_result = await self.direct_extractor.extract(
+                url, prompt, None, {**opts, "timeout": max(remaining(), 1.0)}
+            )
 
             # Si l'extraction directe a produit un contenu substantiel, l'utiliser
             if direct_result.success and direct_result.content and len(direct_result.content) > 500:
                 logger.info(f"Extraction directe réussie: {len(direct_result.content)} caractères")
                 direct_result.metadata["extraction_method"] = "direct_playwright_fast_path"
+                direct_result.metadata["extraction_tier"] = "direct"
                 return direct_result
 
             # ÉTAPE 1.5 : si l'extraction directe a produit un contenu partiel (pas vide,
@@ -84,14 +94,24 @@ class AgentExtractor(BaseExtractor):
             # nettoye coute des dizaines de fois moins cher qu'un agent qui re-navigue
             # la page depuis zero. On ne reserve l'agent complet qu'aux cas ou la page
             # n'a produit litteralement aucun contenu exploitable.
+            if direct_result.success and direct_result.content and len(direct_result.content) >= 100 and not single_llm_pass_enabled:
+                # Drapeau desactive : le texte extrait est rendu tel quel, sans
+                # reecriture par le LLM ni escalade vers l'agent.
+                direct_result.metadata["extraction_method"] = "direct_playwright_partial"
+                direct_result.metadata["extraction_tier"] = "direct"
+                return direct_result
+
             if direct_result.success and direct_result.content and len(direct_result.content) >= 100:
                 logger.info(f"Contenu partiel ({len(direct_result.content)} car.) - tentative d'un appel LLM unique (non-agentique) avant l'agent complet")
                 try:
                     raw_text = direct_result.content[:8000]  # borne large mais raisonnable
-                    llm_response = await llm_client.generate(messages=[
-                        {"role": "system", "content": "Tu structures du texte web deja extrait. Reponds UNIQUEMENT au format TITRE: ... puis CONTENU: ..., sans explication."},
-                        {"role": "user", "content": f"Texte extrait de {url} :\n\n{raw_text}"}
-                    ])
+                    llm_response = await asyncio.wait_for(
+                        llm_client.generate(messages=[
+                            {"role": "system", "content": "Tu structures du texte web deja extrait. Reponds UNIQUEMENT au format TITRE: ... puis CONTENU: ..., sans explication."},
+                            {"role": "user", "content": f"Texte extrait de {url} :\n\n{raw_text}"}
+                        ]),
+                        timeout=max(remaining(), 0.001),
+                    )
                     if llm_response and len(llm_response) > 100:
                         title_match = re.search(r'TITRE:\s*(.*?)(?:\n|$)', llm_response, re.IGNORECASE)
                         content_match = re.search(r'CONTENU:\s*(.*)', llm_response, re.IGNORECASE | re.DOTALL)
@@ -100,13 +120,22 @@ class AgentExtractor(BaseExtractor):
                         logger.info(f"Palier LLM unique reussi: {len(cleaned)} caracteres, sans agent complet")
                         return WebResult.from_success(
                             url=url, content_type="webpage", title=title, content=cleaned,
-                            metadata={"extraction_method": "direct_playwright_single_llm_pass"}
+                            metadata={
+                                "extraction_method": "direct_playwright_single_llm_pass",
+                                "extraction_tier": "llm",
+                            }
                         )
                 except Exception as e:
                     logger.warning(f"Palier LLM unique echoue pour {url}, escalade vers agent complet: {e}")
 
             # ÉTAPE 2: Utiliser l'agent IA (dernier recours - page vide/inaccessible en direct)
             logger.info(f"Extraction avec agent IA pour {url}")
+
+            if remaining() <= 0:
+                return self._fallback_or_error(
+                    url, direct_result, use_fallback,
+                    "budget epuise avant l'agent", "Budget epuise avant l'agent"
+                )
 
             # Obtenir le wrapper LangChain du client LLM
             llm_wrapper = llm_client.get_langchain_wrapper()
@@ -123,7 +152,7 @@ class AgentExtractor(BaseExtractor):
             extraction_task = asyncio.create_task(agent.run(max_steps=8))
 
             try:
-                result = await asyncio.wait_for(extraction_task, timeout=float(timeout))
+                result = await asyncio.wait_for(extraction_task, timeout=max(remaining(), 0.001))
 
                 # Extraire le contenu de la réponse de l'agent
                 processed_content = await self._extract_from_agent_response(result)
@@ -170,6 +199,7 @@ class AgentExtractor(BaseExtractor):
                         content=content,
                         metadata={
                             "extraction_method": "agent_browser_use",
+                            "extraction_tier": "agent",
                             "content_length": len(content),
                             "llm_provider": type(llm_client).__name__
                         }
@@ -179,26 +209,18 @@ class AgentExtractor(BaseExtractor):
                     logger.warning(f"Contenu extrait par agent insuffisant: {len(processed_content) if processed_content else 0} caractères")
 
                     # Fallback vers extraction directe si configuré
-                    if use_fallback and direct_result.success:
-                        logger.info("Utilisation du résultat de l'extraction directe en fallback")
-                        return direct_result
-
-                    return WebResult.from_error(
-                        url=url,
-                        error_message="Contenu extrait par agent insuffisant"
+                    return self._fallback_or_error(
+                        url, direct_result, use_fallback,
+                        "contenu de l'agent insuffisant", "Contenu extrait par agent insuffisant"
                     )
 
             except asyncio.TimeoutError:
                 logger.error(f"Timeout de l'agent après {timeout}s pour {url}")
 
                 # Fallback vers extraction directe
-                if use_fallback and direct_result.success:
-                    logger.info("Utilisation du résultat de l'extraction directe après timeout agent")
-                    return direct_result
-
-                return WebResult.from_error(
-                    url=url,
-                    error_message=f"Timeout de l'agent après {timeout}s"
+                return self._fallback_or_error(
+                    url, direct_result, use_fallback,
+                    "timeout de l'agent", f"Timeout de l'agent apres {timeout}s"
                 )
 
         except Exception as e:
@@ -208,9 +230,11 @@ class AgentExtractor(BaseExtractor):
             if use_fallback:
                 try:
                     logger.info("Tentative de fallback vers extraction directe après erreur agent")
-                    direct_result = await self.direct_extractor.extract(url, prompt, None, options)
+                    direct_result = await self.direct_extractor.extract(
+                        url, prompt, None, {**opts, "timeout": max(remaining(), 1.0)}
+                    )
                     if direct_result.success:
-                        return direct_result
+                        return self._mark_fallback(direct_result, f"erreur de l'agent: {e}")
                 except Exception as fallback_error:
                     logger.error(f"Échec du fallback: {fallback_error}")
 
@@ -218,6 +242,27 @@ class AgentExtractor(BaseExtractor):
                 url=url,
                 error_message=f"Erreur lors de l'extraction avec agent: {str(e)}"
             )
+
+    @staticmethod
+    def _mark_fallback(direct_result: WebResult, reason: str) -> WebResult:
+        """Signale qu'un resultat direct a ete rendu a la place de l'agent."""
+        direct_result.metadata["extraction_tier"] = "direct"
+        direct_result.metadata["agent_fallback"] = True
+        direct_result.metadata["agent_fallback_reason"] = reason
+        return direct_result
+
+    def _fallback_or_error(
+        self,
+        url: str,
+        direct_result: WebResult,
+        use_fallback: bool,
+        reason: str,
+        error_message: str,
+    ) -> WebResult:
+        if use_fallback and direct_result.success:
+            logger.info(f"Repli vers le resultat direct ({reason})")
+            return self._mark_fallback(direct_result, reason)
+        return WebResult.from_error(url=url, error_message=error_message)
 
     async def _extract_from_agent_response(self, response: Any) -> str:
         """

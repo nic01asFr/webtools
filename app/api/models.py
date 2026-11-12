@@ -3,7 +3,7 @@ Modèles de données pour l'API WebExtract.
 """
 
 from typing import Optional, Dict, Any, Literal, List
-from pydantic import BaseModel, Field, HttpUrl, field_validator
+from pydantic import BaseModel, ConfigDict, Field, HttpUrl, field_validator
 
 
 class LLMConfig(BaseModel):
@@ -29,6 +29,8 @@ class LLMConfig(BaseModel):
 class ExtractionOptions(BaseModel):
     """Options pour l'extraction."""
 
+    model_config = ConfigDict(extra="forbid")
+
     use_agent: bool = Field(
         default=True,
         description="Utiliser l'agent IA ou extraction directe seulement"
@@ -37,7 +39,20 @@ class ExtractionOptions(BaseModel):
         default=45,
         ge=5,
         le=300,
-        description="Timeout en secondes pour l'extraction"
+        description="Budget global en secondes pour l'extraction, tous paliers confondus"
+    )
+    try_rss_first: bool = Field(
+        default=True,
+        description="Tenter le palier RSS/Atom avant le navigateur"
+    )
+    rss_tier_root_only: bool = Field(
+        default=False,
+        description="Ne tenter le palier RSS que pour la racine du site ou un flux"
+    )
+    single_llm_pass_enabled: bool = Field(
+        default=True,
+        description="Reecrire par un appel LLM unique un contenu direct de 100 a 500 caracteres; "
+                    "faux : rendre le texte extrait tel quel"
     )
     headless: bool = Field(
         default=True,
