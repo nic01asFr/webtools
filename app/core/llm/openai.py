@@ -2,16 +2,44 @@
 Client LLM pour OpenAI API.
 """
 
+import asyncio
 import json
 import logging
-from typing import List, Dict, Any, Optional
-from langchain_openai import ChatOpenAI
-from langchain_core.language_models import BaseChatModel
-from openai import AsyncOpenAI
+from typing import Any
 
-from .base import BaseLLMClient, LLMClientError
+import httpx
+from langchain_core.language_models import BaseChatModel
+from langchain_openai import ChatOpenAI
+from openai import AsyncOpenAI, BadRequestError
+
+from .base import (
+    TRUNCATION_REASONS,
+    BaseLLMClient,
+    LLMClientError,
+    LLMEmptyContentError,
+    LLMSchemaError,
+    LLMTimeoutError,
+    LLMTruncatedError,
+)
 
 logger = logging.getLogger(__name__)
+
+DEFAULT_MAX_RETRIES = 5
+DEFAULT_ATTEMPT_TIMEOUT = 90.0
+
+
+def _cause_chain(error: BaseException) -> str:
+    """
+    "Connection error" est le message generique du SDK OpenAI : il masque la
+    cause reelle (httpx.ConnectError, ReadTimeout, DNS, RemoteProtocolError...).
+    Sans la chaine __cause__, un diagnostic part sur de fausses pistes.
+    """
+    cause = error.__cause__
+    chain = []
+    while cause is not None and len(chain) < 4:
+        chain.append(f"{type(cause).__name__}: {cause}")
+        cause = getattr(cause, "__cause__", None)
+    return " <- ".join(chain) if chain else "aucune cause sous-jacente"
 
 
 class OpenAILLMClient(BaseLLMClient):
@@ -19,11 +47,19 @@ class OpenAILLMClient(BaseLLMClient):
     Client pour l'API OpenAI (GPT-4, GPT-4o, etc.)
     """
 
+    supports_structured = True
+    supports_embeddings = True
+    supports_vision = True
+
     def __init__(
         self,
         api_key: str,
-        base_url: Optional[str] = None,
-        model: str = "gpt-4o"
+        base_url: str | None = None,
+        model: str = "gpt-4o",
+        max_retries: int = DEFAULT_MAX_RETRIES,
+        timeout: float = DEFAULT_ATTEMPT_TIMEOUT,
+        total_timeout: float | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ):
         """
         Initialise le client OpenAI.
@@ -32,8 +68,17 @@ class OpenAILLMClient(BaseLLMClient):
             api_key: Clé API OpenAI
             base_url: URL de base personnalisée (pour proxies ou providers compatibles)
             model: Nom du modèle OpenAI à utiliser
+            max_retries: reessais du SDK par appel
+            timeout: delai par tentative, en secondes
+            total_timeout: echeance totale par appel, tentatives comprises
+                (None : pas d'echeance globale)
+            transport: transport httpx injecte (tests sans reseau)
         """
         super().__init__(api_key=api_key, base_url=base_url, model=model)
+        self.max_retries = max_retries
+        self.attempt_timeout = timeout
+        self.total_timeout = total_timeout
+        self._transport = transport
 
         # Client OpenAI asynchrone. research_deep enchaine des dizaines
         # d'appels sur plusieurs minutes avec le meme client - un pool de
@@ -46,7 +91,7 @@ class OpenAILLMClient(BaseLLMClient):
         # connexions perimees, avec retry pour absorber le reste.
         self._build_client()
 
-    def _build_client(self):
+    def _build_client(self) -> None:
         """
         (Re)cree le client SDK et son transport HTTP.
 
@@ -59,24 +104,26 @@ class OpenAILLMClient(BaseLLMClient):
         "Cannot send a request, as the client has been closed", remonte en
         "Connection error" generique par le SDK.
         """
-        import httpx
-        http_client = httpx.AsyncClient(
-            limits=httpx.Limits(
+        http_kwargs: dict[str, Any] = {
+            "limits": httpx.Limits(
                 max_connections=20,
                 max_keepalive_connections=5,
                 keepalive_expiry=15.0
             ),
-            timeout=90.0
-        )
+            "timeout": self.attempt_timeout,
+        }
+        if self._transport is not None:
+            http_kwargs["transport"] = self._transport
+        http_client = httpx.AsyncClient(**http_kwargs)
         self.client = AsyncOpenAI(
             api_key=self.api_key,
             base_url=self.base_url,
-            max_retries=5,
-            timeout=90.0,
+            max_retries=self.max_retries,
+            timeout=self.attempt_timeout,
             http_client=http_client
         )
 
-    def _ensure_open(self):
+    def _ensure_open(self) -> None:
         """
         Reconstruit le client si son transport a ete ferme.
 
@@ -102,11 +149,48 @@ class OpenAILLMClient(BaseLLMClient):
             )
             self._build_client()
 
+    def _prepare_call(self, kwargs: dict[str, Any]) -> tuple[Any, float | None]:
+        """
+        Extrait de kwargs les options propres au client (max_retries, timeout
+        par tentative, total_timeout) et rend (client SDK configure, echeance
+        totale). Ces options ne sont pas des parametres de create() : les
+        laisser dans kwargs ferait echouer l'appel.
+        """
+        if "qwen" in self.model.lower() and "extra_body" not in kwargs:
+            # Modeles Qwen (SSPCloud et autres deploiements) : desactiver le
+            # mode raisonnement pour les appels de structuration/synthese
+            # courte - sinon le modele peut epuiser tout son budget de tokens
+            # dans sa chaine de pensee interne et ne jamais emettre de contenu
+            # final (content: null, finish_reason: length).
+            kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
+
+        total_timeout = kwargs.pop("total_timeout", self.total_timeout)
+        options: dict[str, Any] = {}
+        if "max_retries" in kwargs:
+            options["max_retries"] = kwargs.pop("max_retries")
+        if "timeout" in kwargs:
+            options["timeout"] = kwargs.pop("timeout")
+
+        self._ensure_open()
+        client = self.client.with_options(**options) if options else self.client
+        return client, total_timeout
+
+    async def _with_deadline(self, awaitable: Any, total_timeout: float | None) -> Any:
+        """Applique l'echeance totale (retries du SDK compris)."""
+        if not total_timeout:
+            return await awaitable
+        try:
+            return await asyncio.wait_for(awaitable, timeout=total_timeout)
+        except TimeoutError:
+            raise LLMTimeoutError(
+                f"Echeance totale de {total_timeout:g}s depassee (modele {self.model})"
+            )
+
     async def generate_with_vision(
         self,
         text: str,
         image_url: str,
-        system_prompt: Optional[str] = None,
+        system_prompt: str | None = None,
         **kwargs
     ) -> str:
         """
@@ -130,7 +214,7 @@ class OpenAILLMClient(BaseLLMClient):
 
     async def generate(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         **kwargs
     ) -> str:
         """
@@ -138,55 +222,54 @@ class OpenAILLMClient(BaseLLMClient):
 
         Args:
             messages: Liste de messages au format {"role": "...", "content": "..."}
-            **kwargs: Paramètres additionnels (temperature, max_tokens, etc.)
+            **kwargs: Paramètres additionnels (temperature, max_tokens, etc.),
+                plus max_retries, timeout (par tentative) et total_timeout.
 
         Returns:
-            Contenu de la réponse générée
+            Contenu de la réponse générée. Une sortie coupee par max_tokens
+            est rendue telle quelle ; last_finish_reason vaut alors "length".
+
+        Raises:
+            LLMClientError: erreur du fournisseur, contenu None ou vide
+                (LLMEmptyContentError), echeance totale (LLMTimeoutError)
         """
+        self._record_finish_reason(None)
         try:
-            # Modeles Qwen (SSPCloud et autres deploiements) : desactiver le
-            # mode raisonnement pour les appels de structuration/synthese
-            # courte - sinon le modele peut epuiser tout son budget de tokens
-            # dans sa chaine de pensee interne et ne jamais emettre de contenu
-            # final (content: null, finish_reason: length).
-            if "qwen" in self.model.lower() and "extra_body" not in kwargs:
-                kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
-
-            # max_retries n'est pas un parametre de create() mais du client -
-            # le surcharger par appel necessite with_options() plutot que de
-            # le laisser filtrer dans kwargs (qui ferait echouer create()).
-            self._ensure_open()
-            client = self.client
-            if "max_retries" in kwargs:
-                client = self.client.with_options(max_retries=kwargs.pop("max_retries"))
-
-            response = await client.chat.completions.create(
-                model=self.model,
-                messages=messages,
-                **kwargs
+            client, total_timeout = self._prepare_call(kwargs)
+            response = await self._with_deadline(
+                client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    **kwargs
+                ),
+                total_timeout,
             )
 
-            if response.choices and len(response.choices) > 0:
-                return response.choices[0].message.content
-            else:
+            if not response.choices:
                 raise LLMClientError("Réponse inattendue de l'API OpenAI")
 
+            choice = response.choices[0]
+            finish_reason = getattr(choice, "finish_reason", None)
+            content = choice.message.content
+            self._record_finish_reason(finish_reason)
+            if content is None or not content.strip():
+                raise LLMEmptyContentError(
+                    f"Contenu vide rendu par le modele {self.model} "
+                    f"(finish_reason={finish_reason})"
+                )
+            return content
+
+        except LLMClientError as e:
+            logger.error(f"Echec generation OpenAI: {type(e).__name__}: {e}")
+            raise
         except Exception as e:
-            # "Connection error" est le message generique du SDK OpenAI : il
-            # masque la cause reelle (httpx.ConnectError, ReadTimeout, DNS,
-            # RemoteProtocolError...). Sans la chaine __cause__, un diagnostic
-            # part sur de fausses pistes - teste isolement, ce client passait
-            # 15 appels enchaines et 30 000 caracteres de prompt sans un echec.
-            cause = e.__cause__
-            chain = []
-            while cause is not None and len(chain) < 4:
-                chain.append(f"{type(cause).__name__}: {cause}")
-                cause = getattr(cause, "__cause__", None)
-            detail = " <- ".join(chain) if chain else "aucune cause sous-jacente"
+            detail = _cause_chain(e)
             logger.error(
                 f"Echec generation OpenAI: {type(e).__name__}: {e} | cause: {detail}"
             )
-            raise LLMClientError(f"Erreur lors de la génération OpenAI: {str(e)} [cause: {detail}]")
+            raise LLMClientError(
+                f"Erreur lors de la génération OpenAI: {e!s} [cause: {detail}]"
+            ) from e
 
     async def embed(self, texts: list, model: str = "qwen3-embedding-8b") -> list:
         """
@@ -195,8 +278,18 @@ class OpenAILLMClient(BaseLLMClient):
         de pertinence par similarite semantique reelle plutot que par
         correspondance de mots-cles (qui rate synonymes/reformulations).
         """
-        self._ensure_open()
-        response = await self.client.embeddings.create(model=model, input=texts)
+        try:
+            self._ensure_open()
+            response = await self._with_deadline(
+                self.client.embeddings.create(model=model, input=texts),
+                self.total_timeout,
+            )
+        except LLMClientError:
+            raise
+        except Exception as e:
+            raise LLMClientError(
+                f"Erreur lors des embeddings OpenAI: {e!s} [cause: {_cause_chain(e)}]"
+            ) from e
         return [item.embedding for item in response.data]
 
     async def generate_structured(
@@ -223,55 +316,95 @@ class OpenAILLMClient(BaseLLMClient):
 
         Returns:
             dict deja parse et conforme au schema
+
+        Raises:
+            LLMTruncatedError: sortie coupee par max_tokens (augmenter max_tokens)
+            LLMSchemaError: schema refuse par le serveur, ou sortie non conforme
+            LLMEmptyContentError: contenu None ou vide
+            LLMTimeoutError: echeance totale depassee
+            LLMClientError: toute autre erreur du fournisseur
         """
-        if "qwen" in self.model.lower() and "extra_body" not in kwargs:
-            kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": False}}
+        self._record_finish_reason(None)
+        try:
+            client, total_timeout = self._prepare_call(kwargs)
+            response = await self._with_deadline(
+                client.chat.completions.create(
+                    model=self.model,
+                    messages=messages,
+                    response_format={
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": schema_name,
+                            "strict": True,
+                            "schema": schema
+                        }
+                    },
+                    **kwargs
+                ),
+                total_timeout,
+            )
+        except LLMClientError:
+            raise
+        except BadRequestError as e:
+            # Le proxy refuse le schema (ou la requete) : sans cette trace, le
+            # refus est indiscernable d'une panne reseau.
+            logger.error(
+                "Schema '%s' refuse par le serveur (HTTP 400) : %s", schema_name, e
+            )
+            raise LLMSchemaError(
+                f"Schema '{schema_name}' refuse par le serveur: {e}"
+            ) from e
+        except Exception as e:
+            detail = _cause_chain(e)
+            logger.error(
+                f"Echec sortie structuree OpenAI: {type(e).__name__}: {e} | cause: {detail}"
+            )
+            raise LLMClientError(
+                f"Erreur lors de la sortie structurée OpenAI: {e!s} [cause: {detail}]"
+            ) from e
 
-        self._ensure_open()
-        client = self.client
-        if "max_retries" in kwargs:
-            client = self.client.with_options(max_retries=kwargs.pop("max_retries"))
-
-        response = await client.chat.completions.create(
-            model=self.model,
-            messages=messages,
-            response_format={
-                "type": "json_schema",
-                "json_schema": {
-                    "name": schema_name,
-                    "strict": True,
-                    "schema": schema
-                }
-            },
-            **kwargs
-        )
-
-        if not response.choices or len(response.choices) == 0:
+        if not response.choices:
             raise LLMClientError("Réponse inattendue de l'API OpenAI (sortie structurée)")
 
-        content = response.choices[0].message.content
+        choice = response.choices[0]
+        finish_reason = getattr(choice, "finish_reason", None)
+        content = choice.message.content
+        self._record_finish_reason(finish_reason)
+        truncated = finish_reason in TRUNCATION_REASONS
+
+        if content is None or not content.strip():
+            if truncated:
+                raise LLMTruncatedError(
+                    f"Sortie structuree '{schema_name}' vide, coupee par max_tokens "
+                    f"(modele {self.model})"
+                )
+            raise LLMEmptyContentError(
+                f"Contenu vide pour la sortie structuree '{schema_name}' "
+                f"(finish_reason={finish_reason})"
+            )
+
         try:
             return json.loads(content)
         except json.JSONDecodeError as e:
-            raise LLMClientError(f"Sortie structuree invalide malgre le schema force: {e}")
+            if truncated:
+                raise LLMTruncatedError(
+                    f"Sortie structuree '{schema_name}' coupee par max_tokens "
+                    f"(JSON incomplet: {e}) - augmenter max_tokens"
+                ) from e
+            raise LLMSchemaError(
+                f"Sortie structuree '{schema_name}' invalide malgre le schema force: {e}"
+            ) from e
 
     def get_langchain_wrapper(self) -> BaseChatModel:
         """
         Retourne un wrapper LangChain pour browser-use.
 
-        OpenAI est nativement supporté par LangChain via ChatOpenAI.
+        OpenAI est nativement supporté par LangChain via ChatOpenAI. La cle et
+        l'URL sont passees en arguments : aucune ecriture dans os.environ.
 
         Returns:
             ChatOpenAI compatible avec browser-use
         """
-        import os
-        # browser-use valide la presence de OPENAI_API_KEY dans l'environnement
-        # independamment des kwargs passes au client - on la fixe explicitement
-        # pour que la config ne depende pas d'une variable d'environnement externe.
-        os.environ["OPENAI_API_KEY"] = self.api_key
-        if self.base_url:
-            os.environ["OPENAI_BASE_URL"] = self.base_url
-
         kwargs = {
             "api_key": self.api_key,
             "model": self.model
@@ -282,19 +415,6 @@ class OpenAILLMClient(BaseLLMClient):
 
         return ChatOpenAI(**kwargs)
 
-    async def close(self):
-        """
-        Ferme le client OpenAI.
-
-        ATTENTION : get_llm_client() renvoie une instance PARTAGEE par tout le
-        service. Fermer ce client le rend inutilisable pour tous les appels
-        suivants du processus ("Cannot send a request, as the client has been
-        closed", remonte en generique "Connection error" par le SDK).
-        Le cycle de vie appartient a l'application, pas a un appelant isole.
-        La trace ci-dessous identifie l'appelant en cas de fermeture
-        inattendue.
-        """
-        import traceback
-        caller = "".join(traceback.format_stack()[-4:-1]).strip()
-        logger.warning(f"Fermeture du client LLM PARTAGE demandee par:\n{caller}")
+    async def _aclose(self) -> None:
+        """Ferme le client SDK et son pool HTTP."""
         await self.client.close()

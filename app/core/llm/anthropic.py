@@ -2,12 +2,12 @@
 Client LLM pour Anthropic API (Claude).
 """
 
-from typing import List, Dict, Any, Optional
+import httpx
+from anthropic import AsyncAnthropic
 from langchain_anthropic import ChatAnthropic
 from langchain_core.language_models import BaseChatModel
-from anthropic import AsyncAnthropic
 
-from .base import BaseLLMClient, LLMClientError
+from .base import BaseLLMClient, LLMClientError, LLMEmptyContentError
 
 
 class AnthropicLLMClient(BaseLLMClient):
@@ -15,11 +15,16 @@ class AnthropicLLMClient(BaseLLMClient):
     Client pour l'API Anthropic (Claude 3, Claude 3.5, etc.)
     """
 
+    supports_structured = False
+    supports_embeddings = False
+    supports_vision = False
+
     def __init__(
         self,
         api_key: str,
-        base_url: Optional[str] = None,
-        model: str = "claude-3-5-sonnet-20241022"
+        base_url: str | None = None,
+        model: str = "claude-3-5-sonnet-20241022",
+        transport: httpx.AsyncBaseTransport | None = None
     ):
         """
         Initialise le client Anthropic.
@@ -28,6 +33,7 @@ class AnthropicLLMClient(BaseLLMClient):
             api_key: Clé API Anthropic
             base_url: URL de base personnalisée (optionnel)
             model: Nom du modèle Claude à utiliser
+            transport: transport httpx injecte (tests sans reseau)
         """
         super().__init__(api_key=api_key, base_url=base_url, model=model)
 
@@ -36,11 +42,14 @@ class AnthropicLLMClient(BaseLLMClient):
         if self.base_url:
             kwargs["base_url"] = self.base_url
 
+        if transport is not None:
+            kwargs["http_client"] = httpx.AsyncClient(transport=transport)
+
         self.client = AsyncAnthropic(**kwargs)
 
     async def generate(
         self,
-        messages: List[Dict[str, str]],
+        messages: list[dict[str, str]],
         **kwargs
     ) -> str:
         """
@@ -53,6 +62,7 @@ class AnthropicLLMClient(BaseLLMClient):
         Returns:
             Contenu de la réponse générée
         """
+        self._record_finish_reason(None)
         try:
             # Anthropic nécessite un message système séparé
             system_message = None
@@ -77,13 +87,24 @@ class AnthropicLLMClient(BaseLLMClient):
 
             response = await self.client.messages.create(**api_params)
 
-            if response.content and len(response.content) > 0:
-                return response.content[0].text
-            else:
-                raise LLMClientError("Réponse inattendue de l'API Anthropic")
+            # stop_reason "max_tokens" est normalise en "length" (contrat commun)
+            stop_reason = getattr(response, "stop_reason", None)
+            self._record_finish_reason("length" if stop_reason == "max_tokens" else stop_reason)
 
+            text = "".join(
+                block.text for block in (response.content or [])
+                if getattr(block, "type", None) == "text" and getattr(block, "text", None)
+            )
+            if not text.strip():
+                raise LLMEmptyContentError(
+                    f"Contenu vide rendu par Anthropic (stop_reason={stop_reason})"
+                )
+            return text
+
+        except LLMClientError:
+            raise
         except Exception as e:
-            raise LLMClientError(f"Erreur lors de la génération Anthropic: {str(e)}")
+            raise LLMClientError(f"Erreur lors de la génération Anthropic: {e!s}")
 
     def get_langchain_wrapper(self) -> BaseChatModel:
         """
@@ -104,6 +125,6 @@ class AnthropicLLMClient(BaseLLMClient):
 
         return ChatAnthropic(**kwargs)
 
-    async def close(self):
+    async def _aclose(self) -> None:
         """Ferme le client Anthropic."""
         await self.client.close()
