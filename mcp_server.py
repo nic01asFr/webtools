@@ -119,11 +119,110 @@ class AuthorizeGateMiddleware(BaseHTTPMiddleware):
         return HTMLResponse(LOGIN_FORM.format(error=""))
 
 
+class PersistentOAuthProvider(InMemoryOAuthProvider):
+    """
+    Fournisseur OAuth dont les clients et les jetons survivent a une relance.
+
+    InMemoryOAuthProvider perd tout a chaque redemarrage du processus : observe
+    en production le 12/11/2026, un simple redemarrage du serveur MCP (mise a
+    jour, ou relance automatique par le superviseur apres un plantage)
+    deconnectait le connecteur claude.ai, qui exigeait une nouvelle
+    autorisation manuelle. Les clients enregistres, jetons d'acces, jetons de
+    rafraichissement et leurs correspondances sont ecrits apres chaque
+    changement dans un fichier JSON en droits 600 ; les codes d'autorisation,
+    qui ne vivent que quelques minutes, ne le sont pas.
+    """
+
+    def __init__(self, *args: Any, state_path: str | None = None, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._state_path = state_path
+        self._load_state()
+
+    def _load_state(self) -> None:
+        if not self._state_path or not os.path.exists(self._state_path):
+            return
+        from mcp.server.auth.provider import AccessToken, RefreshToken
+        from mcp.shared.auth import OAuthClientInformationFull
+
+        try:
+            with open(self._state_path, encoding="utf-8") as handle:
+                state = json.load(handle)
+            self.clients = {
+                k: OAuthClientInformationFull.model_validate(v) for k, v in state.get("clients", {}).items()
+            }
+            self.access_tokens = {
+                k: AccessToken.model_validate(v) for k, v in state.get("access_tokens", {}).items()
+            }
+            self.refresh_tokens = {
+                k: RefreshToken.model_validate(v) for k, v in state.get("refresh_tokens", {}).items()
+            }
+            self._access_to_refresh_map = dict(state.get("access_to_refresh", {}))
+            self._refresh_to_access_map = dict(state.get("refresh_to_access", {}))
+            logger.info(
+                "Etat OAuth recharge : %d client(s), %d jeton(s) d'acces",
+                len(self.clients), len(self.access_tokens),
+            )
+        except (OSError, ValueError) as exc:
+            # Un etat illisible ne doit pas empecher le demarrage : les
+            # clients devront simplement se reconnecter.
+            logger.error("Etat OAuth illisible, ignore (%s) : %s", self._state_path, exc)
+
+    def _save_state(self) -> None:
+        if not self._state_path:
+            return
+        state = {
+            "clients": {k: v.model_dump(mode="json") for k, v in self.clients.items()},
+            "access_tokens": {k: v.model_dump(mode="json") for k, v in self.access_tokens.items()},
+            "refresh_tokens": {k: v.model_dump(mode="json") for k, v in self.refresh_tokens.items()},
+            "access_to_refresh": self._access_to_refresh_map,
+            "refresh_to_access": self._refresh_to_access_map,
+        }
+        directory = os.path.dirname(self._state_path) or "."
+        try:
+            os.makedirs(directory, exist_ok=True)
+            fd, tmp_path = tempfile.mkstemp(dir=directory, prefix=".oauth.", suffix=".tmp")
+            try:
+                os.chmod(tmp_path, 0o600)
+                with os.fdopen(fd, "w", encoding="utf-8") as handle:
+                    json.dump(state, handle)
+                os.replace(tmp_path, self._state_path)
+            except BaseException:
+                if os.path.exists(tmp_path):
+                    os.unlink(tmp_path)
+                raise
+        except OSError as exc:
+            logger.error("Persistance de l'etat OAuth impossible : %s", exc)
+
+    async def register_client(self, client_info: Any) -> None:
+        await super().register_client(client_info)
+        self._save_state()
+
+    async def exchange_authorization_code(self, *args: Any, **kwargs: Any) -> Any:
+        token = await super().exchange_authorization_code(*args, **kwargs)
+        self._save_state()
+        return token
+
+    async def exchange_refresh_token(self, *args: Any, **kwargs: Any) -> Any:
+        token = await super().exchange_refresh_token(*args, **kwargs)
+        self._save_state()
+        return token
+
+    async def revoke_token(self, *args: Any, **kwargs: Any) -> None:
+        await super().revoke_token(*args, **kwargs)
+        self._save_state()
+
+
+def _oauth_state_path() -> str:
+    base = os.environ.get("WEBTOOLS_STATE_DIR") or os.path.join(tempfile.gettempdir(), "webtools_mcp_state")
+    return os.path.join(base, "oauth_state.json")
+
+
 mcp = FastMCP(
     "webtools",
-    auth=InMemoryOAuthProvider(
+    auth=PersistentOAuthProvider(
         base_url=os.environ.get("MCP_PUBLIC_URL", "http://localhost:8090"),
         client_registration_options=ClientRegistrationOptions(enabled=True),
+        state_path=_oauth_state_path(),
     ),
 )
 

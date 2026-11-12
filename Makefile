@@ -17,7 +17,7 @@ check: ## Verification API : ruff (F821,F811,E9) puis pytest hors tests live
 	$(PYTHON) -m pytest tests -q -m "not live"
 
 check-mcp: ## Verification MCP : le serveur s'importe sans app/ et ses tests passent
-	$(MCP_PYTHON) -m pytest tests/unit/test_mcp_server.py -q
+	$(MCP_PYTHON) -m pytest tests/unit/test_mcp_server.py tests/unit/test_v3_3_mcp_deep.py tests/unit/test_mcp_oauth_persistance.py -q
 
 install-mcp: ## Installe l'environnement du serveur MCP depuis son verrou
 	$(MCP_PYTHON) -m pip install -r requirements-mcp.lock pytest pytest-asyncio
