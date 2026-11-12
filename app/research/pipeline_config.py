@@ -97,6 +97,8 @@ class PipelineConfig:
     chunking_v2: bool = False  # transmis a document_to_chunk_items (C73)
     rss_tier_root_only: bool = False  # transmis a ExtractionOptions : palier RSS reserve a la racine ou aux flux
     single_llm_pass_enabled: bool = True  # transmis a ExtractionOptions : reecriture LLM unique du contenu direct
+    # --- Lot V3-8 : recherche rapide ---
+    quick_uses_chunk_selection: bool = False  # /research/quick: passages choisis par pertinence au lieu de 2000 car. de tete (C63)
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":

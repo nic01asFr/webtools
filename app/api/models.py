@@ -14,14 +14,17 @@ class LLMConfig(BaseModel):
         description="Provider LLM à utiliser"
     )
     api_key: str = Field(
+        max_length=512,
         description="Clé API pour le provider LLM"
     )
     model: str = Field(
         default="gpt-4o",
+        max_length=200,
         description="Nom du modèle à utiliser"
     )
     base_url: Optional[str] = Field(
         default=None,
+        max_length=2048,
         description="URL de base pour l'API (optionnel)"
     )
 
@@ -68,10 +71,12 @@ class ExtractRequest(BaseModel):
     """Requête d'extraction de contenu web."""
 
     url: str = Field(
+        max_length=2048,
         description="URL de la page à extraire"
     )
     prompt: Optional[str] = Field(
         default=None,
+        max_length=4000,
         description="Prompt personnalisé pour l'extraction (optionnel)"
     )
 
@@ -269,6 +274,7 @@ class VisionRequest(BaseModel):
 
     system_prompt: Optional[str] = Field(
         default=None,
+        max_length=2000,
         description="Prompt système optionnel pour guider l'analyse"
     )
 
@@ -335,9 +341,9 @@ class SearchRequest(BaseModel):
     """Requête de recherche web simple."""
     query: str = Field(..., description="Requête de recherche", max_length=500)
     max_results: int = Field(default=10, ge=1, le=50)
-    language: str = Field(default="fr")
-    categories: Optional[str] = Field(default=None, description="Categories SearXNG (general, images, news...)")
-    engines: Optional[str] = Field(default=None, description="Moteurs specifiques (google, bing...)")
+    language: str = Field(default="fr", max_length=16)
+    categories: Optional[str] = Field(default=None, max_length=200, description="Categories SearXNG (general, images, news...)")
+    engines: Optional[str] = Field(default=None, max_length=200, description="Moteurs specifiques (google, bing...)")
 
 
 class SimpleSearchResult(BaseModel):
@@ -374,7 +380,16 @@ class QuickResearchSource(BaseModel):
     """Une source citee dans la reponse rapide."""
     title: str
     url: str
-    relevance: float = 0.0
+    relevance: Optional[float] = Field(
+        default=None,
+        description="Score du moteur de recherche pour ce resultat, si le moteur en fournit un"
+    )
+
+
+class QuickResearchDiscardedSource(BaseModel):
+    """Une source tentee puis ecartee, avec la raison."""
+    url: str
+    reason: str = Field(description="extraction_echouee | contenu_vide")
 
 
 class QuickResearchResponse(BaseModel):
@@ -382,10 +397,28 @@ class QuickResearchResponse(BaseModel):
     query: str
     answer: Optional[str] = None
     sources: List[QuickResearchSource] = Field(default_factory=list)
-    confidence: str = Field(default="medium", description="high | medium | low")
+    confidence: Optional[str] = Field(
+        default=None,
+        description="Non calculee : aucune mesure fiable n'existe pour cette reponse"
+    )
+    sources_attempted: int = Field(default=0, description="Sources dont l'extraction a ete tentee")
+    sources_extracted: int = Field(default=0, description="Sources dont le contenu a ete extrait")
+    sources_discarded: int = Field(default=0, description="Sources ecartees")
+    discarded: List[QuickResearchDiscardedSource] = Field(default_factory=list)
     success: bool = True
     error: Optional[str] = None
 
     @classmethod
-    def from_error(cls, query: str, error_message: str):
-        return cls(query=query, answer=None, sources=[], confidence="low", success=False, error=error_message)
+    def from_error(
+        cls,
+        query: str,
+        error_message: str,
+        sources_attempted: int = 0,
+        discarded: Optional[List[QuickResearchDiscardedSource]] = None,
+    ):
+        discarded = discarded or []
+        return cls(
+            query=query, answer=None, sources=[], success=False, error=error_message,
+            sources_attempted=sources_attempted, sources_extracted=0,
+            sources_discarded=len(discarded), discarded=discarded,
+        )

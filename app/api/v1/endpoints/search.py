@@ -11,6 +11,9 @@ from app.services.search_service import searxng_client
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# Message renvoye au client ; le detail de l'exception va dans les journaux.
+MSG_SEARCH_DOWN = "Moteur de recherche indisponible"
+
 
 @router.post("/search", response_model=SearchResponse, summary="Recherche web simple")
 async def search_web(request: SearchRequest) -> SearchResponse:
@@ -39,4 +42,4 @@ async def search_web(request: SearchRequest) -> SearchResponse:
         )
     except Exception as e:
         logger.error(f"Erreur recherche pour '{request.query}': {e}")
-        return SearchResponse.from_error(query=request.query, error_message=str(e))
+        return SearchResponse.from_error(query=request.query, error_message=MSG_SEARCH_DOWN)

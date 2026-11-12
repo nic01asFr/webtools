@@ -4,43 +4,43 @@ Endpoint pour l'analyse d'images avec Albert Vision (albert-large).
 
 import logging
 import time
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, status
 
 from app.api.models import VisionRequest, VisionResponse
-from app.core.llm.factory import LLMFactory
-from app.utils.url_safety import assert_safe_url, UnsafeURLError
+from app.core.config import settings
+from app.core.llm import get_llm_client
+from app.core.llm.base import LLMClientError, LLMEmptyContentError, LLMTimeoutError
+from app.utils.url_safety import assert_safe_url_async, UnsafeURLError
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
+# Messages renvoyes au client : un par categorie, le detail va dans les journaux.
+MSG_NO_KEY = "Cle API du modele de langage non configuree"
+MSG_UNSAFE_URL = "URL d'image refusee (adresse non publique ou invalide)"
+MSG_NO_VISION = "Le modele configure ne gere pas l'analyse d'images"
+MSG_LLM_EMPTY = "Le modele a rendu une analyse vide"
+MSG_LLM_TIMEOUT = "Le modele n'a pas repondu a temps"
+MSG_LLM_ERROR = "Erreur du modele de langage"
+MSG_INTERNAL = "Erreur interne lors de l'analyse d'image"
+
+
 @router.get("/vision/health")
 async def vision_health():
-    """Vérifie la disponibilité de l'analyse vision."""
-    try:
-        # Vérifier que albert-large est disponible
-        import os
-        api_key = os.getenv("DEFAULT_LLM_API_KEY", "")
-        base_url = os.getenv("DEFAULT_LLM_BASE_URL", "https://albert.api.etalab.gouv.fr")
-
-        if not api_key:
-            return {
-                "vision": "unavailable",
-                "reason": "API key not configured"
-            }
-
+    """Verifie que la configuration LLM permet l'analyse d'images (sans appel au modele)."""
+    if not settings.default_llm_api_key:
         return {
-            "vision": "ok",
-            "model": os.getenv("DEFAULT_LLM_MODEL", "qwen3-6-35b-moe"),
-            "base_url": base_url
+            "vision": "unavailable",
+            "reason": "API key not configured"
         }
-    except Exception as e:
-        logger.error(f"Vision health check failed: {e}")
-        return {
-            "vision": "error",
-            "error": str(e)
-        }
+
+    return {
+        "vision": "ok",
+        "model": settings.default_llm_model,
+        "base_url": settings.default_llm_base_url
+    }
 
 
 @router.post("/vision", response_model=VisionResponse)
@@ -91,46 +91,29 @@ async def analyze_image(request: VisionRequest):
     - Analyse complexe: ~8-12s
     """
     start_time = time.time()
+    image_url = str(request.image_url)
+
+    # Garde SSRF : image_url part vers un fournisseur LLM qui va la
+    # recuperer, mais selon la configuration c'est parfois ce service qui
+    # fetch. Ce chemin contournait ExtractorManager (ou la garde est
+    # normalement posee), donc n'etait pas couvert.
+    try:
+        await assert_safe_url_async(image_url)
+    except UnsafeURLError as e:
+        logger.warning("Analyse refusee (SSRF) pour %s: %s", image_url, e)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=MSG_UNSAFE_URL)
+
+    # Client partage, configure comme le reste du service ; il appartient a
+    # l'application et n'est pas ferme ici.
+    llm_client = await get_llm_client()
+    if not llm_client.api_key:
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, detail=MSG_NO_KEY)
+    if not llm_client.supports_vision:
+        raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, detail=MSG_NO_VISION)
 
     try:
-        # Créer un client LLM avec albert-large
-        import os
-        api_key = os.getenv("DEFAULT_LLM_API_KEY", "")
-        base_url = os.getenv("DEFAULT_LLM_BASE_URL", "https://albert.api.etalab.gouv.fr")
+        logger.info("Analyzing image: %s", image_url)
 
-        if not api_key:
-            return VisionResponse.from_error(
-                image_url=str(request.image_url),
-                prompt=request.prompt,
-                error_message="API key not configured"
-            )
-
-        provider = os.getenv("DEFAULT_LLM_PROVIDER", "openai")
-        model = os.getenv("DEFAULT_LLM_MODEL", "qwen3-6-35b-moe")
-
-        llm_client = LLMFactory.create(
-            provider=provider,
-            api_key=api_key,
-            model=model,
-            base_url=base_url
-        )
-
-        # Garde SSRF : image_url part vers un fournisseur LLM qui va la
-        # recuperer, mais selon la configuration c'est parfois ce service qui
-        # fetch. Ce chemin contournait ExtractorManager (ou la garde est
-        # normalement posee), donc n'etait pas couvert.
-        try:
-            assert_safe_url(str(request.image_url))
-        except UnsafeURLError as e:
-            logger.warning(f"Analyse refusee (SSRF) pour {request.image_url}: {e}")
-            return VisionResponse(
-                success=False, image_url=str(request.image_url),
-                prompt=request.prompt, analysis=None, error=str(e)
-            )
-
-        logger.info(f"Analyzing image: {request.image_url}")
-
-        # Analyser l'image avec Albert Vision
         # Timeout court specifique a la vision : une analyse d'image reussie
         # prend <10s dans tous les cas observes. Le timeout global de 90s
         # (necessaire pour les syntheses longues de research_deep) laisserait
@@ -142,36 +125,37 @@ async def analyze_image(request: VisionRequest):
         # d'attente pour un resultat qui ne changera jamais.
         analysis = await llm_client.generate_with_vision(
             text=request.prompt,
-            image_url=str(request.image_url),
+            image_url=image_url,
             system_prompt=request.system_prompt,
             temperature=request.temperature,
             max_tokens=request.max_tokens,
             timeout=20.0,
             max_retries=0
         )
+        if not analysis or not analysis.strip():
+            raise LLMEmptyContentError("analyse vide")
 
         processing_time = time.time() - start_time
-
-        logger.info(f"Vision analysis completed in {processing_time:.2f}s")
+        logger.info("Vision analysis completed in %.2fs", processing_time)
 
         return VisionResponse(
             success=True,
-            image_url=str(request.image_url),
+            image_url=image_url,
             prompt=request.prompt,
             analysis=analysis,
-            model_used=model,
+            model_used=llm_client.model,
             processing_time_seconds=round(processing_time, 2)
         )
 
-    except Exception as e:
-        logger.error(f"Error analyzing image: {e}")
-        processing_time = time.time() - start_time
-
-        response = VisionResponse.from_error(
-            image_url=str(request.image_url),
-            prompt=request.prompt,
-            error_message=str(e),
-            model_used=locals().get("model", "unknown")
-        )
-        response.processing_time_seconds = round(processing_time, 2)
-        return response
+    except LLMEmptyContentError:
+        logger.error("Analyse vide du modele pour %s", image_url)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=MSG_LLM_EMPTY)
+    except LLMTimeoutError:
+        logger.error("Echeance du modele pour %s", image_url)
+        raise HTTPException(status.HTTP_504_GATEWAY_TIMEOUT, detail=MSG_LLM_TIMEOUT)
+    except LLMClientError:
+        logger.exception("Erreur du modele pour %s", image_url)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, detail=MSG_LLM_ERROR)
+    except Exception:
+        logger.exception("Error analyzing image %s", image_url)
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, detail=MSG_INTERNAL)
