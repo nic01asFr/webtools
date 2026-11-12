@@ -62,7 +62,10 @@ def _convert(name: str, raw: str, tp: Any) -> Any:
 
 @dataclass(frozen=True)
 class PipelineConfig:
-    """Drapeaux et parametres du pipeline. Aucun champ pour l'instant."""
+    """Drapeaux et parametres du pipeline."""
+
+    # --- Lot V3-8 : recherche rapide ---
+    quick_uses_chunk_selection: bool = False  # /research/quick: passages choisis par pertinence au lieu de 2000 car. de tete (C63)
 
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":
