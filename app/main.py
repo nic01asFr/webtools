@@ -45,9 +45,9 @@ async def lifespan(app: FastAPI):
     # un echec laisse le catalogue vide et les recherches se font sans
     # selection, comme avant.
     import os
+    from app.core.config import get_searxng_base_url
     from app.services.engine_catalog import engine_catalog
-    searxng_url = os.environ.get("SEARXNG_BASE_URL", "http://searxng:8080")
-    await engine_catalog.load(searxng_url)
+    await engine_catalog.load(get_searxng_base_url())
 
     # browser-use 0.1.41 verifie OPENAI_API_KEY dans l'environnement avant de
     # lancer un agent ; le client LLM ne l'y ecrit plus (C54). On la derive

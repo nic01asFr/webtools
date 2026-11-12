@@ -338,6 +338,7 @@ class SearXNGClient:
             return False
 
 
-# Instance globale du client
-import os as _os
-searxng_client = SearXNGClient(base_url=_os.getenv("SEARXNG_BASE_URL", "http://searxng:8080"))
+# Instance globale du client. L'URL vient de Settings (source unique, C15).
+from app.core.config import get_searxng_base_url  # noqa: E402
+
+searxng_client = SearXNGClient(base_url=get_searxng_base_url())

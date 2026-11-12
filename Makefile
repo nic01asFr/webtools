@@ -1,14 +1,14 @@
-.PHONY: help check check-mcp install dev-install test clean run docker-build docker-up docker-down docker-logs
+.PHONY: help check check-mcp install install-mcp dev-install test clean run docker-build docker-up docker-down docker-logs
 
 PYTHON ?= python
+MCP_PYTHON ?= python
 
 help: ## Affiche cette aide
-	@echo "Deux environnements Python distincts (leurs dependances sont incompatibles) :"
-	@echo "  API : pip install -e \".[dev]\"   (browser-use impose pydantic<2.11)"
-	@echo "  MCP : pip install <liste de l'extra mcp de pyproject.toml>, SANS les dependances"
-	@echo "        principales (un extra s'ajoute a elles : .[mcp] reintroduit browser-use)"
-	@echo "Ne jamais melanger les deux dans un meme venv. 'make check' vise l'API ;"
-	@echo "'make check-mcp' verifie seulement que la liste de l'extra mcp se resout seule."
+	@echo "Deux environnements Python distincts (leurs dependances sont incompatibles, C81) :"
+	@echo "  API : make dev-install PYTHON=<python du venv API>"
+	@echo "  MCP : make install-mcp MCP_PYTHON=<python du venv MCP>"
+	@echo "Ne jamais melanger les deux dans un meme venv : '.[mcp]' reintroduirait browser-use."
+	@echo "'make check' verifie l'API ; 'make check-mcp' verifie le serveur MCP."
 	@echo
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
 
@@ -16,18 +16,19 @@ check: ## Verification API : ruff (F821,F811,E9) puis pytest hors tests live
 	$(PYTHON) -m ruff check --select F821,F811,E9 .
 	$(PYTHON) -m pytest tests -q -m "not live"
 
-check-mcp: ## Verifie que la liste de l'extra mcp se resout seule (dry-run, rien d'installe)
-	$(PYTHON) -c "import tomllib; print('
-'.join(tomllib.load(open('pyproject.toml', 'rb'))['project']['optional-dependencies']['mcp']))" > .mcp-requirements.tmp
-	$(PYTHON) -m pip install --dry-run --ignore-installed -r .mcp-requirements.tmp; rc=$$?; rm -f .mcp-requirements.tmp; exit $$rc
+check-mcp: ## Verification MCP : le serveur s'importe sans app/ et ses tests passent
+	$(MCP_PYTHON) -m pytest tests/unit/test_mcp_server.py -q
 
-install: ## Installe les dépendances
-	pip install -e .
-	playwright install chromium
+install-mcp: ## Installe l'environnement du serveur MCP depuis son verrou
+	$(MCP_PYTHON) -m pip install -r requirements-mcp.lock pytest pytest-asyncio
 
-dev-install: ## Installe les dépendances de développement
-	pip install -e ".[dev]"
-	playwright install chromium
+install: ## Installe l'API depuis son verrou
+	$(PYTHON) -m pip install -r requirements.lock
+	$(PYTHON) -m pip install --no-deps -e .
+	$(PYTHON) -m playwright install chromium
+
+dev-install: install ## Installe l'API et les outils de developpement
+	$(PYTHON) -m pip install -e ".[dev]"
 
 test: ## Lance les tests
 	pytest tests/ -v
@@ -60,7 +61,7 @@ docker-restart: ## Redémarre le service Docker
 	docker-compose restart
 
 docker-shell: ## Ouvre un shell dans le conteneur
-	docker-compose exec webextract /bin/bash
+	docker-compose exec webtools /bin/bash
 
 lint: ## Vérifie le code avec ruff
 	ruff check app/ tests/
