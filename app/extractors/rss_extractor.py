@@ -10,10 +10,10 @@ fiable que le rendu navigateur pour les pages de listing/section.
 import logging
 import httpx
 import xml.etree.ElementTree as ET
-from typing import Optional
 from urllib.parse import urljoin, urlparse
 
 from app.api.models import WebResult
+from app.utils.url_safety import Resolver, UnsafeURLError, safe_request_hooks
 
 logger = logging.getLogger(__name__)
 
@@ -26,11 +26,21 @@ HONEST_UA = "WebtoolsBot/1.0 (+https://github.com/nic01asFr/webtools; veille doc
 class RssExtractor:
     """Detecte et exploite un flux RSS/Atom pour une page de type listing/section."""
 
-    async def try_extract(self, url: str, timeout: int = 10) -> Optional[WebResult]:
+    async def try_extract(
+        self,
+        url: str,
+        timeout: int = 10,
+        *,
+        transport: httpx.AsyncBaseTransport | None = None,
+        resolver: Resolver | None = None,
+    ) -> WebResult | None:
         """
         Tente de trouver et d'exploiter un flux RSS pour le domaine de `url`.
         Retourne None si aucun flux exploitable n'est trouve (pas une erreur :
         c'est un palier optionnel, l'appelant doit alors passer au palier suivant).
+        Une requete (ou une redirection) vers une adresse interne est refusee
+        et traitee comme l'absence de flux.
+        `transport` et `resolver` sont injectables pour tester sans reseau.
         """
         parsed = urlparse(url)
         base = f"{parsed.scheme}://{parsed.netloc}"
@@ -38,12 +48,17 @@ class RssExtractor:
         async with httpx.AsyncClient(
             follow_redirects=True,
             timeout=timeout,
-            headers={"User-Agent": HONEST_UA}
+            headers={"User-Agent": HONEST_UA},
+            transport=transport,
+            event_hooks=safe_request_hooks(resolver),
         ) as client:
             for path in COMMON_FEED_PATHS:
                 feed_url = urljoin(base, path)
                 try:
                     resp = await client.get(feed_url)
+                except UnsafeURLError as e:
+                    logger.warning(f"Flux RSS ignore (SSRF) {feed_url}: {e}")
+                    continue
                 except Exception:
                     continue
 
