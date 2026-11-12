@@ -50,7 +50,8 @@ WORKDIR /app
 # start_all.sh. Pour regenerer les verrous : voir GETTING_STARTED.md.
 COPY requirements.lock requirements-mcp.lock ./
 RUN python -m venv /opt/venv-api && \
-    /opt/venv-api/bin/pip install --no-cache-dir -r requirements.lock && \
+    /opt/venv-api/bin/pip install --no-cache-dir -r requirements.lock \
+        --extra-index-url https://download.pytorch.org/whl/cpu && \
     python -m venv /opt/venv-mcp && \
     /opt/venv-mcp/bin/pip install --no-cache-dir -r requirements-mcp.lock
 

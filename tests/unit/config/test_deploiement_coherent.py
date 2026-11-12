@@ -52,3 +52,15 @@ def test_start_all_sans_chemin_en_dur_ni_defaut_llm() -> None:
     assert "DEFAULT_LLM_MODEL" not in texte
     assert "SEARXNG_SETTINGS_PATH" in texte
     assert "WEBTOOLS_API_PYTHON" in texte and "WEBTOOLS_MCP_PYTHON" in texte
+
+
+def test_verrou_api_sans_roues_cuda() -> None:
+    lignes = (RACINE / "requirements.lock").read_text(encoding="utf-8").splitlines()
+    paquets = [ligne.split("==")[0] for ligne in lignes if re.match(r"^[A-Za-z0-9]", ligne)]
+    assert not [p for p in paquets if p.startswith(("nvidia-", "cuda-")) or p == "triton"]
+    assert any(re.match(r"^torch==\S+\+cpu$", ligne) for ligne in lignes)
+
+
+def test_dockerfile_installe_torch_depuis_l_index_cpu() -> None:
+    texte = (RACINE / "docker" / "Dockerfile").read_text(encoding="utf-8")
+    assert "--extra-index-url https://download.pytorch.org/whl/cpu" in texte
