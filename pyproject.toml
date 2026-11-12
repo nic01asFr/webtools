@@ -93,4 +93,5 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "live: test exigeant le reseau ou un LLM reel, exclu par defaut de make check",
+    "telechargement_image: test qui exerce le telechargement d'image de la vision (transport simule)",
 ]

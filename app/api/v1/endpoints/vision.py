@@ -2,15 +2,18 @@
 Endpoint d'analyse d'images par le modele de vision configure (settings).
 """
 
+import base64
 import logging
 import time
+
+import httpx
 from fastapi import APIRouter, HTTPException, status
 
 from app.api.models import VisionRequest, VisionResponse
 from app.core.config import settings
 from app.core.llm import get_llm_client
 from app.core.llm.base import LLMClientError, LLMEmptyContentError, LLMTimeoutError
-from app.utils.url_safety import assert_safe_url_async, UnsafeURLError
+from app.utils.url_safety import UnsafeURLError, assert_safe_url_async, safe_request_hooks
 
 logger = logging.getLogger(__name__)
 
@@ -25,6 +28,58 @@ MSG_LLM_EMPTY = "Le modele a rendu une analyse vide"
 MSG_LLM_TIMEOUT = "Le modele n'a pas repondu a temps"
 MSG_LLM_ERROR = "Erreur du modele de langage"
 MSG_INTERNAL = "Erreur interne lors de l'analyse d'image"
+
+
+MAX_IMAGE_BYTES = 10 * 1024 * 1024
+IMAGE_FETCH_TIMEOUT = 15.0
+# Identifiant de navigateur : des hebergeurs (Wikimedia entre autres) refusent
+# en 403 les clients sans User-Agent reconnu.
+IMAGE_USER_AGENT = (
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) "
+    "Chrome/124.0 Safari/537.36 WebtoolsBot/1.0"
+)
+_IMAGE_TRANSPORT: httpx.AsyncBaseTransport | None = None  # tests
+
+
+async def fetch_image_as_data_url(url: str) -> str | None:
+    """
+    Telecharge l'image et la rend en data URL base64, ou None en cas d'echec.
+
+    Sans ce telechargement, c'est le proxy LLM qui va chercher l'image : observe
+    en production, upload.wikimedia.org lui repondait 403 et l'analyse
+    echouait en 502 alors que l'image est publique. Telechargee ici, sous la
+    garde SSRF (chaque redirection revalidee), avec une taille plafonnee.
+    """
+    try:
+        async with httpx.AsyncClient(
+            follow_redirects=True,
+            timeout=IMAGE_FETCH_TIMEOUT,
+            headers={"User-Agent": IMAGE_USER_AGENT, "Accept": "image/*"},
+            event_hooks=safe_request_hooks(),
+            transport=_IMAGE_TRANSPORT,
+        ) as client:
+            async with client.stream("GET", url) as response:
+                if response.status_code >= 400:
+                    logger.warning("Image %s : HTTP %s", url, response.status_code)
+                    return None
+                content_type = response.headers.get("content-type", "").split(";")[0].strip().lower()
+                if not content_type.startswith("image/"):
+                    logger.warning("Image %s : type %r refuse", url, content_type)
+                    return None
+                chunks: list[bytes] = []
+                size = 0
+                async for chunk in response.aiter_bytes():
+                    size += len(chunk)
+                    if size > MAX_IMAGE_BYTES:
+                        logger.warning("Image %s : plus de %d octets, refusee", url, MAX_IMAGE_BYTES)
+                        return None
+                    chunks.append(chunk)
+    except UnsafeURLError:
+        raise
+    except Exception as exc:  # noqa: BLE001 - repli sur l'URL, cause journalisee
+        logger.warning("Telechargement de l'image %s impossible : %s", url, exc)
+        return None
+    return f"data:{content_type};base64,{base64.b64encode(b''.join(chunks)).decode('ascii')}"
 
 
 @router.get("/vision/health")
@@ -81,8 +136,16 @@ async def analyze_image(request: VisionRequest):
     if not llm_client.supports_vision:
         raise HTTPException(status.HTTP_501_NOT_IMPLEMENTED, detail=MSG_NO_VISION)
 
+    # Image telechargee par ce service ; en cas d'echec, l'URL est transmise
+    # telle quelle et le fournisseur tente lui-meme (comportement anterieur).
     try:
-        logger.info("Analyzing image: %s", image_url)
+        image_payload = await fetch_image_as_data_url(image_url) or image_url
+    except UnsafeURLError as e:
+        logger.warning("Redirection de l'image refusee (SSRF) pour %s: %s", image_url, e)
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, detail=MSG_UNSAFE_URL)
+
+    try:
+        logger.info("Analyzing image: %s (%s)", image_url, "telechargee" if image_payload != image_url else "URL directe")
 
         # Timeout court specifique a la vision : une analyse d'image reussie
         # prend <10s dans tous les cas observes. Le timeout global de 90s
@@ -95,7 +158,7 @@ async def analyze_image(request: VisionRequest):
         # d'attente pour un resultat qui ne changera jamais.
         analysis = await llm_client.generate_with_vision(
             text=request.prompt,
-            image_url=image_url,
+            image_url=image_payload,
             system_prompt=request.system_prompt,
             temperature=request.temperature,
             max_tokens=request.max_tokens,
