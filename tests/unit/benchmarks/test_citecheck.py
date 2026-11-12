@@ -74,6 +74,12 @@ def test_quote_found_typographie_et_coupure() -> None:
     assert quote_found("L'interdiction s'applique depuis le 19 decembre 2018 a toutes les cultures en serre", page)
 
 
+def test_quote_found_exposant_decoupe() -> None:
+    # Cas reel de l'etalonnage : <sup>14</sup>C devient "14\nC" dans la page.
+    page = "14\nC is unstable, with half-life 5700 ± 30 years, decaying into nitrogen-14"
+    assert quote_found("14C is unstable, with half-life 5700 ± 30 years", page)
+
+
 def test_quote_found_refuse_une_invention() -> None:
     page = "L'interdiction s'applique depuis 2018 a toutes les cultures en plein champ."
     assert not quote_found("L'interdiction est entree en vigueur en 2013 pour les serres et vergers", page)

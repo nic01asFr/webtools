@@ -108,6 +108,7 @@ def _judge_transport(calls: list[str]) -> httpx.MockTransport:
 
     def handler(request: httpx.Request) -> httpx.Response:
         body = json.loads(request.content)
+        assert body["chat_template_kwargs"] == {"enable_thinking": False}
         user = body["messages"][1]["content"]
         calls.append(user)
         claim = user.split("AFFIRMATION : ")[1].split("\n")[0]
@@ -152,7 +153,7 @@ async def test_generer_puis_evaluer(tmp_path: Path) -> None:
 
     judge_calls: list[str] = []
     eval_args = argparse.Namespace(sortie=str(out), juge="juge-test", plongements="aucun",
-                                   concurrence=2, sans_pipeline=False)
+                                   concurrence=2, sans_pipeline=False, raisonnement=False)
     assert await cli.cmd_evaluate(eval_args, env, llm_transport=_judge_transport(judge_calls),
                                   page_transport=_page_transport()) == 0
     summary = json.loads((out / "evaluation-juge-test" / "resume.json").read_text(encoding="utf-8"))
@@ -210,7 +211,8 @@ async def test_etalonner(tmp_path: Path) -> None:
         {"id": "c1", "texte": page, "affirmation": "Interdit en plein champ depuis 2018.", "attendu": "soutenue"},
         {"id": "c2", "texte": page, "affirmation": "Interdit en plein champ depuis 2013.", "attendu": "contredite"},
     ]) + "\n", encoding="utf-8")
-    args = argparse.Namespace(cas=str(cases), juge="j", sortie=str(tmp_path), plongements="aucun", concurrence=2)
+    args = argparse.Namespace(cas=str(cases), juge="j", sortie=str(tmp_path), plongements="aucun", concurrence=2,
+                              raisonnement=False)
     code = await cli.cmd_calibrate(args, {"CITECHECK_LLM_API_KEY": "k"}, llm_transport=_judge_transport([]))
     metrics = json.loads((tmp_path / "etalonnage-j.json").read_text(encoding="utf-8"))
     assert metrics["accord_binaire"] == 1.0 and metrics["fausses_acceptations"]["n"] == 0

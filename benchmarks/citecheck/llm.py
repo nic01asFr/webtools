@@ -76,9 +76,12 @@ class Endpoint:
         transport: httpx.AsyncBaseTransport | None = None,
         timeout_s: float = 300.0,
         attempts: int = 3,
+        chat_extra: dict[str, Any] | None = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.attempts = attempts
+        # Champs ajoutes a chaque /chat/completions (ex. desactiver le raisonnement).
+        self.chat_extra = dict(chat_extra or {})
         self.client = httpx.AsyncClient(
             headers={"Authorization": f"Bearer {api_key}"},
             timeout=timeout_s,
@@ -113,6 +116,7 @@ class Endpoint:
         """Rend (objet JSON, texte brut). Un JSON invalide est redemande."""
         body: dict[str, Any] = {
             "model": model, "messages": messages, "temperature": 0, "max_tokens": max_tokens,
+            **self.chat_extra,
         }
         if schema is not None:
             body["response_format"] = {

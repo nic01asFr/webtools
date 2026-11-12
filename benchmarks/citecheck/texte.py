@@ -138,11 +138,15 @@ def quote_found(quote: str, text: str, min_coverage: float = 0.8) -> bool:
     quote_tokens = tokens(quote)
     if not quote_tokens:
         return False
-    if " ".join(quote_tokens) in " ".join(tokens(text)):
+    text_tokens = tokens(text)
+    if " ".join(quote_tokens) in " ".join(text_tokens):
+        return True
+    # Sans espaces : un exposant ou un indice HTML (<sup>14</sup>C) est
+    # rendu "14 C" dans le texte de la page et "14C" par le juge.
+    if len(quote_tokens) >= 4 and "".join(quote_tokens) in "".join(text_tokens):
         return True
     if len(quote_tokens) < 6:
         return False
-    text_tokens = tokens(text)
     text_grams = {tuple(text_tokens[i:i + 3]) for i in range(len(text_tokens) - 2)}
     quote_grams = [tuple(quote_tokens[i:i + 3]) for i in range(len(quote_tokens) - 2)]
     hits = sum(1 for g in quote_grams if g in text_grams)

@@ -39,6 +39,10 @@ from citecheck.triplets import parse_answer, pipeline_texts
 
 DEFAULT_LLM_BASE_URL = "https://llm.lab.sspcloud.fr/api"
 DEFAULT_EMBED_MODEL = "qwen3-embedding-8b"
+# Raisonnement du juge coupe par defaut : sur le proxy SSPCloud, un modele
+# qwen3 raisonne avant de repondre et epuise max_tokens sans rendre de verdict
+# (mesure le 12/11/2026). Un modele sans raisonnement ignore ce champ.
+NO_REASONING = {"chat_template_kwargs": {"enable_thinking": False}}
 # Seuils d'acceptation du juge, fixes avant toute mesure.
 MAX_FALSE_ACCEPT = 0.05
 MIN_BINARY_AGREEMENT = 0.90
@@ -197,9 +201,19 @@ def citation_key(task_id: str, claim: str, url: str | None) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:20]
 
 
-def judge_endpoint(env: Mapping[str, str], transport: httpx.AsyncBaseTransport | None = None) -> Endpoint:
+def judge_endpoint(
+    env: Mapping[str, str],
+    transport: httpx.AsyncBaseTransport | None = None,
+    reasoning: bool = False,
+) -> Endpoint:
     return Endpoint(env.get("CITECHECK_LLM_BASE_URL") or DEFAULT_LLM_BASE_URL,
-                    _env(env, "CITECHECK_LLM_API_KEY"), transport=transport)
+                    _env(env, "CITECHECK_LLM_API_KEY"), transport=transport,
+                    chat_extra=None if reasoning else NO_REASONING)
+
+
+def judge_label(model: str, reasoning: bool) -> str:
+    """Nom du juge dans les sorties : modele, et mode de raisonnement s'il est actif."""
+    return f"{model}-raisonnement" if reasoning else model
 
 
 def collect(raw_records: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], dict[str, Any]]:
@@ -271,14 +285,14 @@ async def cmd_evaluate(
     if not raw_records:
         raise ConfigError(f"aucune reponse dans {out / 'raw'} : lancer generer d'abord")
     items, tasks = collect(raw_records)
-    eval_dir = out / f"evaluation-{args.juge}"
+    eval_dir = out / f"evaluation-{judge_label(args.juge, args.raisonnement)}"
     eval_dir.mkdir(parents=True, exist_ok=True)
     results_path = eval_dir / "citations.jsonl"
     done = {r["key"]: r for r in read_jsonl(results_path)}
     pending = [i for i in items if i["key"] not in done]
     print(f"{len(items)} citation(s) distincte(s), {len(pending)} a juger, juge {args.juge}")
 
-    endpoint = judge_endpoint(env, llm_transport)
+    endpoint = judge_endpoint(env, llm_transport, args.raisonnement)
     embedder = None if args.plongements == "aucun" else embedder_for(endpoint, args.plongements)
     judge = Judge(endpoint, args.juge, embedder)
     semaphore = asyncio.Semaphore(args.concurrence)
@@ -301,7 +315,7 @@ async def cmd_evaluate(
 
     keys = {i["key"] for i in items}
     records = [r for k, r in done.items() if k in keys]
-    report = build_summary(records, tasks, args.juge)
+    report = build_summary(records, tasks, judge_label(args.juge, args.raisonnement))
     write_json(eval_dir / "resume.json", report)
     (eval_dir / "RAPPORT.md").write_text(render_report(report, records, out), encoding="utf-8")
     print(f"Resultats : {eval_dir}")
@@ -444,7 +458,7 @@ async def cmd_calibrate(
     llm_transport: httpx.AsyncBaseTransport | None = None,
 ) -> int:
     cases = load_cases(Path(args.cas))
-    endpoint = judge_endpoint(env, llm_transport)
+    endpoint = judge_endpoint(env, llm_transport, args.raisonnement)
     embedder = None if args.plongements == "aucun" else embedder_for(endpoint, args.plongements)
     judge = Judge(endpoint, args.juge, embedder)
     semaphore = asyncio.Semaphore(args.concurrence)
@@ -463,11 +477,12 @@ async def cmd_calibrate(
     rows = await asyncio.gather(*(run(c) for c in cases))
     await endpoint.close()
     metrics = calibration_metrics(list(rows))
-    metrics["juge"] = args.juge
+    label = judge_label(args.juge, args.raisonnement)
+    metrics["juge"] = label
     metrics["duree_mediane_s"] = sorted(r["duree_s"] for r in rows)[len(rows) // 2] if rows else None
     out = Path(args.sortie)
-    write_json(out / f"etalonnage-{args.juge}.json", metrics)
-    (out / f"etalonnage-{args.juge}.jsonl").write_text(
+    write_json(out / f"etalonnage-{label}.json", metrics)
+    (out / f"etalonnage-{label}.jsonl").write_text(
         "\n".join(json.dumps(r, ensure_ascii=False) for r in rows) + "\n", encoding="utf-8"
     )
     print(json.dumps({k: v for k, v in metrics.items() if k != "confusion"}, ensure_ascii=False, indent=2))
@@ -566,6 +581,7 @@ def build_parser() -> argparse.ArgumentParser:
     e.add_argument("--plongements", default=DEFAULT_EMBED_MODEL)
     e.add_argument("--concurrence", type=int, default=4)
     e.add_argument("--sans-pipeline", action="store_true")
+    e.add_argument("--raisonnement", action="store_true", help="laisser le juge raisonner (coupe par defaut)")
 
     c = sub.add_parser("etalonner")
     c.add_argument("--cas", required=True)
@@ -573,6 +589,7 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--sortie", required=True)
     c.add_argument("--plongements", default=DEFAULT_EMBED_MODEL)
     c.add_argument("--concurrence", type=int, default=4)
+    c.add_argument("--raisonnement", action="store_true", help="laisser le juge raisonner (coupe par defaut)")
 
     a = sub.add_parser("auditer")
     a.add_argument("--evaluation", required=True)
