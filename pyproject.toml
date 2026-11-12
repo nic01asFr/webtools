@@ -18,10 +18,12 @@ dependencies = [
     "browser-use==0.1.41",
     "playwright>=1.40.0",
 
-    # LLM Support
-    "langchain-openai>=0.3.11",
-    "langchain-anthropic>=0.3.0",
-    "langchain-core>=0.3.0",
+    # LLM Support. Les pins langchain-* et la borne pydantic<2.11 sont ceux
+    # que browser-use==0.1.41 impose (verifie par ses metadonnees) : ils ne
+    # sont pas un choix, et les relever casse la resolution.
+    "langchain-openai==0.3.11",
+    "langchain-anthropic==0.3.3",
+    "langchain-core==0.3.49",
     "openai>=1.68.2",
     "anthropic>=0.19.0",
 
@@ -30,18 +32,18 @@ dependencies = [
     # ou l'extraction directe plante sur le chemin nominal)
     "trafilatura>=2.0.0",
 
-    # Serveur MCP (mcp_server.py)
-    "fastmcp>=3.0.0",
-    "mcp>=1.0.0",
-    "starlette>=0.37.0",
+    # Extraction PDF (pdf_extractor.py) : sans eux tout PDF est rendu comme
+    # "probablement scanne" (C58)
+    "pdfplumber>=0.11.0",
+    "pypdf>=4.0.0",
 
     # HTTP Clients (aiohttp et requests retires : jamais importes dans le
     # code actif, le service utilise exclusivement httpx - dependances
     # mortes qui n'ajoutaient qu'une surface d'attaque theorique inutile)
-    "httpx>=0.27.2",
+    "httpx[http2]>=0.27.2",  # http2=True dans le client Albert (h2)
 
     # Data Validation
-    "pydantic>=2.10.4",
+    "pydantic>=2.10.4,<2.11",  # borne imposee par browser-use==0.1.41
     "pydantic-settings==2.3.4",
 
     # Utilities
@@ -52,6 +54,15 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+# Serveur MCP (mcp_server.py). Environnement distinct de l'API : les mcp
+# recents (via fastmcp>=3) exigent pydantic>=2.12, incompatible avec
+# browser-use==0.1.41. Ne jamais installer cet extra avec les dependances
+# principales ni avec "dev" : ".[mcp]" seul, dans son propre venv.
+mcp = [
+    "fastmcp>=3.0.0",
+    "mcp>=1.0.0",
+    "starlette>=0.37.0",
+]
 dev = [
     "pytest>=7.4.0",
     "pytest-asyncio>=0.21.0",
@@ -75,3 +86,6 @@ src = ["app"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+markers = [
+    "live: test exigeant le reseau ou un LLM reel, exclu par defaut de make check",
+]
