@@ -5,6 +5,7 @@ from typing import Any
 
 from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrchestrator
 from app.research.pipeline_config import PipelineConfig
+from app.research.stages.enrich import iterative_enrichment
 
 from tests.fakes import FakeExtractorManager, FakeLLM, FakeSearch, make_result
 
@@ -52,7 +53,7 @@ async def _enrichi(provided: bool) -> tuple[dict[str, Any], ExecutionContext]:
         "section_regeneree",
         {"content": f"Fait ancien [SOURCE:{URL_OLD}] et fait nouveau [SOURCE:{URL_NEW}]."},
     )
-    report = await orch._iterative_enrichment("requete", ctx, _report(), max_iterations=1)
+    report = await iterative_enrichment(orch.services(), "requete", ctx, _report(), max_iterations=1)
     assert URL_NEW in ctx.discovered_sources
     provided_urls = ctx.discovered_sources if provided else ()
     report = orch._convert_sources_to_bibliography(
