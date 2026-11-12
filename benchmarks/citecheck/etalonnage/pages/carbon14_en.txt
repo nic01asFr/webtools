@@ -1,0 +1,1945 @@
+Carbon-14 - Wikipedia
+Jump to content
+Main menu
+Main menu
+move to sidebar
+hide
+Navigation
+Main page
+Contents
+Current events
+Random article
+About Wikipedia
+Contact us
+Contribute
+Help
+Learn to edit
+Community portal
+Recent changes
+Upload file
+Special pages
+Search
+Search
+Appearance
+Donate
+Create account
+Log in
+Personal tools
+Donate
+Create account
+Log in
+Contents
+move to sidebar
+hide
+(Top)
+1
+Radioactive decay and detection
+2
+Radiocarbon dating
+3
+Origin
+Toggle Origin subsection
+3.1
+Natural production in the atmosphere
+3.2
+Other carbon-14 sources
+3.3
+Formation during nuclear tests
+3.4
+Emissions from nuclear power plants
+4
+Occurrence
+Toggle Occurrence subsection
+4.1
+Dispersion in the environment
+4.2
+Total inventory
+4.3
+In fossil fuels
+4.4
+In the human body
+5
+See also
+6
+References
+7
+Further reading
+Toggle the table of contents
+Carbon-14
+52 languages
+Afrikaans
+العربية
+Asturianu
+Беларуская
+Български
+বাংলা
+Català
+کوردی
+Čeština
+Dansk
+Ελληνικά
+Esperanto
+Español
+Eesti
+Euskara
+فارسی
+Français
+Gaeilge
+Galego
+עברית
+हिन्दी
+Hrvatski
+Interlingua
+Bahasa Indonesia
+Italiano
+日本語
+Qaraqalpaqsha
+한국어
+Македонски
+Bahasa Melayu
+Nederlands
+Occitan
+Polski
+Português
+Română
+Русский
+Simple English
+Slovenščina
+Shqip
+Српски / srpski
+Sunda
+Kiswahili
+தமிழ்
+తెలుగు
+ไทย
+Türkçe
+Українська
+Tiếng Việt
+West-Vlams
+文言
+粵語
+中文
+Edit links
+Article
+Talk
+English
+Read
+Edit
+View history
+Save
+Tools
+Tools
+move to sidebar
+hide
+Actions
+Read
+Edit
+View history
+Save
+General
+What links here
+Related changes
+Upload file
+Permanent link
+Page information
+Cite this page
+Get shortened URL
+Switch to legacy parser
+Print/export
+Download as PDF
+Printable version
+In other projects
+Wikimedia Commons
+Wikidata item
+Appearance
+move to sidebar
+hide
+From Wikipedia, the free encyclopedia
+Radiosotope of carbon
+"Radiocarbon" redirects here. For the scientific journal, see
+Radiocarbon (journal)
+. For the dating technique, see
+Radiocarbon dating
+.
+Carbon-14
+General
+Symbol
+14
+C
+Names
+carbon-14,
+radiocarbon
+Protons
+(
+Z
+)
+6
+Neutrons
+(
+N
+)
+8
+Nuclide data
+Natural abundance
+1.2
+ppt
+(
+1.2
+×
+10
+−12
+)
+Half-life
+(
+t
+1/2
+)
+5700
+±
+30
+years
+[
+1
+]
+Isotope mass
+14.0032420
+[
+2
+]
+Da
+Spin
+0+
+Decay modes
+Decay mode
+Decay energy
+(
+MeV
+)
+Beta
+0.1565
+[
+3
+]
+Isotopes of carbon
+Complete table of nuclides
+Carbon-14
+,
+C-14
+,
+14
+C
+or
+radiocarbon
+, is a
+radioactive isotope
+of
+carbon
+with an
+atomic nucleus
+containing 6
+protons
+and 8
+neutrons
+. Carbon-14 was discovered on February 27, 1940, by
+Martin Kamen
+and
+Sam Ruben
+at the
+University of California Radiation Laboratory
+in
+Berkeley, California
+. Its existence had been suggested by
+Franz Kurie
+in 1934. Its presence in organic matter is the basis of the
+radiocarbon dating
+method pioneered by
+Willard Libby
+and colleagues (1949) to date archaeological, geological and hydrogeological samples.
+[
+4
+]
+There are three naturally occurring
+isotopes
+of carbon on Earth:
+carbon-12
+(
+12
+C), which makes up 99% of all carbon on Earth;
+carbon-13
+(
+13
+C), which makes up 1%; and carbon-14 (
+14
+C), which occurs in trace amounts, making up about 1.2
+[
+5
+]
+atoms per 10
+12
+atoms of carbon in the atmosphere.
+12
+C and
+13
+C are both stable;
+14
+C is unstable, with
+half-life
+5700
+±
+30
+years, decaying into
+nitrogen-14
+(
+14
+N
+) through
+beta decay
+.
+[
+6
+]
+Pure carbon-14 would have a molar activity of 62.4
+mCi/mmol (2.31
+GBq/mmol), or specific activity of 164.9
+GBq/g.
+[
+7
+]
+The primary natural source of carbon-14 on Earth is
+cosmic ray
+action on nitrogen in the atmosphere, and it is therefore a
+cosmogenic nuclide
+. Open-air
+nuclear testing
+between 1955 and 1980 contributed to this pool, however.
+The different isotopes of carbon do not differ appreciably in their chemical properties. This resemblance is used in chemical and biological research, in a technique called
+carbon labeling
+: carbon-14 atoms can be used to replace nonradioactive carbon, in order to trace chemical and biochemical reactions involving carbon atoms from any given organic compound.
+Radioactive decay and detection
+[
+edit
+]
+Carbon-14 undergoes
+beta decay
+:
+14
+6
+C
+→
+14
+7
+N
++
+e
+−
++
+ν
+e
++ 0.1565 MeV
+By emitting an
+electron
+and an
+electron antineutrino
+, one of the neutrons in carbon-14 decays to a proton and the carbon-14 (
+half-life
+of
+5700
+±
+30
+years
+[
+1
+]
+) decays into the stable (non-radioactive) isotope
+nitrogen-14
+.
+As usual with beta decay, almost all the decay energy is carried away by the beta particle and the neutrino. The emitted beta particles have a maximum energy of about 156 keV, while their weighted mean energy is 49
+keV.
+[
+8
+]
+These are relatively low energies; the maximum distance traveled is estimated to be 22
+cm in air and 0.27
+mm in body tissue. The fraction of the radiation transmitted through the
+dead skin layer
+is estimated to be 0.11. Small amounts of carbon-14 are not easily detected by typical
+Geiger–Müller (G-M) detectors
+; it is estimated that G-M detectors will not normally detect contamination of less than about 100,000 decays per minute (0.05
+μCi).
+Liquid scintillation counting
+is the preferred method
+[
+9
+]
+although more recently, accelerator mass spectrometry has become the method of choice; it counts all the carbon-14 atoms in the sample and not just the few that happen to decay during the measurements; it can therefore be used with much smaller samples (as small as individual plant seeds), and gives results much more quickly. The G-M counting efficiency is estimated to be 3%. The half-value layer in water is 0.05
+mm.
+[
+10
+]
+Radiocarbon dating
+[
+edit
+]
+Main article:
+Radiocarbon dating
+Radiocarbon dating is a
+radiometric dating
+method that uses
+14
+C to determine the age of
+carbonaceous
+materials up to about 50,000 years old (although some methods can date material up to 75,000 years old). The technique was developed by
+Willard Libby
+and his colleagues in 1949
+[
+11
+]
+during his tenure as a professor at the
+University of Chicago
+. Libby estimated that the radioactivity of exchangeable
+14
+C would be about 14 decays per minute (dpm) per gram of carbon, and this is still used as the activity of the
+modern radiocarbon standard
+.
+[
+12
+]
+[
+13
+]
+In 1960, Libby was awarded the
+Nobel Prize in chemistry
+for this work.
+[
+14
+]
+One of the frequent uses of the technique is to date organic remains from archaeological sites. Plants
+fix
+atmospheric carbon during photosynthesis, so the level of
+14
+C in plants and animals when they die, roughly equals the level of
+14
+C in the atmosphere at that time. However, it thereafter decreases exponentially, so the date of death or fixation can be estimated. The initial
+14
+C level for the calculation can either be estimated, or else directly compared with known year-by-year data from tree-ring data (
+dendrochronology
+) up to 10,000 years ago (using overlapping data from live and dead trees in a given area), or else from cave deposits (
+speleothems
+), back to about 45,000 years before present. A calculation or (more accurately) a direct comparison of carbon-14 levels in a sample, with tree ring or cave-deposit
+14
+C levels of a known age, then gives the wood or animal sample age-since-formation. Radiocarbon is also used to detect disturbance in natural ecosystems; for example, in
+peatland
+landscapes, radiocarbon can indicate that carbon which was previously stored in organic soils is being released due to land clearance or climate change.
+[
+15
+]
+[
+16
+]
+Cosmogenic nuclides are also used as
+proxy
+data to characterize cosmic particle and solar activity of the distant past.
+[
+17
+]
+[
+18
+]
+Origin
+[
+edit
+]
+Natural production in the atmosphere
+[
+edit
+]
+1: Formation of carbon-14
+2: Decay of carbon-14
+3: The "equal" equation is for living organisms, and the unequal one is for dead organisms, in which the C-14 then decays (See 2).
+Carbon-14 is produced in the upper
+troposphere
+and the
+stratosphere
+by
+thermal neutrons
+absorbed by
+nitrogen
+atoms. When
+cosmic rays
+enter the atmosphere, they undergo various transformations, including the production of
+neutrons
+. The resulting neutrons (n) participate in the following
+n-p
+reaction (p is
+proton
+):
+14
+7
+N
++ n →
+14
+6
+C
++ p + 0.626 MeV
+The highest rate of carbon-14 production takes place at altitudes of
+9 to 15 kilometres (30,000 to 49,000
+ft)
+and at high
+geomagnetic latitudes
+.
+The rate of
+14
+C production can be modeled, yielding values of 16,400
+[
+19
+]
+or 18,800
+[
+20
+]
+atoms of
+14
+C
+per second per square meter of Earth's surface, which agrees with the global
+carbon budget
+that can be used to backtrack,
+[
+21
+]
+but attempts to measure the production time directly
+in situ
+were not very successful. Production rates vary because of changes to the cosmic ray flux caused by the heliospheric modulation (solar wind and solar magnetic field), and, of great significance, due to variations in the
+Earth's magnetic field
+. Changes in the
+carbon cycle
+however can make such effects difficult to isolate and quantify.
+[
+21
+]
+[
+22
+]
+Occasional spikes may occur, known as
+Miyake events
+; for example, there is evidence for
+an unusually high production rate in AD 774–775
+,
+[
+23
+]
+caused by an extreme
+solar energetic particle event, the strongest such event to have occurred within the last ten millennia.
+[
+24
+]
+[
+25
+]
+Another "extraordinarily large"
+14
+C increase (2%) has been associated with a 5480
+BC event, which is unlikely to be a solar energetic particle event.
+[
+26
+]
+The largest known Miyake event took place ca. 12350 BCE.
+[
+27
+]
+Carbon-14 may also be produced by lightning
+[
+28
+]
+[
+29
+]
+but in amounts negligible, globally, compared to cosmic ray production. Local effects of cloud-ground discharge through sample residues are unclear, but possibly significant.
+Other carbon-14 sources
+[
+edit
+]
+Carbon-14 can also be produced by other neutron reactions, including in particular
+13
+C
+(n,γ)
+14
+C and
+17
+O
+(n,α)
+14
+C with
+thermal neutrons
+, and
+15
+N
+(n,d)
+14
+C and
+16
+O
+(n,
+3
+He)
+14
+C with
+fast neutrons
+.
+[
+30
+]
+The most notable routes for
+14
+C production by thermal neutron irradiation of targets (e.g., in a nuclear reactor) are summarized in the table.
+Another source of carbon-14 is
+cluster decay
+branches from traces of naturally occurring
+isotopes of radium
+, though this decay mode has a
+branching ratio
+on the order of
+10
+−8
+relative to
+alpha decay
+, so
+radiogenic
+carbon-14 is extremely rare.
+14
+C production routes
+[
+31
+]
+Parent isotope
+Natural abundance,
+%
+Cross section for thermal neutron capture
+,
+b
+Reaction
+14
+N
+99.634
+1.81
+14
+N(n,p)
+14
+C
+13
+C
+1.103
+0.0009
+13
+C(n,γ)
+14
+C
+17
+O
+0.0383
+0.235
+17
+O(n,α)
+14
+C
+Formation during nuclear tests
+[
+edit
+]
+Atmospheric
+14
+C,
+New Zealand
+[
+32
+]
+and
+Austria
+.
+[
+33
+]
+The New Zealand curve is representative for the Southern Hemisphere, the Austrian curve is representative for the Northern Hemisphere. Atmospheric nuclear tests almost doubled the
+14
+C concentration of the Northern Hemisphere.
+[
+34
+]
+PTBT =
+Partial Nuclear Test Ban Treaty
+.
+The above-ground
+nuclear tests
+that occurred in several countries in 1955-1980 (see
+List of nuclear tests
+) dramatically increased the amount of
+14
+C in the atmosphere and subsequently the biosphere; after the tests ended, the atmospheric concentration of the isotope began to decrease, as radioactive CO
+2
+was fixed into plant and animal tissue, and dissolved in the oceans.
+One side-effect of the change in atmospheric
+14
+C is that this has enabled some options (e.g.
+bomb-pulse dating
+[
+35
+]
+) for determining the birth year of an individual, in particular, the amount of
+14
+C in
+tooth enamel
+,
+[
+36
+]
+[
+37
+]
+or the carbon-14 concentration in the lens of the eye.
+[
+38
+]
+In 2019,
+Scientific American
+reported that carbon-14 from nuclear testing has been found in animals from one of the most inaccessible regions on Earth, the
+Mariana Trench
+in the Pacific Ocean.
+[
+39
+]
+The concentration of
+14
+C in atmospheric CO
+2
+, reported as the
+14
+C/
+12
+C ratio with respect to a standard, has (since about 2022) declined to levels similar to those prior to the above-ground nuclear tests of the 1950s and 1960s.
+[
+40
+]
+[
+41
+]
+Though the extra
+14
+C generated by those nuclear tests has not disappeared from the atmosphere, oceans and biosphere,
+[
+42
+]
+it is diluted due to the
+Suess effect
+.
+Emissions from nuclear power plants
+[
+edit
+]
+Carbon-14 is produced in coolant at
+boiling water reactors
+(BWRs) and
+pressurized water reactors
+(PWRs). It is typically released into the air in the form of
+carbon dioxide
+at BWRs, and
+methane
+at PWRs.
+[
+43
+]
+Best practice for nuclear power plant operator management of carbon-14 includes releasing it at night, when plants are not
+photosynthesizing
+.
+[
+44
+]
+Carbon-14 is also generated inside nuclear fuels (some due to transmutation of oxygen in the
+uranium oxide
+, but most significantly from transmutation of nitrogen-14 impurities), and if the spent fuel is sent to
+nuclear reprocessing
+then the
+14
+C is released, for example as CO
+2
+during
+PUREX
+.
+[
+45
+]
+[
+46
+]
+Occurrence
+[
+edit
+]
+Dispersion in the environment
+[
+edit
+]
+After production in the upper atmosphere, the carbon-14 reacts rapidly to form mostly (about 93%)
+14
+CO (
+carbon monoxide
+), which subsequently oxidizes at a slower rate to form
+14
+CO
+2
+, radioactive
+carbon dioxide
+. The gas mixes rapidly and becomes evenly distributed throughout the atmosphere (the mixing timescale on the order of weeks). Carbon dioxide also dissolves in water and thus permeates the
+oceans
+, but at a slower rate.
+[
+22
+]
+The atmospheric half-life for removal of
+14
+CO
+2
+has been estimated at roughly 12 to 16 years in the Northern Hemisphere. The transfer between the ocean shallow layer and the large reservoir of
+bicarbonates
+in the ocean depths occurs at a limited rate.
+[
+31
+]
+In 2009 the activity of
+14
+C
+was 238
+Bq per kg carbon of fresh terrestrial biomatter, close to the values before atmospheric nuclear testing (226 Bq/kg C; 1950).
+[
+47
+]
+Total inventory
+[
+edit
+]
+The inventory of carbon-14 in Earth's biosphere is about 300
+megacuries
+(11
+E
+Bq
+), of which most is in the oceans.
+[
+48
+]
+The following inventory of carbon-14 has been given:
+[
+49
+]
+Global inventory: ~8500
+PBq (about 50
+t
+)
+Atmosphere: 140
+PBq (840
+kg)
+Terrestrial materials: the balance
+From nuclear testing (until 1990): 220
+PBq (1.3
+t)
+In fossil fuels
+[
+edit
+]
+Main article:
+Suess effect
+Many human-made chemicals are derived from
+fossil fuels
+(such as
+petroleum
+or
+coal
+) in which
+14
+C is greatly depleted because the age of fossils far exceeds the half-life of
+14
+C. The relative absence of
+14
+CO
+2
+is therefore used to determine the relative contribution (or
+mixing ratio
+) of fossil fuel oxidation to the total
+carbon dioxide
+in a given region of Earth's
+atmosphere
+.
+[
+50
+]
+Dating a specific sample of fossilized carbonaceous material is more complicated. Such deposits often contain trace amounts of
+14
+C. These amounts can vary significantly between samples, ranging up to 1% of the ratio found in living organisms (an apparent age of about 40,000 years).
+[
+51
+]
+This may indicate contamination by small amounts of bacteria, underground sources of radiation causing a
+14
+N(n,p)
+14
+C reaction, direct
+uranium
+decay (though reported measured ratios of
+14
+C/U in uranium-bearing ores
+[
+52
+]
+would imply roughly 1 uranium atom for every two carbon atoms in order to cause the
+14
+C/
+12
+C ratio, measured to be on the order of 10
+−15
+), or other unknown secondary sources of
+14
+C production. The presence of
+14
+C in the
+isotopic signature
+of a sample of carbonaceous material possibly indicates its contamination by biogenic sources or the decay of radioactive material in surrounding geologic strata. In connection with building the
+Borexino
+solar neutrino observatory, petroleum feedstock (for synthesizing the primary scintillant) was obtained with low
+14
+C content. In the Borexino Counting Test Facility, a
+14
+C/
+12
+C ratio of 1.94×10
+−18
+was determined;
+[
+53
+]
+probable reactions responsible for varied levels of
+14
+C in different
+petroleum reservoirs
+, and the lower
+14
+C levels in methane, have been discussed by Bonvicini et al.
+[
+54
+]
+In the human body
+[
+edit
+]
+Since many
+sources of human food
+are ultimately derived from terrestrial plants, the relative concentration of
+14
+C in
+human
+bodies is nearly identical to the relative concentration in the atmosphere. The rates of disintegration of
+potassium-40
+(
+40
+K) and
+14
+C in the normal adult body are comparable (a few thousand decays per second).
+[
+55
+]
+Because of the different decay energies, though, K-40 gives about 0.17
+mSv/year and C-14 0.012
+mSv/year internal dose.
+[
+56
+]
+14
+C can be used as a
+radioactive tracer
+in medicine. In the initial variant of the
+urea breath test
+, a diagnostic test for
+Helicobacter pylori
+, urea labeled with about
+37
+kBq
+(1.0
+μCi
+)
+14
+C is fed to a patient (i.e. 37,000 decays per second). In the event of a
+H. pylori
+infection, the bacterial
+urease
+enzyme breaks down the
+urea
+into
+ammonia
+and radioactively-labeled
+carbon dioxide
+, which can be detected by low-level counting of the patient's breath.
+[
+57
+]
+See also
+[
+edit
+]
+Carbon-to-nitrogen ratio
+Diamond battery
+Isotopes of carbon
+Isotopic labeling
+Radiocarbon dating
+References
+[
+edit
+]
+1
+2
+Kondev, F. G.; Wang, M.; Huang, W. J.; Naimi, S.; Audi, G. (2021).
+"The NUBASE2020 evaluation of nuclear properties"
+(PDF)
+.
+Chinese Physics C
+.
+45
+(3) 030001.
+doi
+:
+10.1088/1674-1137/abddae
+.
+↑
+Wang, Meng; Huang, W.J.; Kondev, F.G.; Audi, G.; Naimi, S. (2021). "The AME 2020 atomic mass evaluation (II). Tables, graphs and references*".
+Chinese Physics C
+.
+45
+(3) 030003.
+doi
+:
+10.1088/1674-1137/abddaf
+.
+↑
+National Nuclear Data Center
+.
+"NuDat 3.0 database"
+.
+Brookhaven National Laboratory
+.
+↑
+Kamen MD (May 1963). "Early History of Carbon-14: Discovery of this supremely important tracer was expected in the physical sense but not in the chemical sense".
+Science
+.
+140
+(3567):
+584–
+590.
+Bibcode
+:
+1963Sci...140..584K
+.
+doi
+:
+10.1126/science.140.3567.584
+.
+PMID
+17737092
+.
+↑
+Activity at 1 ppt: (10
+-12
+*
+Avogadro number
+/ 12.011) / ((5,700 years) × (31,557,600 seconds per
+Julian year
+) /
+ln(2)
+) = 0.1932 Bq/g; concentration calculated from that and measured activities.
+↑
+Kondev, F.G.; Wang, M.; Huang, W.J.; Naimi, S.; Audi, G. (2021-03-01).
+"The NUBASE2020 evaluation of nuclear physics properties *"
+.
+Chinese Physics C
+.
+45
+(3): 030001.
+Bibcode
+:
+2021ChPhC..45c0001K
+.
+doi
+:
+10.1088/1674-1137/abddae
+.
+ISSN
+1674-1137
+.
+↑
+Babin V, Taran F, Audisio D (June 2022).
+"Late-Stage Carbon-14 Labeling and Isotope Exchange: Emerging Opportunities and Future Challenges"
+.
+JACS Au
+.
+2
+(6):
+1234–
+1251.
+doi
+:
+10.1021/jacsau.2c00030
+.
+PMC
+9241029
+.
+PMID
+35783167
+.
+↑
+Nicols AL.
+"14C Comments on evaluation of decay data"
+(PDF)
+.
+www.nucleide.org
+. LNHB. Archived from
+the original
+(PDF)
+on 2011-08-15
+. Retrieved
+30 October
+2021
+.
+↑
+"Appendix B: The Characteristics of Common Radioisotopes"
+.
+Radiation Safety Manual for Laboratory Users
+. Princeton University. Archived from
+the original
+on 2013-10-02.
+↑
+"Carbon-14"
+.
+Material Safety Data Sheet
+. University of Michigan. Archived from
+the original
+on 2013-03-12.
+↑
+Arnold JR, Libby WF (December 1949). "Age determinations by radiocarbon content; checks with samples of known age".
+Science
+.
+110
+(2869):
+678–
+680.
+Bibcode
+:
+1949Sci...110..678A
+.
+doi
+:
+10.1126/science.110.2869.678
+.
+PMID
+15407879
+.
+↑
+"Carbon 14:age calculation"
+. C14dating.com.
+Archived
+from the original on 2007-06-10
+. Retrieved
+2007-06-11
+.
+↑
+"Class notes for Isotope Hydrology EESC W 4886: Radiocarbon
+14
+C"
+. Martin Stute's homepage at Columbia.
+Archived
+from the original on 2006-09-24
+. Retrieved
+2007-06-11
+.
+↑
+"The natural clocks that can pinpoint someone's time of death"
+.
+www.bbc.com
+. Oct 2, 2025.
+↑
+Moore S, Evans CD, Page SE, Garnett MH, Jones TG, Freeman C, et
+al. (January 2013).
+"Deep instability of deforested tropical peatlands revealed by fluvial organic carbon fluxes"
+(PDF)
+.
+Nature
+.
+493
+(7434):
+660–
+663.
+Bibcode
+:
+2013Natur.493..660M
+.
+doi
+:
+10.1038/nature11818
+.
+PMID
+23364745
+.
+S2CID
+205232299
+.
+↑
+Dean JF, Garnett MH, Spyrakos E, Billett MF (2019).
+"The Potential Hidden Age of Dissolved Organic Carbon Exported by Peatland Streams"
+.
+Journal of Geophysical Research: Biogeosciences
+.
+124
+(2):
+328–
+341.
+Bibcode
+:
+2019JGRG..124..328D
+.
+doi
+:
+10.1029/2018JG004650
+.
+hdl
+:
+1893/28684
+.
+ISSN
+2169-8953
+.
+↑
+Reimer PJ, Austin WE, Bard E, Bayliss A, Blackwell PG, Ramsey CB, et
+al. (August 2020).
+"The INTCAL20 Northern Hemisphere Radiocarbon Age Calibration Curve (0–55 CAL kBP)"
+.
+Radiocarbon
+.
+62
+(4):
+725–
+757.
+Bibcode
+:
+2020Radcb..62..725R
+.
+doi
+:
+10.1017/RDC.2020.41
+.
+hdl
+:
+11585/770531
+.
+↑
+Brehm N, Bayliss A, Christl M, Synal HA, Adolphi F, Beer J, et
+al. (2021).
+"Eleven-year solar cycles over the last millennium revealed by radiocarbon in tree rings"
+.
+Nature Geoscience
+.
+14
+(1):
+10–
+15.
+Bibcode
+:
+2021NatGe..14...10B
+.
+doi
+:
+10.1038/s41561-020-00674-0
+.
+S2CID
+230508539
+.
+↑
+Kovaltsov GA, Mishev A, Usoskin IG (2012). "A new model of cosmogenic production of radiocarbon 14C in the atmosphere".
+Earth and Planetary Science Letters
+.
+337–
+338:
+114–
+20.
+arXiv
+:
+1206.6974
+.
+Bibcode
+:
+2012E
+&
+PSL.337..114K
+.
+doi
+:
+10.1016/j.epsl.2012.05.036
+.
+ISSN
+0012-821X
+.
+S2CID
+118602346
+.
+↑
+Poluianov SV, Kovaltsov GA, Mishev AL, Usoskin IG (2016). "Production of cosmogenic isotopes 7Be, 10Be, 14C, 22Na, and 36Cl in the atmosphere: Altitudinal profiles of yield functions".
+Journal of Geophysical Research: Atmospheres
+.
+121
+(13):
+8125–
+36.
+arXiv
+:
+1606.05899
+.
+Bibcode
+:
+2016JGRD..121.8125P
+.
+doi
+:
+10.1002/2016JD025034
+.
+S2CID
+119301845
+.
+1
+2
+Hain MP, Sigman DM, Haug GH (2014).
+"Distinct roles of the Southern Ocean and North Atlantic in the deglacial atmospheric radiocarbon decline"
+(PDF)
+.
+Earth and Planetary Science Letters
+.
+394
+:
+198–
+208.
+Bibcode
+:
+2014E
+&
+PSL.394..198H
+.
+doi
+:
+10.1016/j.epsl.2014.03.020
+.
+ISSN
+0012-821X
+.
+Archived
+(PDF)
+from the original on 2015-12-22.
+1
+2
+Ramsey, C. Bronk (2008). "Radiocarbon Dating: Revolutions in Understanding".
+Archaeometry
+.
+50
+(2):
+249–
+75.
+Bibcode
+:
+2008Archa..50..249B
+.
+doi
+:
+10.1111/j.1475-4754.2008.00394.x
+.
+↑
+Miyake F, Nagaya K, Masuda K, Nakamura T (June 2012).
+"A signature of cosmic-ray increase in AD 774-775 from tree rings in Japan"
+(PDF)
+.
+Nature
+.
+486
+(7402):
+240–
+242.
+Bibcode
+:
+2012Natur.486..240M
+.
+doi
+:
+10.1038/nature11123
+.
+PMID
+22699615
+.
+S2CID
+4368820
+. Archived from
+the original
+(PDF)
+on 2015-07-06.
+↑
+Usoskin IG, Kromer B, Ludlow F, Beer J, Friedrich M, Kovaltsov GA, et
+al. (2013).
+"The AD775 cosmic event revisited: the Sun is to blame"
+.
+Astron. Astrophys
+.
+552
+: L3.
+arXiv
+:
+1302.6897
+.
+Bibcode
+:
+2013A
+&
+A...552L...3U
+.
+doi
+:
+10.1051/0004-6361/201321080
+.
+S2CID
+55137950
+.
+↑
+Mekhaldi F, Muscheler R, Adolphi F, Aldahan A, Beer J, McConnell JR, et
+al. (October 2015).
+"Multiradionuclide evidence for the solar origin of the cosmic-ray events of ᴀᴅ 774/5 and 993/4"
+.
+Nature Communications
+.
+6
+: 8611.
+Bibcode
+:
+2015NatCo...6.8611M
+.
+doi
+:
+10.1038/ncomms9611
+.
+PMC
+4639793
+.
+PMID
+26497389
+.
+↑
+Miyake F, Jull AJ, Panyushkina IP, Wacker L, Salzer M, Baisan CH, et
+al. (January 2017).
+"Large 14C excursion in 5480 BC indicates an abnormal sun in the mid-Holocene"
+.
+Proceedings of the National Academy of Sciences of the United States of America
+.
+114
+(5):
+881–
+884.
+Bibcode
+:
+2017PNAS..114..881M
+.
+doi
+:
+10.1073/pnas.1613144114
+.
+PMC
+5293056
+.
+PMID
+28100493
+.
+↑
+Bard E, Miramont C, Capano M, Guibal F, Marschal C, Rostek F, et
+al. (2023). "A radiocarbon spike at 14 300 cal yr BP in subfossil trees provides the impulse response function of the global carbon cycle during the Late Glacial".
+Philosophical Transactions of the Royal Society A
+.
+281
+(2261): id.20220206.
+Bibcode
+:
+2023RSPTA.38120206B
+.
+doi
+:
+10.1098/rsta.2022.0206
+.
+↑
+Libby LM, Lukens HR (1973). "Production of radiocarbon in tree rings by lightning bolts".
+Journal of Geophysical Research
+.
+78
+(26):
+5902–
+5903.
+Bibcode
+:
+1973JGR....78.5902L
+.
+doi
+:
+10.1029/JB078i026p05902
+.
+↑
+Enoto T, Wada Y, Furuta Y, Nakazawa K, Yuasa T, Okuda K, et
+al. (November 2017). "Photonuclear reactions triggered by lightning discharge".
+Nature
+.
+551
+(7681):
+481–
+484.
+arXiv
+:
+1711.08044
+.
+Bibcode
+:
+2017Natur.551..481E
+.
+doi
+:
+10.1038/nature24630
+.
+PMID
+29168803
+.
+S2CID
+4388159
+.
+↑
+Davis Jr W (January 1977).
+Carbon-14 production in nuclear reactors
+.
+U.S. Nuclear Regulatory Commission
+(Report). TN (USA): Oak Ridge National Lab.
+doi
+:
+10.2172/7114972
+.
+OSTI
+7114972
+.
+1
+2
+Yim MS, Caron F (2006). "Life cycle and management of carbon-14 from nuclear power generation".
+Progress in Nuclear Energy
+.
+48
+(1):
+2–
+36.
+Bibcode
+:
+2006PNuE...48....2Y
+.
+doi
+:
+10.1016/j.pnucene.2005.04.002
+.
+↑
+Manning MR, Melhuish WH (1994).
+"Atmospheric δ
+14
+C record from Wellington"
+.
+Trends: A Compendium of Data on Global Change
+. Carbon Dioxide Information Analysis Center. Archived from
+the original
+on 2014-02-01
+. Retrieved
+2007-06-11
+.
+↑
+Levin I, Kromer B, Schoch-Fischer H, Bruns M, Münnich M, Berdau D, Vogel JW, Münnich KO (1994).
+"δ
+14
+C record from Vermunt"
+.
+Trends: A Compendium of Data on Global Change. Carbon Dioxide Information Analysis Center
+. Archived from
+the original
+on 2008-09-23
+. Retrieved
+2009-03-25
+.
+↑
+"Radiocarbon dating"
+. University of Utrecht.
+Archived
+from the original on 2007-12-09
+. Retrieved
+2008-02-19
+.
+↑
+Stenstrom K, Georgiadou E (August 2010).
+"Bomb-Pulse Dating of Human Material: Modeling the Influence of Diet"
+.
+Radiocarbon
+.
+52
+(2):
+800–
+07.
+Bibcode
+:
+2010Radcb..52..800G
+.
+doi
+:
+10.1017/S0033822200045811
+.
+Archived
+from the original on 2014-10-20.
+↑
+"Radiation in Teeth Can Help Date, ID Bodies, Experts Say"
+.
+National Geographic News
+. 2005-09-22. Archived from
+the original
+on 2007-04-25.
+↑
+Spalding KL, Buchholz BA, Bergman LE, Druid H, Frisén J (September 2005). "Forensics: age written in teeth by nuclear tests".
+Nature
+.
+437
+(7057):
+333–
+334.
+Bibcode
+:
+2005Natur.437..333S
+.
+doi
+:
+10.1038/437333a
+.
+PMID
+16163340
+.
+S2CID
+4407447
+.
+↑
+Lynnerup N, Kjeldsen H, Heegaard S, Jacobsen C, Heinemeier J (January 2008). Gazit E (ed.).
+"Radiocarbon dating of the human eye lens crystallines reveal proteins without carbon turnover throughout life"
+.
+PLOS ONE
+.
+3
+(1) e1529.
+Bibcode
+:
+2008PLoSO...3.1529L
+.
+doi
+:
+10.1371/journal.pone.0001529
+.
+PMC
+2211393
+.
+PMID
+18231610
+.
+↑
+Levy A (15 May 2019).
+"
+'Bomb Carbon' Has Been Found in Deep-Ocean Creatures"
+.
+Scientific American
+.
+↑
+Jones, Nicola (27 July 2022).
+"Carbon dating hampered by rising fossil-fuel emissions"
+. Nature News
+. Retrieved
+5 November
+2023
+.
+↑
+Graven, H.; Keeling, R.; Xu, X. (19 July 2022).
+"Radiocarbon dating: going back in time"
+.
+Nature
+.
+607
+(7919): 449.
+Bibcode
+:
+2022Natur.607R.449G
+.
+doi
+:
+10.1038/d41586-022-01954-y
+.
+PMID
+35854150
+.
+↑
+Caldeira, K.; Rau, G.H.;
+Duffy, PB
+(1998).
+"Predicted net efflux of radio- carbon from the ocean and increase in atmospheric radiocarbon content"
+.
+Geophysical Research Letters
+.
+25
+(20):
+3811–
+3814.
+Bibcode
+:
+1998GeoRL..25.3811C
+.
+doi
+:
+10.1029/1998GL900010
+.
+↑
+"EPRI | Product Abstract | Impact of Nuclear Power Plant Operations on Carbon-14 Generation, Chemical Forms, and Release"
+.
+www.epri.com
+. Archived from
+the original
+on 2016-08-18
+. Retrieved
+2016-07-07
+.
+↑
+"EPRI | Product Abstract | Carbon-14 Dose Calculation Methods at Nuclear Power Plants"
+.
+www.epri.com
+. Archived from
+the original
+on 2016-08-18
+. Retrieved
+2016-07-07
+.
+↑
+Otlet RL, Fulker MJ, Walker AJ (1992). "Environmental Impact of Atmospheric Carbon-14 Emissions Resulting from the Nuclear Energy Cycle.". In Taylor RE, Long A, Kra RS (eds.).
+Radiocarbon After Four Decades
+. New York, NY: Springer.
+↑
+"Carbon-14 and the environment"
+. Institute for Radiological Protection and Nuclear Safety.
+↑
+"Carbon-14 and the environment"
+. Institute for Radiological Protection and Nuclear Safety.
+Archived
+from the original on 2015-04-18.
+↑
+"Human Health Fact Sheet – Carbon 14"
+(PDF)
+. Argonne National Laboratory, EVS. August 2005. Archived from
+the original
+(PDF)
+on 2011-07-16.
+↑
+Choppin GR,
+Liljenzin JO
+, Rydberg J (2002).
+Radiochemistry and Nuclear Chemistry
+(3rd
+ed.). Butterworth-Heinemann.
+ISBN
+978-0-7506-7463-8
+.
+↑
+"The Basics: 14C and Fossil Fuels"
+.
+NOAA ESRL GMD Education and Outreach
+. Archived from
+the original
+on 25 September 2015
+. Retrieved
+9 Dec
+2015
+.
+All other atmospheric carbon dioxide comes from young sources–namely land-use changes (for example, cutting down a forest in order to create a farm) and exchange with the ocean and terrestrial biosphere. This makes 14C an ideal tracer of carbon dioxide coming from the combustion of fossil fuels. Scientists can use 14C measurements to determine the age of carbon dioxide collected in air samples, and from this can calculate what proportion of the carbon dioxide in the sample comes from fossil fuels.
+↑
+Lowe D (1989).
+"Problems associated with the use of coal as a source of C14-free background material"
+.
+Radiocarbon
+.
+31
+(2):
+117–
+120.
+Bibcode
+:
+1989Radcb..31..117L
+.
+doi
+:
+10.1017/S0033822200044775
+.
+hdl
+:
+10150/653076
+.
+Archived
+from the original on 2013-07-24.
+↑
+Jull AJ, Barker D, Donahue DJ (1985). "Carbon-14 Abundances in Uranium Ores and Possible Spontaneous Exotic Emission from U-Series Nuclides".
+Meteoritics
+.
+20
+: 676.
+Bibcode
+:
+1985Metic..20..676J
+.
+↑
+Alimonti G, Angloher G, Arpesella C, Balata M, Bellini G, Benziger J, et
+al. (1998). "Measurement of the
+14
+C abundance in a low-background liquid scintillator".
+Physics Letters B
+.
+422
+(
+1–
+4):
+349–
+358.
+Bibcode
+:
+1998PhLB..422..349B
+.
+doi
+:
+10.1016/S0370-2693(97)01565-7
+.
+↑
+Bonvicini G, Harris N, Paolone V (2003). "The chemical history of
+14
+C in deep oilfields".
+arXiv
+:
+hep-ex/0308025
+.
+↑
+Rowland RE.
+"The Radioactivity of the Normal Adult Body"
+.
+rerowland.com
+. Archived from
+the original
+on 2011-02-05.
+↑
+United Nations Scientific Committee on the Effects of Atomic Radiation (2008).
+Sources and effects of ionizing radiation
+. New York: United Nations. p.
+4.
+ISBN
+978-92-1-142274-0
+. Retrieved
+9 November
+2012
+.
+{{
+cite book
+}}
+:
+More than one of
+|
+publication-date=
+and
+|
+date=
+specified (
+help
+)
+↑
+"Society of Nuclear Medicine Procedure Guideline for C-14 Urea Breath Test"
+(PDF)
+.
+snm.org
+. 2001-06-23. Archived from
+the original
+(PDF)
+on 2007-09-26
+. Retrieved
+2007-07-04
+.
+Further reading
+[
+edit
+]
+Kamen MD (1985).
+Radiant Science, Dark Politics: A Memoir of the Nuclear Age
+. Berkeley: University of California Press.
+ISBN
+978-0-520-04929-1
+.
+Lighter:
+carbon-13
+Carbon-14 is an
+isotope
+of
+carbon
+Heavier:
+carbon-15
+Decay product
+of:
+boron-14
+,
+nitrogen-18
+Decay chain
+of carbon-14
+Decays
+to:
+nitrogen-14
+Retrieved from "
+https://en.wikipedia.org/w/index.php?title=Carbon-14&oldid=1379184951
+"
+Categories
+:
+Isotopes of carbon
+Carbon-14
+Environmental isotopes
+Radionuclides used in radiometric dating
+Hidden categories:
+Articles with short description
+Short description is different from Wikidata
+Isotope content page
+CS1: long volume value
+CS1 errors: redundant parameter
+This page was last edited on 8 October 2026, at 12:02
+(UTC)
+.
+Page was rendered with
+Parsoid
+.
+Text is available under the
+Creative Commons Attribution-ShareAlike 4.0 License
+;
+additional terms may apply. By using this site, you agree to the
+Terms of Use
+and
+Privacy Policy
+. Wikipedia® is a registered trademark of the
+Wikimedia Foundation, Inc.
+, a non-profit organization.
+Privacy policy
+About Wikipedia
+Disclaimers
+Contact Wikipedia
+Legal & safety contacts
+Code of Conduct
+Developers
+Statistics
+Cookie statement
+Mobile view
+Search
+Search
+Toggle the table of contents
+Carbon-14
+52 languages
+Add topic

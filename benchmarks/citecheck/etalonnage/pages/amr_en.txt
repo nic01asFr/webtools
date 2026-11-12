@@ -1,0 +1,8765 @@
+Antimicrobial resistance - Wikipedia
+Jump to content
+Main menu
+Main menu
+move to sidebar
+hide
+Navigation
+Main page
+Contents
+Current events
+Random article
+About Wikipedia
+Contact us
+Contribute
+Help
+Learn to edit
+Community portal
+Recent changes
+Upload file
+Special pages
+Search
+Search
+Appearance
+Donate
+Create account
+Log in
+Personal tools
+Donate
+Create account
+Log in
+Contents
+move to sidebar
+hide
+(Top)
+1
+Definition
+2
+Overview
+3
+Causes
+Toggle Causes subsection
+3.1
+Natural occurrence
+3.2
+Self-medication
+3.3
+Clinical misuse
+3.4
+Pandemics, disinfectants and healthcare systems
+3.5
+Environmental pollution
+3.5.1
+Antibiotic pollution from pharmaceutical manufacturing
+3.6
+Food production
+3.6.1
+Livestock
+3.6.2
+Pesticides
+3.7
+Wild birds
+3.8
+Companion animals
+4
+Prevention
+5
+One Health approach
+Toggle One Health approach subsection
+5.1
+Duration of antimicrobials
+5.2
+Monitoring and mapping
+5.3
+Limiting antimicrobial use in humans
+5.3.1
+At the hospital level
+5.3.2
+At the primary care level
+5.3.3
+At the individual level
+5.3.4
+Countries
+5.4
+Water, sanitation, hygiene
+5.5
+Industrial wastewater treatment
+5.6
+Limiting antimicrobial use in animals and farming
+5.6.1
+Country examples
+5.6.1.1
+Europe
+5.6.1.2
+United States
+5.7
+Global action plans and awareness
+5.7.1
+Antibiotic Awareness Week
+5.8
+One Health approach
+5.8.1
+Integrated surveillance
+5.8.2
+Policy interventions
+5.8.3
+Environmental mitigation
+6
+Mechanisms and organisms
+Toggle Mechanisms and organisms subsection
+6.1
+Bacteria
+6.2
+Viruses
+6.3
+Fungi
+6.4
+Parasites
+6.5
+Global and genomic data
+7
+Epidemiology
+Toggle Epidemiology subsection
+7.1
+United Kingdom
+7.2
+United States
+7.3
+India
+8
+History
+9
+Society and culture
+Toggle Society and culture subsection
+9.1
+Policy
+9.2
+Legal frameworks
+9.2.1
+United States
+9.3
+Policies
+9.4
+Policy evaluation
+10
+Further research
+Toggle Further research subsection
+10.1
+Rapid testing and diagnostics
+10.2
+Vaccines
+10.3
+Alternating therapy
+10.4
+Development of new drugs
+10.5
+Biomaterials
+10.6
+Rediscovery of ancient treatments
+10.7
+Computational community surveillance
+10.8
+Phage therapy
+11
+Computational and data analytical methods
+12
+See also
+13
+References
+Toggle References subsection
+13.1
+Books
+13.2
+Journals
+14
+Further reading
+15
+External links
+Toggle the table of contents
+Antimicrobial resistance
+54 languages
+العربية
+الدارجة
+বাংলা
+Bosanski
+Català
+Čeština
+Dansk
+Deutsch
+Esperanto
+Español
+Eesti
+Euskara
+فارسی
+Suomi
+Français
+Gaeilge
+Galego
+עברית
+हिन्दी
+Magyar
+Հայերեն
+Արեւմտահայերէն
+Bahasa Indonesia
+Igbo
+Íslenska
+Italiano
+日本語
+ಕನ್ನಡ
+한국어
+Kurdî
+Македонски
+മലയാളം
+Монгол
+Bahasa Melayu
+Nederlands
+Polski
+پښتو
+Português
+Română
+Русский
+Srpskohrvatski / српскохрватски
+Simple English
+Slovenčina
+Slovenščina
+Српски / srpski
+Svenska
+ไทย
+Tagalog
+Türkçe
+Українська
+Oʻzbekcha / ўзбекча
+Tiếng Việt
+Walon
+中文
+Edit links
+Article
+Talk
+English
+Read
+Edit
+View history
+Save
+Tools
+Tools
+move to sidebar
+hide
+Actions
+Read
+Edit
+View history
+Save
+General
+What links here
+Related changes
+Upload file
+Permanent link
+Page information
+Cite this page
+Get shortened URL
+Switch to legacy parser
+Print/export
+Download as PDF
+Printable version
+In other projects
+Wikimedia Commons
+Wikiquote
+Wikidata item
+Appearance
+move to sidebar
+hide
+From Wikipedia, the free encyclopedia
+Resistance of microbes to drugs directed against them
+Antibiotic resistance tests
+: Bacteria are streaked on solid medium in
+Petri dishes
+and paper disks are laid on the surface, each impregnated with a different antibiotic. Clear rings, such as those on the left, show that bacteria have not grown around the disks, indicating that these bacteria are not resistant. The bacteria on the right are fully resistant to three of seven and partially resistant to two of seven antibiotics tested.
+[
+1
+]
+Antimicrobial resistance
+(
+AMR
+or
+AR
+) occurs when
+microbes
+evolve mechanisms that protect them from
+antimicrobials
+, which are drugs used to treat
+infections
+in humans, animals, and plants.
+[
+2
+]
+[
+3
+]
+Any microbe can develop resistance, including
+bacteria
+(
+antibiotic resistance
+),
+viruses
+(
+antiviral resistance
+),
+parasites
+(
+antiparasitic resistance
+), and
+fungi
+(
+antifungal resistance
+). Together, these adaptations fall under the AMR umbrella, posing a challenge to all countries and all demographics.
+[
+4
+]
+Misuse and improper management of antimicrobials are primary drivers of this resistance, though it can also occur naturally through genetic mutations and the spread of resistant genes.
+[
+5
+]
+Microbes resistant to multiple drugs are termed
+multidrug-resistant
+(MDR) and are sometimes called superbugs.
+[
+6
+]
+Antibiotic resistance is a serious result of AMR.
+[
+4
+]
+Resistance arises through spontaneous mutation,
+horizontal gene transfer
+, and increased selective pressure from
+antibiotic overuse
+, both in medicine and agriculture, which accelerates resistance development.
+[
+7
+]
+Preventive measures, such as using
+narrow-spectrum antibiotics
+and improving hygiene practices, aim to reduce the spread of resistance.
+[
+8
+]
+The
+World Health Organization
+(WHO) claims that AMR is one of the top global public health and development threats, estimating that bacterial AMR was directly responsible for 1.27
+million global deaths in 2019 and contributed to over 4 million deaths in 2021.
+[
+3
+]
+The burden of AMR is immense, with nearly 5 million annual deaths associated with resistant infections.
+[
+9
+]
+Infections from AMR microbes are more challenging to treat and often require costly alternative therapies that may have more severe side effects.
+[
+10
+]
+Moreover, the WHO and other international bodies warn that AMR could lead to up to 10 million deaths annually by 2050 unless actions are taken.
+[
+11
+]
+Global initiatives, such as calls for international AMR treaties, emphasize coordinated efforts to limit misuse, fund research, and provide access to necessary antimicrobials in developing nations. However, the
+COVID-19 pandemic
+redirected resources and scientific attention away from AMR, intensifying the challenge.
+[
+12
+]
+In 2026,
+Israeli
+scientists announced the discovery of bacteria able to create dozens of copies of genes which help them survive antibiotics.
+[
+13
+]
+Definition
+[
+edit
+]
+Diagram showing the difference between non-resistant bacteria and
+drug resistant
+bacteria. Non-resistant bacteria multiply, and upon drug treatment, the bacteria die. Drug resistant bacteria multiply as well, but upon drug treatment, the bacteria continue to spread.
+[
+14
+]
+Antimicrobial resistance means that a microorganism is
+resistant to an antimicrobial drug
+that was once able to treat an infection by that microorganism.
+[
+4
+]
+Resistance is a property of the microbe, not a person or other organism infected by a microbe.
+[
+15
+]
+All types of microbes can develop drug resistance. Thus, there are
+antibiotic
+,
+antifungal
+,
+antiviral
+and
+antiparasitic
+resistance.
+[
+5
+]
+[
+10
+]
+Antibiotic resistance is a subset of antimicrobial resistance. This more specific resistance is linked to bacteria and thus broken down into two further subsets, microbiological and clinical. Microbiological resistance is the most common and occurs from genes,
+mutated
+or inherited, that allow the bacteria to resist the mechanism to kill the microbe associated with certain antibiotics. Clinical resistance is shown through the failure of many therapeutic techniques where the bacteria that are normally susceptible to a treatment become resistant after surviving the outcome of the treatment. In both cases of acquired resistance, the bacteria can pass the genetic catalyst for resistance through horizontal gene transfer: conjugation,
+transduction
+, or
+transformation
+. This allows the resistance to spread across the same species of
+pathogen
+or even similar bacterial pathogens.
+[
+16
+]
+Overview
+[
+edit
+]
+WHO report released in April 2014 stated, "this serious threat is no longer a prediction for the future, it is happening right now in every region of the world and has the potential to affect anyone, of any age, in any country. Antibiotic resistance—when bacteria change so antibiotics no longer work in people who need them to treat infections—is now a major threat to public health."
+[
+17
+]
+In 2024, nearly 5
+million deaths were associated with AMR and deaths attributable to AMR numbered 1.27
+million. One in five people who died due to AMR were children under five years old.
+[
+9
+]
+[
+18
+]
+[
+2
+]
+In 2018, WHO considered antibiotic resistance to be one of the biggest threats to global health,
+food security
+and development.
+[
+19
+]
+Deaths attributable to AMR vary by area:
+Place
+Deaths per 100,000 attributable to AMR
+[
+18
+]
+North Africa and Middle East
+11.2
+Southeast and East Asia, and Oceania
+11.7
+Latin America and Caribbean
+14.4
+Central and Eastern Europe and Central Asia
+17.6
+South Asia
+21.5
+Sub-Saharan Africa
+23.7
+The
+European Centre for Disease Prevention and Control
+calculated that in 2015, there were 671,689 infections in the EU and
+European Economic Area
+caused by antibiotic-resistant bacteria, resulting in 33,110 deaths. Most were acquired in healthcare settings.
+[
+20
+]
+[
+21
+]
+In 2019 there were 133,000 deaths caused by AMR.
+[
+22
+]
+Causes
+[
+edit
+]
+AMR is driven largely by the
+misuse and overuse of antimicrobials
+.
+[
+9
+]
+They reproduce and spread quickly, and they also can adapt to their environment and change how well they can survive.
+[
+23
+]
+Yet, at the same time, many people do not have access to essential antimicrobials.
+[
+9
+]
+This leads to microbes either evolving a defense against drugs used to treat them, or certain strains of microbes that have a natural resistance to antimicrobials becoming much more prevalent than the ones that are easily defeated with medication.
+[
+24
+]
+Genetic changes can also occur, which would allow the microbe to survive. While antimicrobial resistance does occur naturally over time, the use of antimicrobial agents in a variety of settings both within the healthcare industry and outside of has led to antimicrobial resistance becoming increasingly more prevalent.
+[
+25
+]
+Although many microbes develop resistance to antibiotics over time through natural mutation, overprescribing and inappropriate prescription of antibiotics have accelerated the problem. During mutation, when replication happens, these mutations help individual microbes survive exposure.
+[
+23
+]
+It is possible that as many as 1 in 3 prescriptions written for antibiotics are unnecessary.
+[
+26
+]
+Every year, approximately 154 million prescriptions for antibiotics are written. Of these, up to 46
+million are unnecessary or inappropriate for the condition that the patient has.
+[
+26
+]
+Microbes may naturally develop resistance through genetic mutations that occur during cell division, and although random mutations are rare, many microbes reproduce frequently and rapidly, increasing the chances of members of the population acquiring a mutation that increases resistance.
+[
+27
+]
+In contrast to that, recent research suggests that, contrary to the traditional model of rapid genetic mutation, mycobacteria maintain high genomic stability under antibiotic pressure, relying instead on phenotypic tolerance and DNA-repair mechanisms for survival.
+[
+28
+]
+[
+29
+]
+Many individuals stop taking antibiotics when they begin to feel better. When this occurs, it is possible that the microbes that are less susceptible to treatment still remain in the body. If these microbes are able to continue to reproduce, this can lead to an infection by bacteria that are less susceptible or even resistant to an antibiotic.
+[
+27
+]
+Microbes may also get genes from each other, which makes them drug-resistant. Bacteria that have drug-resistant DNA often transfer a copy of these genes to the other bacteria. They can then multiply and thrive.
+[
+30
+]
+[
+31
+]
+This process, known as horizontal gene transfer, allows resistance genes to spread rapidly between different bacterial species through mechanisms such as conjugation, transformation, and transduction.
+[
+32
+]
+Bacteria become resistant to antibiotics by changing themselves or acquiring resistance genes from other bacteria. Over the past 20 years, antimicrobial resistance (AMR) has grown, making common infections like respiratory infections, urinary tract infections, STDs, and tuberculosis harder to treat. New antibiotics are not being developed fast enough and may lead to a "post-antibiotic era" where some infections are untreatable.
+[
+33
+]
+AMR makes infections more difficult and costly to treat. Proper antibiotic use—correct drug, dose, and duration—and strict hospital hygiene are essential. Combating AMR requires cooperation among governments, healthcare workers, researchers, pharmaceutical companies, farmers, and the public through responsible antibiotic use, monitoring resistance, limiting antibiotics in animals, and improving access to medicines, vaccines, and tests.
+[
+33
+]
+Prevention is the most effective strategy. Along with careful antibiotic use, there is a need for new drugs, alternative treatments, better diagnostics, and vaccines. Without coordinated global action, vital medical procedures like surgery, organ transplants, neonatal care, and cancer treatment could be at risk.
+[
+33
+]
+Natural occurrence
+[
+edit
+]
+A CDC infographic on how antibiotic resistance (a major type of antimicrobial resistance) happens and spreads
+AMR is a naturally occurring process.
+[
+2
+]
+Antimicrobial resistance can evolve naturally due to continued exposure to antimicrobials.
+Natural selection
+means that organisms that are able to adapt to their environment, survive, and continue to produce offspring.
+[
+34
+]
+As a result, the types of microorganisms that are able to survive over time with continued attack by certain antimicrobial agents will naturally become more prevalent in the environment, and those without this resistance will become obsolete.
+[
+25
+]
+Some contemporary antimicrobial resistances have also evolved naturally before the use of antimicrobials of human clinical uses. For instance,
+methicillin
+-resistance evolved as a pathogen of
+hedgehogs
+, possibly as a
+co-evolutionary
+adaptation of the pathogen to hedgehogs that are infected by a
+dermatophyte
+that naturally produces antibiotics.
+[
+35
+]
+Also, many
+soil fungi and bacteria
+are natural competitors and the original antibiotic
+penicillin
+discovered by
+Alexander Fleming
+rapidly lost clinical effectiveness in treating humans and, furthermore, none of the other natural penicillins (F, K, N, X, O, U1 or U6) are currently in clinical use.
+[
+36
+]
+Antimicrobial resistance can be acquired from other microbes through swapping genes in a process termed
+horizontal gene transfer
+. This means that once a gene for resistance to an antibiotic appears in a microbial community, it can then spread to other microbes, potentially moving from a non-disease causing microbe to a disease-causing microbe. This process is heavily driven by the
+natural selection
+processes that happen during antibiotic use or misuse.
+[
+37
+]
+Over time, most of the strains of bacteria and infections present will be the type resistant to the antimicrobial agent being used to treat them, making this agent now ineffective to defeat most microbes. With the increased use of antimicrobial agents, there is a speeding up of this natural process.
+[
+38
+]
+Self-medication
+[
+edit
+]
+In the vast majority of countries, antibiotics can only be prescribed by a doctor and supplied by a pharmacy.
+[
+39
+]
+Self-medication
+by consumers is defined as "the taking of medicines on one's own initiative or on another person's suggestion, who is not a certified medical professional", and it has been identified as one of the primary reasons for the evolution of antimicrobial resistance.
+[
+40
+]
+Self-medication with antibiotics is an unsuitable way of using them but a common practice in resource-constrained countries. The practice exposes individuals to the risk of bacteria that have developed antimicrobial resistance.
+[
+41
+]
+Many people resort to this out of necessity, when access to a physician is unavailable, or when patients have a limited amount of time or money to see a doctor.
+[
+42
+]
+This increased access makes it extremely easy to obtain antimicrobials. An example is India, where in the state of
+Punjab
+73% of the population resorted to treating their minor health issues and chronic illnesses through self-medication.
+[
+40
+]
+Self-medication is higher outside the hospital environment. The prevalence of self-medication in
+low- and middle-income countries
+(LMICs) ranges from 8.1% to 93%. Accessibility, affordability, and conditions of health facilities, as well as the health-seeking behavior, are factors that influence self-medication in low- and middle-income countries.
+[
+41
+]
+Two issues with self-medication are the lack of knowledge of the public on the dangerous effects of certain antimicrobials (for example
+ciprofloxacin
+which can cause
+tendonitis
+,
+tendon rupture
+and
+aortic dissection
+)
+[
+43
+]
+[
+44
+]
+and broad microbial resistance and when to seek medical care if the infection is not clearing. To determine the public's knowledge and preconceived notions on antibiotic resistance, a screening of 3,537 articles published in Europe, Asia, and North America was done. Of the 55,225 total people surveyed in the articles, 70% had heard of antibiotic resistance previously, but 88% of those people thought it referred to some type of physical change in the human body.
+[
+40
+]
+Clinical misuse
+[
+edit
+]
+See also:
+Antibiotic misuse
+Clinical misuse by healthcare professionals is another contributor to increased antimicrobial resistance. Studies done in the US show that the indication for treatment of antibiotics, choice of the agent used, and the duration of therapy was incorrect in up to 50% of the cases studied.
+[
+45
+]
+In 2010 and 2011 about a third of antibiotic prescriptions in
+outpatient settings
+in the United States were not necessary.
+[
+46
+]
+Another study in an intensive care unit in a major hospital in France has shown that 30% to 60% of prescribed antibiotics were unnecessary.
+[
+45
+]
+These inappropriate uses of antimicrobial agents promote the evolution of antimicrobial resistance by supporting the bacteria in developing genetic alterations that lead to resistance.
+[
+47
+]
+According to research conducted in the US that aimed to evaluate physicians' attitudes and knowledge on antimicrobial resistance in ambulatory settings, only 63% of those surveyed reported antibiotic resistance as a problem in their local practices, while 23% reported the aggressive prescription of antibiotics as necessary to avoid failing to provide adequate care.
+[
+48
+]
+This demonstrates that many doctors underestimate the impact that their own prescribing habits have on antimicrobial resistance as a whole. It also confirms that some physicians may be overly cautious and prescribe antibiotics for both medical or legal reasons, even when clinical indications for use of these medications are not always confirmed. This can lead to unnecessary antimicrobial use, a pattern which may have worsened during the
+COVID-19 pandemic
+.
+[
+49
+]
+[
+50
+]
+Studies have shown that common misconceptions about the effectiveness and necessity of antibiotics to treat common mild illnesses contribute to their overuse.
+[
+51
+]
+[
+52
+]
+Important to the conversation of antibiotic use is the
+veterinary medical system
+. Veterinary oversight is required by law for all medically important antibiotics.
+[
+53
+]
+Veterinarians use the
+Pharmacokinetic
+/pharmacodynamic model (PK/PD) approach to ensuring that the correct dose of the drug is delivered to the correct place at the correct timing.
+[
+54
+]
+Pandemics, disinfectants and healthcare systems
+[
+edit
+]
+Increased antibiotic use during the early waves of the
+COVID-19 pandemic
+may exacerbate this
+global health challenge
+.
+[
+55
+]
+[
+56
+]
+Moreover, pandemic burdens on some healthcare systems may contribute to antibiotic-resistant infections.
+[
+57
+]
+The use of
+disinfectants
+such as alcohol-based hand sanitizers, and antiseptic hand wash may also have the potential to increase antimicrobial resistance.
+[
+58
+]
+Overuse of disinfectants can lead to mutations that induce antimicrobial resistance.
+[
+59
+]
+On the other hand, "increased hand hygiene, decreased international travel, and decreased elective hospital procedures may have reduced AMR pathogen selection and spread in the short term" during the COVID-19 pandemic.
+[
+60
+]
+Critically ill patients are prone to infections, and because of that, they often require antimicrobials. The more antimicrobials, the more resistance one becomes to it.
+[
+61
+]
+Antimicrobial resistance (AMR) significantly strains healthcare systems and national economies. The World Bank estimates that by 2050, AMR could increase healthcare costs by around US$1 trillion and cause global economic losses of US$1–3.4 trillion annually by 2030. Resistant infections are harder to treat, often requiring longer hospital stays, additional tests, and stronger, more expensive medications, placing extra pressure on hospitals and health systems, especially during pandemics.
+[
+61
+]
+A 2024
+United Nations
+High-Level Meeting on AMR has pledged to reduce deaths associated with bacterial AMR by 10% over the next six years.
+[
+9
+]
+[
+62
+]
+In their first major declaration on the issue since 2016, global leaders also committed to raising $100
+million to update and implement AMR action plans.
+[
+63
+]
+However, the final draft of the declaration omitted an earlier target to reduce antibiotic use in animals by 30% by 2030, due to opposition from meat-producing countries and the farming industry. Critics argue this omission is a major weakness, as livestock accounts for around 73% of global sales of antimicrobial agents, including
+antibiotics
+,
+antivirals
+, and
+antiparasitics
+.
+[
+64
+]
+[
+65
+]
+Environmental pollution
+[
+edit
+]
+Considering the complex interactions between humans, animals and the environment, it is also important to consider the
+environmental aspects
+and contributors to antimicrobial resistance.
+[
+66
+]
+One of these factors is human and hospital waste, which is a substantial contributor to environmental antimicrobial resistance (AMR). It is estimated that around 50–80% of antibiotics are passed unmetabolized in urine and 4–30% in feces, causing large quantities of active antibiotics to enter sewage systems.
+[
+67
+]
+Sewage environments contain high levels of antimicrobial-resistant bacteria (ARB), antimicrobial resistance genes (ARGs), and mobile genetic elements such as plasmids, which enable rapid gene exchange. Wastewater treatment plants (WWTPs) are typically not designed to remove AMR; in some cases, multidrug-resistant species such as
+Escherichia,
+Shigella
+, and
+Klebsiella
+can increase twofold in treated wastewater.
+[
+67
+]
+Methicillin-resistant
+Staphylococcus aureus
+(MRSA) has also been detected in both raw and treated sewage.
+[
+67
+]
+Antibiotic pollution from pharmaceutical manufacturing
+[
+edit
+]
+Pharmaceutical manufacturing is another source of antibiotic contamination in the environment. Wastewater produced during antibiotic manufacturing can contain antibiotic residues that enter nearby rivers, lakes, and soil when waste is inadequately treated or discharged. These residues may create conditions that favor the selection of antibiotic-resistant bacteria. Manufacturing sites with high antibiotic concentrations can therefore contribute to the environmental selection and spread of antimicrobial resistance.
+[
+68
+]
+The presence of antibiotic residues in aquatic environments is a concern because bacteria and antibiotic resistance genes can circulate through interconnected environmental systems. Contaminated water and soil may provide pathways through which resistant bacteria and resistance genes spread, although the extent to which manufacturing-related pollution contributes to human infections remains difficult to quantify.
+[
+69
+]
+In September 2024, the World Health Organization published guidance on wastewater and solid waste management for antibiotic manufacturing. The guidance establishes a scientific basis for discharge targets intended to limit antibiotic pollution and reduce the risk of resistance development. It also recommends risk management practices, environmental monitoring, independent auditing, and greater transparency. These measures are intended to reduce pollution while maintaining access to essential antibiotics.
+[
+70
+]
+Agriculture is also a major contributor to environmental AMR. Manure from livestock (such as cattle, sheep, etc.) contains residual antibiotics, which enter the soil as farmers usually use it as fertilizer. These are typically at levels of 1–10
+mg/kg, and also contain ARBs and ARGs.
+[
+67
+]
+One megaton of antibiotics has been estimated to have entered global soils through manure application.
+[
+67
+]
+Pathogens can survive in soil for up to 10 years and on plant surfaces for up to 1 year, thereby enabling long-term environmental continuation of AMR.
+[
+67
+]
+Because manure can be applied to diverse crops, residual antibiotics and resistance genes can enter plant tissues and the surrounding soil microbiota, contributing to AMR detected on fruits and vegetables.
+Heavy metals in soil, often introduced through fertilizers or industrial processes, can drive cross- and co-resistance mechanisms that select for antibiotic-resistant bacteria even when no antibiotics are present.
+[
+67
+]
+Similar selective results happen with biocides and pesticides.
+Aquaculture is an underrecognized source of environmental AMR. Approximately 70% of antibiotics administered in aquaculture enter surrounding waterways, and tetracycline-resistant genes have been found even in isolated environments such as
+Antarctica
+and the
+Arctic
+.
+[
+67
+]
+Antibiotic usage varies substantially across countries, showing the major differences in regulatory oversight. High antibiotic use in many Asian aquaculture systems has added to the elevated levels of clinically important resistance genes in sediments and river systems.
+[
+67
+]
+Recent research has shown that AMR also occurs through the air. Airborne resistance genes have been detected at high levels in major urban centers, and farms have been determined as hotspots for airborne AMR, with resistance markers detected in the air surrounding animal operations.
+[
+67
+]
+Food production
+[
+edit
+]
+Livestock
+[
+edit
+]
+Main article:
+Antibiotic use in livestock §
+Antibiotic resistance
+A CDC infographic on how antibiotic resistance spreads through farm animals
+The antimicrobial resistance crisis also extends to the food industry, specifically with food producing animals. With an ever-increasing human population, there is constant pressure to intensify productivity in many agricultural sectors, including the production of meat as a source of protein.
+[
+71
+]
+Antibiotics are fed to livestock to act as growth supplements, and a preventive measure to decrease the likelihood of infections.
+[
+72
+]
+Farmers typically use antibiotics in animal feed to improve growth rates and prevent infections. However, this is illogical as antibiotics are used to treat infections and not prevent infections. 80% of antibiotic use in the U.S. is for agricultural purposes and about 70% of these are medically important.
+[
+73
+]
+Overusing antibiotics gives the bacteria time to adapt leaving higher doses or even stronger antibiotics needed to combat the infection. Though antibiotics for growth promotion were banned throughout the EU in 2006, 40 countries still use antibiotics to promote growth.
+[
+74
+]
+This can result in the transfer of resistant bacterial strains into the food that humans eat, causing potentially fatal transfer of disease. While the practice of using antibiotics as growth promoters does result in better yields and
+meat
+products, it is a major issue and needs to be decreased to prevent antimicrobial resistance.
+[
+75
+]
+Though the evidence linking antimicrobial usage in livestock to antimicrobial resistance is limited, the World Health Organization Advisory Group on Integrated Surveillance of Antimicrobial Resistance strongly recommended the reduction of use of medically important antimicrobials in livestock. Additionally, the Advisory Group stated that such antimicrobials should be expressly prohibited for both growth promotion and disease prevention in food producing animals.
+[
+76
+]
+By mapping antimicrobial consumption in livestock, it was predicted that in 228 countries there would be a total 67% increase in consumption of antibiotics by livestock by 2030. In some countries such as Brazil, Russia, India, China, and South Africa it is predicted that a 99% increase will occur.
+[
+38
+]
+Several countries have restricted the use of antibiotics in livestock, including Canada, China, Japan, and the US. These restrictions are sometimes associated with a reduction of the
+prevalence
+of antimicrobial resistance in humans.
+[
+76
+]
+In the United States the
+Veterinary Feed Directive
+went into practice in 2017 dictating that
+All medically important antibiotics to be used in feed or water for food animal species require a veterinary feed directive (VFD) or a prescription.
+[
+77
+]
+Pesticides
+[
+edit
+]
+Main article:
+Pesticide resistance
+Most
+pesticides
+protect crops against insects and plants, but in some cases antimicrobial pesticides are used to protect against various microorganisms such as bacteria, viruses, fungi, algae, and protozoa. The overuse of many pesticides in an effort to have a higher yield of crops has resulted in many of these microbes evolving a tolerance against these antimicrobial agents. Currently there are over 4000 antimicrobial pesticides registered with the US
+Environmental Protection Agency
+(EPA) and sold to market, showing the widespread use of these agents.
+[
+78
+]
+It is estimated that for every single meal a person consumes, 0.3
+g of pesticides is used, as 90% of all pesticide use is in agriculture. A majority of these products are used to help defend against the spread of infectious diseases, and hopefully protect public health. But out of the large amount of pesticides used, it is also estimated that less than 0.1% of those antimicrobial agents, actually reach their targets. That leaves over 99% of all pesticides used available to contaminate other resources.
+[
+79
+]
+In soil, air, and water these antimicrobial agents are able to spread, coming in contact with more microorganisms and leading to these microbes evolving mechanisms to tolerate and further resist pesticides. The use of antifungal
+azole
+pesticides that drive environmental azole resistance have been linked to azole resistance cases in the clinical setting.
+[
+80
+]
+The same issues confront the novel antifungal classes (e.g.
+orotomides
+) which are again being used in both the clinic and agriculture.
+[
+81
+]
+Wild birds
+[
+edit
+]
+Wildlife, including wild and
+migratory birds
+, serve as indicators of ecosystem health. They act as a reservoir for zoonotic diseases and antimicrobial-resistant organisms. Birds are a key link between the transmission of zoonotic diseases to human populations. By the same token, increased contact between wild birds and human populations (including domesticated animals), has increased the amount of anti-microbial resistance (AMR) to the bird population.
+[
+7
+]
+The introduction of AMR to wild birds positively correlates with human pollution and increased human contact. Additionally, wild birds can participate in
+horizontal gene transfer
+with bacteria, leading to the transmission of antibiotic-resistant genes (ARG).
+[
+34
+]
+For simplicity, wild bird populations can be divided into two major categories, wild sedentary birds and wild migrating birds. Wild sedentary bird exposure to AMR is through increased contact with densely populated areas, human waste, domestic animals, and domestic animal/livestock waste. Especially if they are predators, wild, sedentary birds can come into contact with prey that interact more closely with humans. Wild migrating birds interact with sedentary birds in different environments along their migration route. This increases the rate and diversity of AMR across varying ecosystems.
+[
+7
+]
+Neglect of wildlife in the global discussions surrounding
+health security
+and AMR, creates large barriers to true AMR surveillance. The surveillance of antimicrobial-resistant resistant organisms in wild birds is a potential metric for the rate of AMR in the environment. This surveillance also allows for further investigation into the transmission routes between different ecosystems and human populations (including domesticated animals and livestock).
+[
+7
+]
+Such information gathered from wild bird biomes, can help identify patterns of diseased transmission and better target interventions. These targeted interventions can inform the use of antimicrobial agents and reduce the persistence of multidrug resistant organisms.
+[
+19
+]
+[
+35
+]
+Recent studies demonstrate the importance of wild birds as sentinels for AMR. For example,
+Escherichia coli
+isolated from free-ranging
+Bonelli's eagles
+(
+Aquila fasciata
+) in eastern Spain showed that 53.3% of isolates were resistant to at least one antimicrobial, and 29.3% were multidrug-resistant, despite the species' minimal exposure to human-associated environments.
+[
+82
+]
+The study also reported resistance to colistin and meropenem, two last-resort antibiotics, and documented 19 different multidrug-resistance patterns, suggesting persistent and heterogeneous selective pressures in the environment.
+[
+82
+]
+Because Bonelli's eagles live far from humans and urban areas, they acquire resistance largely through interactions with prey species that interact with humans.
+[
+82
+]
+These findings demonstrate how AMR can spread into remote ecosystems via indirect pathways, strengthening the role of wild birds, particularly apex predators, as effective bioindicators in AMR surveillance.
+Companion animals
+[
+edit
+]
+Within the One Health framework, companion animals such as dogs and cats serve as critical domestic counterparts to wildlife reservoirs like wild birds in the epidemiology of antimicrobial resistance (AMR)
+[
+83
+]
+[
+84
+]
+. Because household pets share indoor residential spaces, furniture, and close physical contact with humans, bidirectional transmission of multi-drug resistant organisms (MDROs) frequently occurs.
+Pets receive antimicrobial therapies that mirror human formulations, creating selective pressure for resistant strains. Clinically significant pathogens—including methicillin-resistant
+Staphylococcus pseudintermedius
+(MRSP), methicillin-resistant
+Staphylococcus aureus
+(MRSA), and extended-spectrum beta-lactamase (ESBL)-producing
+Escherichia coli
+—are routinely isolated from both pets and their human co-inhabitants. Furthermore, companion animals act as valuable epidemiological sentinels; because they inhabit the same domestic microenvironments and are exposed to equivalent community stressors, monitoring AMR patterns in veterinary clinical isolates provides early insight into resistance pressures circulating within human residential communities.
+[
+83
+]
+[
+84
+]
+Prevention
+[
+edit
+]
+Mission Critical: Preventing Antibiotic Resistance (CDC report, 2014)
+There have been increasing public calls for global collective action to address the threat, including a proposal for an international treaty on antimicrobial resistance. Further detail and attention is still needed to recognize and measure trends in resistance on the international level; the idea of a global tracking system has been suggested but implementation has yet to occur. A system of this nature would provide insight to areas of high resistance as well as information necessary for evaluating programs, introducing interventions and other changes made to fight or reverse antibiotic resistance.
+[
+85
+]
+[
+86
+]
+One Health approach
+[
+edit
+]
+Antimicrobial resistance (AMR) is commonly described within a
+One Health
+framework, which emphasizes the interconnected relationships between human health, animal health, and the environment.
+[
+87
+]
+Antimicrobial use in clinical medicine, veterinary practice, and agriculture has been associated with the selection and spread of resistant microorganisms across these sectors.
+Research indicates that resistant bacteria and antimicrobial resistance genes can move between humans, animals, and environmental reservoirs through multiple pathways, including food production systems, direct contact, and exposure to contaminated water or soil.
+[
+88
+]
+These pathways contribute to the persistence and wider dissemination of antimicrobial resistance beyond individual settings.
+Environmental sources have been increasingly examined in relation to AMR. Wastewater systems, agricultural runoff, and pharmaceutical residues have been identified as potential reservoirs where resistant microorganisms and resistance genes may persist.
+[
+89
+]
+[
+90
+]
+Such reservoirs may facilitate ongoing transmission between environmental, animal, and human populations.
+Efforts to address AMR within a One Health framework typically involve coordinated strategies across sectors, including antimicrobial stewardship, infection prevention and control, and improvements in sanitation and hygiene. Evidence from systematic reviews suggests that interventions such as farm biosecurity and water, sanitation, and hygiene (WASH) practices may reduce antimicrobial use and contribute to limiting the development and spread of resistance.
+[
+91
+]
+Duration of antimicrobials
+[
+edit
+]
+Delaying or minimizing the use of antibiotics for certain conditions may help safely reduce their use.
+[
+92
+]
+Antimicrobial treatment duration should be based on the infection and other health problems a person may have.
+[
+93
+]
+For many infections once a person has improved there is little evidence that stopping treatment causes more resistance.
+[
+93
+]
+Some, therefore, feel that stopping early may be reasonable in some cases.
+[
+93
+]
+Other infections, however, do require long courses regardless of whether a person feels better.
+[
+93
+]
+Delaying antibiotics for ailments such as a sore throat and otitis media may have no difference in the rate of complications compared with immediate antibiotics, for example.
+[
+92
+]
+When treating
+respiratory tract infections
+, clinical judgement is required as to the appropriate treatment (delayed or immediate antibiotic use).
+[
+92
+]
+Monitoring and mapping
+[
+edit
+]
+There are multiple national and international monitoring programs for drug-resistant threats, including
+methicillin-resistant
+Staphylococcus aureus
+(MRSA),
+vancomycin-resistant
+S. aureus
+(VRSA),
+extended spectrum beta-lactamase
+(ESBL) producing
+Enterobacterales
+,
+vancomycin-resistant
+Enterococcus
+(VRE), and
+multidrug-resistant
+Acinetobacter baumannii
+(MRAB).
+[
+94
+]
+ResistanceOpen is an online global map of antimicrobial resistance developed by
+HealthMap
+which displays aggregated data on antimicrobial resistance from publicly available and user submitted data.
+[
+95
+]
+[
+96
+]
+The website can display data for a
+25 miles (40
+km)
+radius from a location. Users may submit data from
+antibiograms
+for individual hospitals or laboratories. European data is from the EARS-Net (European Antimicrobial Resistance Surveillance Network), part of the
+ECDC
+. ResistanceMap is a website by the
+Center for Disease Dynamics, Economics & Policy
+and provides data on antimicrobial resistance on a global level.
+[
+97
+]
+The WHO's AMR global action plan also recommends antimicrobial resistance surveillance in animals.
+[
+98
+]
+Initial steps in the EU for establishing the veterinary counterpart EARS-Vet (EARS-Net for veterinary medicine) have been made.
+[
+99
+]
+AMR data from pets in particular is scarce, but needed to support antibiotic stewardship in veterinary medicine.
+[
+100
+]
+By comparison, there is a lack of national and international monitoring programs for antifungal resistance.
+[
+101
+]
+Limiting antimicrobial use in humans
+[
+edit
+]
+Further information:
+Antibiotic misuse
+Further information:
+Antimicrobial spectrum
+Antimicrobial stewardship programmes
+appear useful in reducing rates of antimicrobial resistance.
+[
+102
+]
+The antimicrobial stewardship program will also provide pharmacists with the knowledge to educate patients that antibiotics will not work for a virus for example.
+[
+103
+]
+Excessive antimicrobial use has become one of the top contributors to the evolution of antimicrobial resistance. Since the beginning of the antimicrobial era, antimicrobials have been used to treat a wide range of infectious diseases.
+[
+104
+]
+Overuse of antimicrobials has become the primary cause of rising levels of antimicrobial resistance. Prescribers are willing to prescribe antimicrobials to individuals who believe that antimicrobials can cure nearly all illnesses, including viral infections like the common cold. In an analysis of drug prescriptions, 36% of individuals with a cold or an
+upper respiratory infection
+(both usually viral in origin) were given prescriptions for antibiotics.
+[
+105
+]
+These prescriptions increase the risk of further evolution of antibiotic resistant bacteria.
+[
+106
+]
+Using antimicrobials without prescription is another driving force leading to the overuse of antibiotics to self-treat diseases like the common cold, cough, fever, and dysentery resulting in an epidemic of antibiotic resistance in countries like Bangladesh, risking its spread around the globe.
+[
+107
+]
+Introducing strict antibiotic stewardship in the outpatient setting to reduce inappropriate prescribing of antibiotics may reduce the emerging bacterial resistance.
+[
+108
+]
+The
+WHO AWaRe
+(Access, Watch, Reserve) guidance and antibiotic book has been introduced to guide antibiotic choice for the 30 most common infections in adults and children to reduce inappropriate prescribing in primary care and hospitals.
+Narrow-spectrum antibiotics
+are preferred due to their lower resistance potential, and
+broad-spectrum antibiotics
+are only recommended for people with more severe symptoms. Some antibiotics are more likely to confer resistance, so are kept as reserve antibiotics in the AWaRe book.
+[
+109
+]
+Various diagnostic strategies have been employed to prevent the overuse of antifungal therapy in the clinic, proving a safe alternative to empirical antifungal therapy, and thus underpinning antifungal stewardship schemes.
+[
+110
+]
+At the hospital level
+[
+edit
+]
+Antimicrobial stewardship
+teams in hospitals are encouraging optimal use of antimicrobials.
+[
+111
+]
+The goals of antimicrobial stewardship are to help practitioners pick the right drug at the right dose and duration of therapy while preventing misuse and minimizing the development of resistance. Stewardship interventions may reduce the length of stay by an average of slightly over 1 day while not increasing the risk of death.
+[
+112
+]
+Dispensing the exact number of antibiotic pharmaceutical units necessary to complete an ongoing treatment can reduce excess antibiotics.
+[
+113
+]
+A 2026 systematic review of 73 studies examined arthropod-mediated pathogen transmission in hospitals. Research indicates that cockroaches, flies, and ants frequently harbor multidrug-resistant bacteria, fungi, and viruses. While direct causality is difficult to prove, genetic evidence links these pests to hospital-associated infections.
+[
+114
+]
+At the primary care level
+[
+edit
+]
+Given the volume of care provided in primary care (general practice), recent strategies have focused on reducing unnecessary antimicrobial prescribing in this setting. Simple interventions, such as written information explaining when taking antibiotics is not necessary, for example in common infections of the upper respiratory tract, have been shown to reduce antibiotic prescribing.
+[
+115
+]
+Various tools are also available to help professionals decide if prescribing antimicrobials is necessary.
+Parental expectations, driven by the worry for their children's health, can influence how often children are prescribed antibiotics. Parents often rely on their clinician for advice and reassurance. However a lack of plain language information and not having adequate time for consultation negatively impacts this relationship. In effect parents often rely on past experiences in their expectations rather than reassurance from the clinician. Adequate time for consultation and plain language information can help parents make informed decisions and avoid unnecessary antibiotic use.
+[
+116
+]
+The prescriber should closely adhere to the five rights of drug administration: the right patient, the right drug, the right dose, the right route, and the right time.
+[
+117
+]
+Microbiological samples should be taken for culture and sensitivity testing before treatment when indicated and treatment potentially changed based on the susceptibility report.
+[
+118
+]
+[
+119
+]
+Health workers and pharmacists can help tackle antibiotic resistance by: enhancing infection prevention and control; only prescribing and dispensing antibiotics when they are truly needed; prescribing and dispensing the right antibiotic(s) to treat the illness.
+[
+17
+]
+A unit dose system implemented in community pharmacies can also reduce antibiotic leftovers at households.
+[
+113
+]
+Despite these, written guideline intervention for prescriber to do history taking and provision of advice and knowledge of pharmacists and non‐pharmacists may not reduce the sales of non‐prescription antimicrobial drugs in community pharmacies, drugstores, and other medicine outlets.
+[
+120
+]
+At the individual level
+[
+edit
+]
+People can help tackle resistance by using antibiotics only when prescribed for a bacterial infection as well as completing the full treatment course, never sharing medication with others, and using proper disposal methods for excess drugs.
+[
+17
+]
+[
+121
+]
+Basic hygiene practices also help prevent the spread of bacteria.
+[
+122
+]
+Countries
+[
+edit
+]
+The
+Netherlands
+has the lowest rate of antibiotic prescribing in the
+OECD
+, at a rate of 11.4
+defined daily doses
+(DDD) per 1,000 people per day in 2011. DDD is a statistical measure of drug consumption, defined by the World Health Organization (WHO).
+[
+123
+]
+•
+Germany
+and
+Sweden
+also have lower prescribing rates, with Sweden's rate having been declining since 2007.
+•
+Greece
+,
+France
+and
+Belgium
+have high prescribing rates.
+[
+failed verification
+]
+[
+124
+]
+Water, sanitation, hygiene
+[
+edit
+]
+Infectious disease control through improved
+water, sanitation and hygiene (WASH)
+infrastructure needs to be included in the antimicrobial resistance (AMR) agenda. The "Interagency Coordination Group on Antimicrobial Resistance" stated in 2018 that "the spread of pathogens through unsafe water results in a high burden of gastrointestinal disease, increasing even further the need for antibiotic treatment."
+[
+125
+]
+This is particularly a problem in
+developing countries
+where the spread of infectious diseases caused by inadequate WASH standards is a major driver of antibiotic demand.
+[
+126
+]
+Growing usage of antibiotics together with persistent infectious disease levels have led to a dangerous cycle in which reliance on antimicrobials increases while the efficacy of drugs diminishes.
+[
+126
+]
+The proper use of infrastructure for water, sanitation and hygiene (WASH) can result in a 47–72 percent decrease of diarrhea cases treated with antibiotics depending on the type of intervention and its effectiveness.
+[
+126
+]
+A reduction of the diarrhea disease burden through improved infrastructure would result in large decreases in the number of diarrhea cases treated with antibiotics. This was estimated as ranging from 5 million in Brazil to up to 590
+million in India by the year 2030.
+[
+126
+]
+The strong link between increased consumption and resistance indicates that this will directly mitigate the accelerating spread of AMR.
+[
+126
+]
+Sanitation and water for all by 2030 is
+Goal Number 6
+of the
+Sustainable Development Goals
+.
+[
+127
+]
+An increase in
+hand washing
+compliance by hospital staff results in decreased rates of resistant organisms.
+[
+128
+]
+Water supply and sanitation infrastructure in health facilities offer opportunities for combatting AMR, and investment should be increased.
+[
+125
+]
+[
+further explanation needed
+]
+There is much room for improvement: WHO and UNICEF estimated in 2015 that 38% of health facilities did not have a source of water, nearly 19% had no toilets and 35% had no water and soap or alcohol-based hand rub for handwashing.
+[
+129
+]
+[
+clarification needed
+]
+Industrial wastewater treatment
+[
+edit
+]
+Manufacturers of antimicrobials need to improve the treatment of their wastewater (by using
+industrial wastewater treatment
+processes) to reduce the release of residues into the environment.
+[
+125
+]
+Limiting antimicrobial use in animals and farming
+[
+edit
+]
+Main article:
+Antibiotic use in livestock §
+Antibiotic resistance
+It is established that the use of
+antibiotics in animal husbandry
+can give rise to AMR resistances in bacteria found in food animals to the antibiotics being administered (through injections or medicated feeds).
+[
+130
+]
+For this reason only antimicrobials that are deemed "not-clinically relevant" are used in these practices.
+Unlike resistance to antibacterials, antifungal resistance can be driven by
+arable farming
+, currently there is no regulation on the use of similar antifungal classes in agriculture and the clinic.
+[
+101
+]
+[
+81
+]
+Recent studies have shown that the prophylactic use of "non-priority" or "non-clinically relevant" antimicrobials in feeds can potentially, under certain conditions, lead to co-selection of environmental AMR bacteria with resistance to medically important antibiotics.
+[
+131
+]
+The possibility for co-selection of AMR resistances in the food chain pipeline may have far-reaching implications for human health.
+[
+131
+]
+[
+132
+]
+Country examples
+[
+edit
+]
+Europe
+[
+edit
+]
+In 1997, European Union health ministers voted to ban
+avoparcin
+and four additional antibiotics used to promote animal growth in 1999.
+[
+133
+]
+In 2006, a ban on the use of antibiotics in European feed, with the exception of two antibiotics in poultry feeds, became effective.
+[
+134
+]
+In Scandinavia, there is evidence that the ban has led to a lower prevalence of antibiotic resistance in (nonhazardous) animal bacterial populations.
+[
+135
+]
+As of 2004, several European countries established a decline of antimicrobial resistance in humans through limiting the use of antimicrobials in agriculture and food industries without jeopardizing animal health or economic cost.
+[
+136
+]
+United States
+[
+edit
+]
+The
+United States Department of Agriculture
+(USDA) and the
+Food and Drug Administration
+(FDA) collect data on antibiotic use in humans and in a more limited fashion in animals.
+[
+137
+]
+About 80% of antibiotic use in the U.S. is for agriculture purposes, and about 70% of these are medically important.
+[
+73
+]
+This gives reason for concern about the antibiotic resistance crisis in the U.S. and more reason to monitor it. The FDA first determined in 1977, that there is evidence of emergence of antibiotic-resistant bacterial strains in livestock. The long-established practice of permitting OTC sales of antibiotics (including penicillin and other drugs) to lay animal owners for administration to their own animals nonetheless continued in all states.
+In 2000, the FDA announced their intention to revoke approval of
+fluoroquinolone
+use in poultry production because of substantial evidence linking it to the emergence of fluoroquinolone-resistant
+Campylobacter
+infections in humans. Legal challenges from the food animal and pharmaceutical industries delayed the final decision to do so until 2006.
+[
+138
+]
+Fluroquinolones have been banned from extra-label use in food animals in the USA since 2007.
+[
+139
+]
+However, they are still used in treatment of companion and exotic animals.
+[
+140
+]
+Global action plans and awareness
+[
+edit
+]
+At the
+79th United Nations General Assembly
+High-Level Meeting on AMR on 26 September 2024, world leaders approved a political declaration committing to a clear set of targets and actions, including reducing the estimated 4.95
+million human deaths associated with bacterial AMR annually by 10% by 2030.
+[
+9
+]
+The increasing interconnectedness of the world and the fact that new classes of antibiotics have not been developed and approved for 25 years highlight the extent to which antimicrobial resistance is a global health challenge.
+[
+141
+]
+[
+better
+source
+needed
+]
+A global action plan to tackle the growing problem of resistance to antibiotics and other antimicrobial medicines was endorsed at the Sixty-eighth
+World Health Assembly
+in May 2015.
+[
+98
+]
+One of the key objectives of the plan is to improve awareness and understanding of antimicrobial resistance through effective communication, education and training. This global action plan developed by the World Health Organization was created to combat the issue of antimicrobial resistance and was guided by the advice of countries and key stakeholders. The WHO's global action plan is composed of five key objectives that can be targeted through different means, and represents countries coming together to solve a major problem that can have future health consequences.
+[
+38
+]
+These objectives are as follows:
+improve awareness and understanding of antimicrobial resistance through effective communication, education and training.
+strengthen the knowledge and evidence base through surveillance and research.
+reduce the incidence of infection through effective sanitation, hygiene and infection prevention measures.
+optimize the use of antimicrobial medicines in human and animal health.
+develop the economic case for sustainable investment that takes account of the needs of all countries and to increase investment in new medicines, diagnostic tools, vaccines and other interventions.
+Steps towards progress
+React based in Sweden has produced informative material on AMR for the general public.
+[
+142
+]
+Videos are being produced for the general public to generate interest and awareness.
+[
+143
+]
+[
+144
+]
+The
+Irish Department of Health
+published a National Action Plan on Antimicrobial Resistance in October 2017.
+[
+145
+]
+The Strategy for the Control of Antimicrobial Resistance in Ireland (SARI), Iaunched in 2001 developed Guidelines for Antimicrobial Stewardship in Hospitals in Ireland
+[
+146
+]
+in conjunction with the
+Health Protection Surveillance Centre
+, these were published in 2009. Following their publication a public information campaign 'Action on Antibiotics'
+[
+147
+]
+was launched to highlight the need for a change in antibiotic prescribing. Despite this, antibiotic prescribing remains high with variance in adherence to guidelines.
+[
+148
+]
+The United Kingdom published a 20-year vision for antimicrobial resistance that sets out the goal of containing and controlling AMR by 2040.
+[
+149
+]
+The vision is supplemented by a 5-year action plan running from 2019 to 2024, building on the previous action plan (2013–2018).
+[
+150
+]
+Antibiotic Awareness Week
+[
+edit
+]
+The World Health Organization has promoted the first
+World Antibiotic Awareness Week
+running from 16 to 22 November 2015. The aim of the week is to increase global awareness of antibiotic resistance. It also wants to promote the correct usage of antibiotics across all fields to prevent further instances of antibiotic resistance.
+[
+151
+]
+World Antibiotic Awareness Week has been held every November since 2015. For 2017, the Food and Agriculture Organization of the United Nations (FAO), the World Health Organization (WHO) and the
+World Organisation for Animal Health
+(OIE) are together calling for responsible use of antibiotics in humans and animals to reduce the emergence of antibiotic resistance.
+[
+152
+]
+United Nations
+In 2016, the Secretary-General of the
+United Nations
+convened the Interagency Coordination Group (IACG) on Antimicrobial Resistance.
+[
+153
+]
+The IACG worked with international organizations and experts in human, animal, and plant health to create a plan to fight antimicrobial resistance.
+[
+153
+]
+Their report released in April 2019 focuses on the seriousness of antimicrobial resistance and the threat it poses to world health. It suggests five recommendations for member states to follow to tackle this increasing threat. The IACG recommendations are as follows:
+[
+154
+]
+Accelerate progress in countries
+Innovate to secure the future
+Collaborate for more effective action
+Invest for a sustainable response
+Strengthen accountability and global governance
+One Health approach
+[
+edit
+]
+The
+One Health
+approach recognizes that human, animal, and environmental health are interconnected in the development and spread of antimicrobial resistance (AMR).
+[
+155
+]
+Key strategies include:
+Integrated surveillance
+[
+edit
+]
+Monitoring antibiotic use and resistance trends across human medicine, agriculture, and environmental sectors.
+[
+156
+]
+For example, 73% of the world's antibiotics are used in livestock, often for non-therapeutic purposes like growth promotion.
+[
+157
+]
+Policy interventions
+[
+edit
+]
+Banning non-therapeutic antibiotics in agriculture (e.g., European Union's 2006 growth promoter ban).
+[
+158
+]
+Incentivizing development of new antibiotics and alternatives (e.g., vaccines, bacteriophages).
+[
+159
+]
+Environmental mitigation
+[
+edit
+]
+Reducing pharmaceutical waste in water systems and soil through improved waste management.
+[
+160
+]
+Addressing resistance genes in wastewater from hospitals, farms, and drug manufacturing sites.
+[
+161
+]
+Mechanisms and organisms
+[
+edit
+]
+Bacteria
+[
+edit
+]
+Further information:
+List of antibiotic resistant bacteria
+Diagram depicting antibiotic resistance through alteration of the antibiotic's target site, modeled after MRSA's resistance to penicillin. Beta-lactam antibiotics permanently inactivate
+PBP enzymes
+, which are essential for bacterial life, by permanently binding to their active sites.
+MRSA
+, however, expresses a PBP that does not allow the antibiotic into its active site.
+The five main mechanisms by which bacteria exhibit resistance to antibiotics are:
+Drug inactivation or modification: for example, enzymatic deactivation of
+penicillin G
+in some penicillin-resistant bacteria through the production of
+β-lactamases
+. Drugs may also be chemically modified through the addition of
+functional groups
+by
+transferase
+enzymes. For example,
+acetylation
+,
+phosphorylation
+, or
+adenylation
+are resistance mechanisms to
+aminoglycosides
+. Acetylation is the most common and can affect a number of
+drug classes
+.
+[
+162
+]
+[
+163
+]
+:
+6–8
+Alteration of target- or binding site: for example, alteration of
+PBP
+—the binding target site of penicillins—in
+MRSA
+and other penicillin-resistant bacteria. Another protective mechanism found among bacterial species is ribosomal protection proteins. These proteins protect the bacterial cell from antibiotics that target the cell's ribosomes to inhibit protein synthesis. The mechanism involves the binding of the ribosomal protection proteins to the ribosomes of the bacterial cell, which in turn changes its conformational shape. This allows the ribosomes to continue synthesizing proteins essential to the cell while preventing antibiotics from binding to the ribosome to inhibit protein synthesis.
+[
+164
+]
+Alteration of metabolic pathway: for example, some
+sulfonamide
+-resistant bacteria do not require
+para-aminobenzoic acid
+(PABA), an important precursor for the synthesis of
+folic acid
+and
+nucleic acids
+in bacteria inhibited by sulfonamides, instead, like mammalian cells, they turn to using preformed folic acid.
+[
+165
+]
+Reduced drug accumulation: by decreasing drug
+permeability
+or increasing active
+efflux
+(pumping out) of the drugs across the cell surface.
+[
+166
+]
+These
+multidrug efflux pumps
+within the cellular membrane of certain bacterial species are used to pump antibiotics out of the cell before they are able to do any damage. They are often activated by a specific substrate associated with an antibiotic,
+[
+167
+]
+as in
+fluoroquinolone
+resistance.
+[
+168
+]
+Ribosome splitting and recycling: for example, drug-mediated stalling of the ribosome by
+lincomycin
+and
+erythromycin
+unstalled by a heat shock protein found in
+Listeria monocytogenes
+, which is a homologue of HflX from other bacteria. Liberation of the ribosome from the drug allows further translation and consequent resistance to the drug.
+[
+169
+]
+A number of mechanisms used by common antibiotics to deal with bacteria and ways by which bacteria become resistant to them
+There are several different types of germs that have developed a resistance over time.
+[
+18
+]
+The six pathogens causing most deaths associated with resistance are
+Escherichia coli
+,
+Staphylococcus aureus
+,
+Klebsiella pneumoniae
+,
+Streptococcus pneumoniae
+,
+Acinetobacter baumannii
+, and
+Pseudomonas aeruginosa
+. They were responsible for 929,000 deaths attributable to resistance and 3.57
+million deaths associated with resistance in 2019.
+[
+18
+]
+Penicillinase-producing
+Neisseria gonorrhoeae
+developed a resistance to penicillin in 1976. Another example is Azithromycin-resistant
+Neisseria gonorrhoeae
+, which developed a resistance to azithromycin in 2011.
+[
+170
+]
+In
+gram-negative bacteria
+, plasmid-mediated resistance genes produce proteins that can bind to
+DNA gyrase
+, protecting it from the action of quinolones. Finally, mutations at key sites in DNA gyrase or
+topoisomerase IV
+can decrease their binding affinity to quinolones, decreasing the drug's effectiveness.
+[
+171
+]
+Some bacteria are naturally resistant to certain antibiotics; for example, gram-negative bacteria are resistant to most
+β-lactam antibiotics
+due to the presence of
+β-lactamase
+. Antibiotic resistance can also be acquired as a result of either genetic mutation or
+horizontal gene transfer
+.
+[
+172
+]
+Although mutations are rare, with spontaneous mutations in the
+pathogen
+genome
+occurring at a rate of about 1 in 10
+5
+to 1 in 10
+8
+per chromosomal replication,
+[
+173
+]
+Bacteria reproduce at a high rate, lifespans and production of new generations can be on a timescale of mere hours. A new (de novo) mutation in a parent cell can quickly become an
+inherited
+mutation of widespread prevalence, resulting in the
+microevolution
+of a fully resistant colony. However, chromosomal mutations also confer a cost of fitness. For example, a ribosomal mutation may protect a bacterial cell by changing the binding site of an antibiotic but may result in slower growth rate.
+[
+174
+]
+Moreover, some adaptive mutations can propagate not only through inheritance but also through horizontal gene transfer.
+The most common mechanism of horizontal gene transfer is the transferring of
+plasmids
+carrying antibiotic resistance genes between bacteria of the same or different species via
+conjugation
+. However, bacteria can also acquire resistance through
+transformation
+, as in
+Streptococcus pneumoniae
+uptaking of naked fragments of extracellular DNA that contain antibiotic resistance genes to streptomycin,
+[
+175
+]
+through
+transduction
+, as in the bacteriophage-mediated transfer of tetracycline resistance genes between strains of
+S. pyogenes
+,
+[
+176
+]
+or through
+gene transfer agents
+, which are particles produced by the host cell that resemble bacteriophage structures and are capable of transferring DNA.
+[
+177
+]
+Antibiotic resistance can be introduced artificially into a microorganism through laboratory protocols, sometimes used as a
+selectable marker
+to examine the mechanisms of gene transfer or to identify individuals that absorbed a piece of DNA that included the resistance gene and another gene of interest.
+[
+178
+]
+Recent findings show no necessity of large populations of bacteria for the appearance of antibiotic resistance. Small populations of
+Escherichia coli
+in an antibiotic gradient can become resistant. Any heterogeneous environment with respect to nutrient and antibiotic gradients may facilitate antibiotic resistance in small bacterial populations. Researchers hypothesize that the mechanism of resistance evolution is based on four SNP mutations in the genome of
+E. coli
+produced by the gradient of antibiotic.
+[
+179
+]
+In one study, which has implications for space microbiology, a non-pathogenic strain
+E. coli
+MG1655 was exposed to trace levels of the broad spectrum antibiotic
+chloramphenicol
+, under simulated microgravity (LSMMG, or Low Shear Modeled Microgravity) over 1000 generations. The adapted strain acquired resistance to not only chloramphenicol, but also cross-resistance to other antibiotics;
+[
+180
+]
+this was in contrast to the observation on the same strain, which was adapted to over 1000 generations under LSMMG, but without any antibiotic exposure; the strain in this case did not acquire any such resistance.
+[
+181
+]
+Thus, irrespective of where they are used, the use of an antibiotic would likely result in persistent resistance to that antibiotic, as well as cross-resistance to other antimicrobials.
+In recent years, the emergence and spread of
+β-lactamases
+called
+carbapenemases
+has become a major health crisis.
+[
+182
+]
+[
+183
+]
+One such carbapenemase is
+New Delhi metallo-beta-lactamase 1
+(NDM-1),
+[
+184
+]
+an
+enzyme
+that makes
+bacteria
+resistant
+to a broad range of
+beta-lactam antibiotics
+. The most common bacteria that make this enzyme are gram-negative such as
+E. coli
+and
+Klebsiella pneumoniae
+, but the gene for NDM-1 can spread from one strain of bacteria to another by
+horizontal gene transfer
+.
+[
+185
+]
+Viruses
+[
+edit
+]
+Specific
+antiviral drugs
+are used to treat some viral infections. These drugs prevent viruses from reproducing by inhibiting essential stages of the virus's replication cycle in infected cells. Antivirals are used to treat
+HIV
+,
+hepatitis B
+,
+hepatitis C
+,
+influenza
+,
+herpes viruses
+including
+varicella zoster virus
+,
+cytomegalovirus
+and
+Epstein–Barr virus
+. With each virus, some strains have become resistant to the administered drugs.
+[
+186
+]
+Antiviral drugs typically target key components of viral reproduction; for example,
+oseltamivir
+targets influenza
+neuraminidase
+,
+[
+187
+]
+while guanosine analogs inhibit viral DNA polymerase.
+[
+188
+]
+Resistance to antivirals is thus acquired through mutations in the genes that encode the protein targets of the drugs.
+[
+189
+]
+Resistance to HIV antivirals is problematic, and even multi-drug resistant strains have evolved.
+[
+190
+]
+One source of resistance is that many current HIV drugs, including NRTIs and NNRTIs, target
+reverse transcriptase
+; however, HIV-1 reverse transcriptase is highly error prone and thus mutations conferring resistance arise rapidly.
+[
+191
+]
+Resistant strains of the HIV virus emerge rapidly if only one antiviral drug is used.
+[
+192
+]
+Using three or more drugs together, termed
+combination therapy
+, has helped to control this problem, but new drugs are needed because of the continuing emergence of drug-resistant HIV strains.
+[
+193
+]
+Fungi
+[
+edit
+]
+Infections by fungi are a cause of high morbidity and mortality in
+immunocompromised
+persons, such as those with HIV/AIDS, tuberculosis or receiving
+chemotherapy
+.
+[
+194
+]
+The fungi
+Candida
+,
+Cryptococcus neoformans
+and
+Aspergillus fumigatus
+cause most of these infections and antifungal resistance occurs in all of them.
+[
+195
+]
+Multidrug resistance in fungi is increasing because of the widespread use of antifungal drugs to treat infections in immunocompromised individuals and the use of some agricultural antifungals.
+[
+101
+]
+[
+196
+]
+Antifungal resistant disease is associated with increased mortality.
+Some fungi (for example,
+Candida krusei
+and
+fluconazole
+) exhibit intrinsic resistance to certain antifungal drugs or classes, whereas some species develop antifungal resistance to external pressures. Antifungal resistance is a
+One Health
+concern, driven by multiple extrinsic factors, including overuse of fungicides, clinical antifungals,
+environmental change
+and host factors.
+[
+101
+]
+In the USA
+fluconazole
+-resistant Candida species and azole resistance in Aspergillus fumigatus have been highlighted as a growing threat.
+[
+94
+]
+20 species of
+Candida
+can cause
+candidiasis
+infection, the most common of which is
+Candida albicans
+.
+Candida
+yeasts normally inhabit the skin and mucous membranes without causing infection. However, overgrowth of
+Candida
+can lead to candidiasis. Some
+Candida
+species (e.g.
+Candida glabrata
+)
+are becoming resistant to first-line and second-line
+antifungal agents
+such as
+echinocandins
+and
+azoles
+.
+[
+94
+]
+The emergence of
+Candida auris
+as a potential human pathogen that sometimes exhibits multi-class antifungal drug resistance is concerning and has been associated with several outbreaks. The WHO has released a priority fungal pathogen list, including pathogens with antifungal resistance.
+[
+197
+]
+The identification of antifungal resistance is undermined by limited classical diagnosis of infection, where a culture is lacking, preventing susceptibility testing.
+[
+101
+]
+National and international surveillance schemes for fungal disease and antifungal resistance are limited, hampering the understanding of the disease burden and associated resistance.
+[
+101
+]
+The application of molecular testing to identify genetic markers associating with resistance may improve the identification of antifungal resistance, but the diversity of mutations associated with resistance is increasing across the fungal species causing infection. In addition, a number of resistance mechanisms depend on up-regulation of selected genes (for instance reflux pumps) rather than defined mutations that are amenable to molecular detection.
+Due to the limited number of antifungals in clinical use and the increasing global incidence of antifungal resistance, using the existing antifungals in combination might be beneficial in some cases but further research is needed. Similarly, other approaches that might help to combat the emergence of antifungal resistance could rely on the development of host-directed therapies such as
+immunotherapy
+or vaccines.
+[
+101
+]
+Parasites
+[
+edit
+]
+The
+protozoan
+parasites that cause the diseases
+malaria
+,
+trypanosomiasis
+,
+toxoplasmosis
+,
+cryptosporidiosis
+and
+leishmaniasis
+are important human pathogens.
+[
+198
+]
+Malarial parasites that are resistant to the drugs that are currently available to infections are common and this has led to increased efforts to develop new drugs.
+[
+199
+]
+Resistance to recently developed drugs such as
+artemisinin
+has also been reported. The problem of drug resistance in malaria has driven efforts to develop vaccines.
+[
+200
+]
+Trypanosomes
+are parasitic protozoa that cause
+African trypanosomiasis
+and
+Chagas disease
+(American trypanosomiasis).
+[
+201
+]
+[
+202
+]
+There are no vaccines to prevent these infections so drugs such as
+pentamidine
+and
+suramin
+,
+benznidazole
+and
+nifurtimox
+are used to treat infections. These drugs are effective but infections caused by resistant parasites have been reported.
+[
+198
+]
+Leishmaniasis
+is caused by protozoa and is a public health problem in sub-tropical and tropical countries. Drug resistance has "become a major concern".
+[
+203
+]
+The preferred treatment for leishmaniasis regionally;
+liposomal amphotericin B
+is used in the Mediterranean basin and
+pentavalent antimonials
+are more commonly used in Africa, South America, Bangladesh, India, and Nepal.
+[
+204
+]
+Resistance to antibiotics in
+Leishmania
+is a relatively recent phenomena. The first reported instance of resistance to antimonials was reported in India in the 1980s.
+[
+205
+]
+Global and genomic data
+[
+edit
+]
+The global 'resistome' based on sewage-based monitoring
+[
+206
+]
+Gene-sharing network between bacterial genera
+[
+206
+]
+In 2022, genomic epidemiologists reported results from a
+global
+survey of antimicrobial resistance via genomic
+wastewater-based epidemiology
+, finding large regional variations, providing maps, and suggesting resistance genes are also
+passed on
+between microbial species that are not closely related.
+[
+207
+]
+[
+206
+]
+The
+WHO
+provides the Global Antimicrobial Resistance and Use Surveillance System (GLASS) reports which summarize annual (e.g. 2020's) data on international AMR, also including an interactive dashboard.
+[
+208
+]
+[
+209
+]
+Epidemiology
+[
+edit
+]
+United Kingdom
+[
+edit
+]
+Public Health England
+reported that the total number of antibiotic resistant infections in England rose by 9% from 55,812 in 2017 to 60,788 in 2018, but antibiotic consumption had fallen by 9% from 20.0 to 18.2 defined daily doses per 1,000 inhabitants per day between 2014 and 2018.
+[
+210
+]
+United States
+[
+edit
+]
+The
+Centers for Disease Control and Prevention
+reported that 2.8 million cases and 35,000 deaths of antibiotic resistance have been reported. However, in 2019 overall deaths from antibiotic-resistant infections decreased by 18% and deaths in hospitals decreased by 30%. It was increased to 9.7 million cases and 50,800 deaths in 2026.
+[
+211
+]
+[
+212
+]
+The
+COVID pandemic
+caused a reversal of much of the progress made on attenuating the effects of antibiotic resistance, resulting in more antibiotic use, more resistant infections, and less data on preventive action.
+[
+57
+]
+Hospital-onset infections and deaths both increased by 15% in 2020, and significantly higher rates of infections were reported for 4 out of 6 types of healthcare associated infections.
+[
+213
+]
+India
+[
+edit
+]
+Owing to rampant misuse, over-prescription, and unregulated over-the-counter access to antibiotics, the growth of AMR superbugs has proliferated in India. Pharmacies surveyed by the Karnataka government revealed that 80% of drugs were being sold without a prescription.
+[
+214
+]
+A CDC survey revealed that half of inpatients were using "antibiotics from the 'Watch' category of WHO's AWaRe classification, which should be reserved for severe infections."
+[
+214
+]
+In 2019, India reported 300,000 deaths because of infections relating to AMR, India also reports the most number of tuberculosis cases resistant to antibiotics.
+[
+214
+]
+History
+[
+edit
+]
+The 1950s to 1970s represented the golden age of antibiotic discovery, where countless new classes of antibiotics were discovered to treat previously incurable diseases such as tuberculosis and syphilis.
+[
+215
+]
+However, since that time the discovery of new classes of antibiotics has been almost nonexistent, and represents a situation that is especially problematic considering the resiliency of bacteria
+[
+216
+]
+shown over time and the continued misuse and overuse of antibiotics in treatment.
+[
+217
+]
+Already in 1940, in their letter to the editor of Nature journal,
+Abraham
+and
+Chain
+identified the enzyme
+penicillinase
+as responsible for the deactivation of penicillin in penicillin-resistant bacteria. This discovery was the first step in understanding the mechanisms of microbial resistance to β-lactam antibiotics.
+[
+218
+]
+The phenomenon of antimicrobial resistance caused by overuse of antibiotics was predicted as early as 1945 by
+Alexander Fleming
+who said "The time may come when penicillin can be bought by anyone in the shops. Then there is the danger that the ignorant man may easily under-dose himself and by exposing his microbes to nonlethal quantities of the drug make them resistant."
+[
+219
+]
+[
+220
+]
+Without the creation of new and stronger antibiotics an era where common infections and minor injuries can kill, and where complex procedures such as surgery and chemotherapy become too risky, is a very real possibility.
+[
+221
+]
+Antimicrobial resistance can lead to epidemics of enormous proportions if preventive actions are not taken. In this day and age current antimicrobial resistance leads to longer hospital stays, higher medical costs, and increased mortality.
+[
+217
+]
+Society and culture
+[
+edit
+]
+Policy
+[
+edit
+]
+Since the mid-1980s pharmaceutical companies have invested in medications for cancer or chronic disease that have greater potential to make money and have "de-emphasized or dropped development of antibiotics".
+[
+222
+]
+On 20 January 2016 at the
+World Economic Forum
+, "80 pharmaceutical and diagnostic companies" called for "transformational commercial models" at an international level to spur research and development on antibiotics and on the use of diagnostic tests.
+[
+222
+]
+A number of countries are considering or implementing delinked payment models for new antimicrobials whereby payment is based on value rather than volume of drug sales. This offers the opportunity to pay for valuable new drugs even if they are reserved for use in relatively rare drug resistant infections.
+[
+223
+]
+Legal frameworks
+[
+edit
+]
+Some global health scholars have argued that a global, legal framework is needed to prevent and control antimicrobial resistance.
+[
+224
+]
+[
+225
+]
+[
+226
+]
+[
+227
+]
+For instance, binding global policies could be used to create antimicrobial use standards, regulate antibiotic marketing, and strengthen global surveillance systems.
+[
+226
+]
+[
+224
+]
+Ensuring compliance of involved parties is a challenge.
+[
+226
+]
+Global antimicrobial resistance policies could take lessons from the environmental sector by adopting strategies that have made international environmental agreements successful in the past such as: sanctions for non-compliance, assistance for implementation, majority vote decision-making rules, an independent scientific panel, and specific commitments.
+[
+228
+]
+United States
+[
+edit
+]
+This section needs to be
+updated
+.
+Please help update this article to reflect recent events or newly available information.
+(
+October 2023
+)
+For the
+United States 2016 budget
+,
+U.S. president
+Barack Obama
+proposed to nearly double the amount of federal funding to "combat and prevent" antibiotic resistance to $1.2
+billion.
+[
+229
+]
+Many international funding agencies like
+USAID
+,
+DFID
+,
+Sida
+and
+Gates Foundation
+have pledged money for developing strategies to counter antimicrobial resistance.
+[
+citation needed
+]
+On 27 March 2015, the
+White House
+released a plan to address the increasing need for agencies to combat the rise of antibiotic-resistant bacteria. The Task Force for Combating Antibiotic-Resistant Bacteria developed
+The National Action Plan for Combating Antibiotic-Resistant Bacteria
+with the intent of providing a roadmap to guide the US in the antibiotic resistance challenge and with hopes of saving many lives. This plan outlines steps taken by the Federal government over the next five years needed to prevent and contain outbreaks of antibiotic-resistant infections; maintain the efficacy of antibiotics already on the market; and to help to develop future diagnostics, antibiotics, and vaccines.
+[
+230
+]
+The Action Plan was developed around five goals with focuses on strengthening health care, public health veterinary medicine, agriculture, food safety and research, and manufacturing. These goals, as listed by the White House, are as follows:
+Slow the Emergence of Resistant Bacteria and Prevent the Spread of Resistant Infections
+Strengthen National One-Health Surveillance Efforts to Combat Resistance
+Advance Development and use of Rapid and Innovative Diagnostic Tests for Identification and Characterization of Resistant Bacteria
+Accelerate Basic and Applied Research and Development for New Antibiotics, Other Therapeutics, and Vaccines
+Improve International Collaboration and Capacities for Antibiotic Resistance Prevention, Surveillance, Control and Antibiotic Research and Development
+The following are goals set to meet by 2020:
+[
+230
+]
+Establishment of antimicrobial programs within acute care hospital settings
+Reduction of inappropriate antibiotic prescription and use by at least 50% in outpatient settings and 20% inpatient settings
+Establishment of State Antibiotic Resistance (AR) Prevention Programs in all 50 states
+Elimination of the use of medically important antibiotics for growth promotion in food-producing animals.
+Current Status of AMR in the U.S.
+As of 2023, AMR remains a public health threat in the United States. According to the Centers for Disease Control and Prevention's 2023 Report on Antibiotic Resistance Threats, over 2.8 million antibiotic-resistant infections occur in the U.S. each year, leading to at least 35,000 deaths annually.
+[
+231
+]
+Among the most concerning resistant pathogens are Carbapenem-resistant
+Enterobacteriaceae
+(CRE), Methicillin-resistant
+Staphylococcus aureus
+(MRSA), and
+Clostridioides difficile
+(C. diff), all of which continue to be responsible for severe healthcare-associated infections (HAIs).
+The
+COVID-19 pandemic
+led to a disruption in healthcare, with an increase in the use of antibiotics during the treatment of viral infections. This rise in antibiotic prescribing, coupled with overwhelmed healthcare systems, contributed to a resurgence in AMR during the pandemic years. A 2021 CDC report identified a sharp increase in HAIs caused by resistant pathogens in COVID-19 patients, a trend that has persisted into 2023.
+[
+232
+]
+Recent data suggest that although antibiotic use has decreased since the pandemic, some resistant pathogens remain prevalent in healthcare settings.
+[
+231
+]
+The CDC has also expanded its Get Ahead of Sepsis campaign in 2023, focusing on raising awareness of AMR's role in sepsis and promoting the judicious use of antibiotics in both healthcare and community settings.
+[
+233
+]
+This initiative has reached millions through social media, healthcare facilities, and public health outreach, aiming to educate the public on the importance of preventing infections and reducing antibiotic misuse.
+Under the administration of
+Donald J. Trump
+, severe federal funding cuts in 2025 at the
+National Institutes of Health
+(NIH) and many other research entities in the United States are expected to impede progress in combating antimicrobial resistance.
+[
+234
+]
+[
+235
+]
+Public health experts believe these budget reductions will adversely affect the development of new antibiotics
+[
+236
+]
+as well as advances in diagnostics and treatment strategies, thus undermining efforts currently underway to address AMR.
+[
+237
+]
+The
+Infectious Diseases Society of America
+(IDSA) is but one organization that has expressed grave concern regarding the negative consequences of such extreme budget measures on antimicrobial stewardship, and, as a result, on global health security overall.
+[
+238
+]
+Policies
+[
+edit
+]
+According to
+World Health Organization
+, policymakers can help tackle resistance by strengthening resistance-tracking and laboratory capacity and by regulating and promoting the appropriate use of medicines.
+[
+17
+]
+Policymakers and industry can help tackle resistance by: fostering research and development of new tools and promoting cooperation and information sharing among all stakeholders.
+[
+17
+]
+Policy evaluation
+[
+edit
+]
+Measuring the costs and benefits of strategies to combat AMR is difficult and policies may only have effects in the distant future. In other infectious diseases this problem has been addressed by using mathematical models. More research is needed to understand how AMR develops and spreads so that mathematical modelling can be used to anticipate the likely effects of different policies.
+[
+239
+]
+Further research
+[
+edit
+]
+Rapid testing and diagnostics
+[
+edit
+]
+Antimicrobial susceptibility testing
+: Thin paper discs containing an
+antibiotic
+have been placed on an agar plate growing bacteria. Bacteria are not able to grow around antibiotics to which they are sensitive.
+Distinguishing infections requiring antibiotics from self-limiting ones is clinically challenging. To guide appropriate use of antibiotics and prevent the evolution and spread of antimicrobial resistance, diagnostic tests that provide clinicians with timely, actionable results are needed.
+Acute fever is a common reason for seeking medical care and a major cause of morbidity and mortality.
+[
+citation needed
+]
+In areas with decreasing malaria incidence, many febrile patients are inappropriately treated for malaria, and in the absence of a simple diagnostic test to identify alternative causes of fever, clinicians presume that a non-malarial febrile illness is most likely a bacterial infection, leading to inappropriate use of antibiotics. Multiple studies have shown that the use of malaria rapid diagnostic tests without reliable tools to distinguish other fever causes has resulted in increased antibiotic use.
+[
+240
+]
+Antimicrobial susceptibility testing
+(AST) can facilitate a
+precision medicine
+approach to treatment by helping clinicians to prescribe more effective and targeted antimicrobial therapy.
+[
+241
+]
+At the same time with traditional phenotypic AST it can take 12 to 48 hours to obtain a result due to the time taken for organisms to grow on/in culture media.
+[
+242
+]
+Rapid testing, possible from
+molecular diagnostics
+innovations, is defined as "being feasible within an 8-h working shift".
+[
+242
+]
+There are several commercial Food and Drug Administration-approved assays available which can detect AMR genes from a variety of specimen types. Progress has been slow due to a range of reasons including cost and regulation.
+[
+243
+]
+Genotypic AMR characterisation methods are, however, being increasingly used in combination with machine learning algorithms in research to help better predict phenotypic AMR from organism genotype.
+[
+244
+]
+[
+245
+]
+Optical techniques such as phase contrast microscopy in combination with single-cell analysis are another powerful method to monitor bacterial growth. In 2017, scientists from Uppsala University in Sweden published a method
+[
+246
+]
+that applies principles of
+microfluidics
+and cell tracking, to monitor bacterial response to antibiotics in less than 30 minutes overall manipulation time. This invention was awarded the 8M£ Longitude Prize on AMR in 2024. Recently, this platform has been advanced by coupling microfluidic chip with
+optical tweezing
+[
+247
+]
+to isolate bacteria with altered phenotype directly from the analytical matrix.
+Rapid diagnostic methods have also been trialled as antimicrobial stewardship interventions to influence the healthcare drivers of AMR. Serum
+procalcitonin
+measurement has been shown to reduce mortality rate, antimicrobial consumption and antimicrobial-related side-effects in patients with respiratory infections, but impact on AMR has not yet been demonstrated.
+[
+248
+]
+Similarly, point of care serum testing of the inflammatory biomarker
+C-reactive protein
+has been shown to influence antimicrobial prescribing rates in this patient cohort, but further research is required to demonstrate an effect on rates of AMR.
+[
+249
+]
+Clinical investigation to rule out bacterial infections are often done for patients with pediatric acute respiratory infections. Currently it is unclear if rapid viral testing affects antibiotic use in children.
+[
+250
+]
+Vaccines
+[
+edit
+]
+Vaccines are an essential part of the response to reduce AMR as they prevent infections, reduce the use and overuse of antimicrobials, and slow the emergence and spread of drug-resistant pathogens.
+[
+9
+]
+Microorganisms usually do not develop
+resistance to vaccines
+because vaccines reduce the spread of the infection and target the pathogen in multiple ways in the same host and possibly in different ways between different hosts. Furthermore, if the use of vaccines increases, there is evidence that antibiotic resistant strains of pathogens will decrease; the need for antibiotics will naturally decrease as vaccines prevent infection before it occurs.
+[
+251
+]
+A 2024 report by WHO finds that vaccines against 24 pathogens could reduce the number of antibiotics needed by 22% or 2.5
+billion DDD every year.
+[
+9
+]
+If vaccines could be rolled out against all the evaluated pathogens, they could save a third of the hospital costs associated with AMR.
+[
+9
+]
+Vaccinated people have fewer infections and are protected against potential complications from secondary infections that may need antimicrobial medicines or require admission to hospital.
+[
+9
+]
+However, there are well documented cases of vaccine resistance, although these are usually much less of a problem than antimicrobial resistance.
+[
+252
+]
+[
+253
+]
+Antistaphylococcal vaccines have shown limited efficacy, because of immunological variation between
+Staphylococcus
+species, and the limited duration of effectiveness of the antibodies produced. Development and testing of more effective vaccines is underway.
+[
+254
+]
+Two registrational trials have evaluated vaccine candidates in active immunization strategies against
+S. aureus
+infection. In a phase II trial, a bivalent vaccine of capsular proteins 5 & 8 was tested in 1804 hemodialysis patients with a primary fistula or synthetic graft vascular access. After 40 weeks following vaccination a protective effect was seen against
+S. aureus
+bacteremia, but not at 54 weeks following vaccination.
+[
+255
+]
+Based on these results, a second trial was conducted which failed to show efficacy.
+[
+256
+]
+Merck tested V710, a vaccine targeting IsdB, in a blinded randomized trial in patients undergoing median sternotomy. The trial was terminated after a higher rate of multiorgan system failure–related deaths was found in the V710 recipients. Vaccine recipients who developed
+S. aureus
+infection were five times more likely to die than control recipients who developed
+S. aureus
+infection.
+[
+257
+]
+Investigators have suggested that a multiple-antigen vaccine would be more effective, but a lack of biomarkers defining human protective immunity keep these proposals in the logical, but strictly hypothetical arena.
+[
+256
+]
+Alternating therapy
+[
+edit
+]
+Alternating therapy is a proposed method in which two or three antibiotics are taken in a rotation versus taking just one antibiotic such that bacteria resistant to one antibiotic are killed when the next antibiotic is taken. Studies have found that this method reduces the rate at which antibiotic resistant bacteria emerge in vitro relative to a single drug for the entire duration.
+[
+258
+]
+Studies have found that bacteria that evolve antibiotic resistance towards one group of antibiotic may become more sensitive to others.
+[
+259
+]
+This phenomenon can be used to select against resistant bacteria using an approach termed collateral sensitivity cycling, which has recently been found to be relevant in developing treatment strategies for chronic infections caused by
+Pseudomonas aeruginosa
+.
+[
+260
+]
+Despite its promise, large-scale clinical and experimental studies revealed limited evidence of susceptibility to antibiotic cycling across various pathogens.
+[
+261
+]
+[
+262
+]
+Development of new drugs
+[
+edit
+]
+Since the discovery of antibiotics,
+research and development
+(R&D) efforts have provided new drugs in time to treat bacteria that became resistant to older antibiotics, but in the 2000s there has been concern that development has slowed enough that seriously ill people may run out of treatment options.
+[
+263
+]
+[
+264
+]
+Another concern is that practitioners may become reluctant to perform routine surgeries because of the increased risk of harmful infection.
+[
+265
+]
+Backup treatments can have serious side-effects; for example, antibiotics like
+aminoglycosides
+(such as
+amikacin
+,
+gentamicin
+,
+kanamycin
+,
+streptomycin
+, etc.) used for the treatment of
+drug-resistant tuberculosis
+and
+cystic fibrosis
+can cause respiratory disorders, deafness and kidney failure.
+[
+266
+]
+[
+267
+]
+The potential crisis at hand is the result of a marked decrease in industry research and development.
+[
+268
+]
+[
+269
+]
+Poor financial investment in antibiotic research has exacerbated the situation.
+[
+270
+]
+[
+268
+]
+In 2011,
+Pfizer
+, one of the last major pharmaceutical companies developing new antibiotics, shut down its primary research effort, citing poor shareholder returns relative to drugs for chronic illnesses.
+[
+271
+]
+However, small and medium-sized pharmaceutical companies are still active in antibiotic drug research. In particular, apart from classical synthetic chemistry methodologies, researchers have developed a combinatorial synthetic biology platform on single cell level in a
+high-throughput screening
+manner to diversify novel
+lanthipeptides
+.
+[
+272
+]
+In the 5–10 years since 2010, there has been a change in the ways new antimicrobial agents are discovered and developed – principally via the formation of public-private funding initiatives. These include
+CARB-X
+,
+[
+273
+]
+which focuses on nonclinical and early phase development of novel antibiotics, vaccines, rapid diagnostics; Novel Gram Negative Antibiotic (GNA-NOW),
+[
+274
+]
+which is part of the EU's
+Innovative Medicines Initiative
+; and
+Replenishing and Enabling the Pipeline for Anti-infective Resistance Impact Fund
+(REPAIR).
+[
+275
+]
+Later stage clinical development is supported by the AMR Action Fund, which in turn is supported by multiple investors with the aim of developing 2–4 new antimicrobial agents by 2030. The delivery of these trials is facilitated by national and international networks supported by the Clinical Research Network of the
+National Institute for Health and Care Research
+(NIHR), European Clinical Research Alliance in Infectious Diseases (ECRAID) and the recently formed ADVANCE-ID, which is a clinical research network based in Asia.
+[
+276
+]
+The
+Global Antibiotic Research and Development Partnership
+(GARDP) is generating new evidence for global AMR threats such as neonatal sepsis, treatment of serious bacterial infections and sexually transmitted infections as well as addressing global access to new and strategically important antibacterial drugs.
+[
+277
+]
+The discovery and development of new antimicrobial agents has been facilitated by regulatory advances, which have been principally led by the
+European Medicines Agency
+(EMA) and the
+Food and Drug Administration
+(FDA). These processes are increasingly aligned although important differences remain and drug developers must prepare separate documents. New development pathways have been developed to help with the approval of new antimicrobial agents that address unmet needs such as the Limited Population Pathway for Antibacterial and Antifungal Drugs (LPAD). These new pathways are required because of difficulties in conducting large definitive
+phase III clinical trials
+in a timely way.
+Some of the economic impediments to the development of new antimicrobial agents have been addressed by reimbursement schemes that delink payment of antimicrobials from volume-based sales. In the UK, a market entry reward scheme has been pioneered by the
+National Institute for Clinical Excellence
+(NICE) whereby an annual subscription fee is paid for use of strategically valuable antimicrobial agents –
+cefiderocol
+and
+ceftazidime-aviabactam
+are the first agents to be used in this manner and the scheme is potential blueprint for comparable programs in other countries.
+The available classes of antifungal drugs are still limited but as of 2021 novel classes of antifungals are being developed and are undergoing various stages of clinical trials to assess performance.
+[
+278
+]
+Scientists have started using advanced computational approaches with supercomputers for the development of new antibiotic derivatives to deal with antimicrobial resistance.
+[
+269
+]
+[
+279
+]
+[
+280
+]
+Biomaterials
+[
+edit
+]
+Using antibiotic-free alternatives in bone infection treatment may help decrease the use of antibiotics and thus antimicrobial resistance.
+[
+45
+]
+The bone regeneration material
+bioactive glass S53P4
+has shown to effectively inhibit the bacterial growth of up to 50 clinically relevant bacteria including MRSA and MRSE.
+[
+281
+]
+[
+282
+]
+[
+283
+]
+Rediscovery of ancient treatments
+[
+edit
+]
+Similar to the situation in malaria therapy, where successful treatments based on ancient recipes have been found,
+[
+284
+]
+there has already been some success in finding and testing ancient drugs and other treatments that are effective against AMR bacteria.
+[
+285
+]
+Computational community surveillance
+[
+edit
+]
+One of the key tools identified by the WHO and others for the fight against rising antimicrobial resistance is improved surveillance of the spread and movement of AMR genes through different communities and regions. Recent advances in high-throughput
+DNA sequencing
+as a result of the
+Human Genome Project
+have resulted in the ability to determine the individual microbial genes in a sample.
+[
+286
+]
+Along with the availability of databases of known antimicrobial resistance genes, such as the Comprehensive Antimicrobial Resistance Database (CARD)
+[
+287
+]
+[
+288
+]
+and
+ResFinder
+,
+[
+289
+]
+[
+290
+]
+this allows the identification of all the antimicrobial resistance genes within the sample – the so-called "
+resistome
+". In doing so, a profile of these genes within a community or environment can be determined, providing information into how antimicrobial resistance is spreading through a population and allowing for the identification of resistance that is of concern.
+[
+286
+]
+Phage therapy
+[
+edit
+]
+Main article:
+Phage therapy
+Phage therapy
+is the
+therapeutic
+use of
+bacteriophages
+to treat
+pathogenic
+bacterial infections
+.
+[
+291
+]
+Phage therapy has many potential applications in human medicine as well as dentistry, veterinary science, and agriculture.
+[
+292
+]
+Phage therapy relies on the use of naturally occurring bacteriophages to infect and lyse bacteria at the site of infection in a host. Due to current advances in genetics and biotechnology these bacteriophages can possibly be manufactured to treat specific infections.
+[
+293
+]
+Phages can be bioengineered to target multidrug-resistant bacterial infections, and their use involves the added benefit of preventing the elimination of beneficial bacteria in the human body.
+[
+40
+]
+Phages destroy bacterial cell walls and membrane through the use of lytic proteins which kill bacteria by making many holes from the inside out.
+[
+294
+]
+Bacteriophages can even possess the ability to digest the
+biofilm
+that many bacteria develop that protect them from antibiotics to effectively infect and kill bacteria. Bioengineering can play a role in creating successful bacteriophages.
+[
+294
+]
+Understanding the mutual interactions and evolutions of bacterial and phage populations in the environment of a human or animal body is essential for rational phage therapy.
+[
+295
+]
+Bacteriophagics
+are used against antibiotic resistant bacteria in
+Georgia
+(
+George Eliava Institute
+) and in one institute in
+Wrocław
+, Poland.
+[
+296
+]
+[
+297
+]
+Bacteriophage cocktails are common drugs sold over the counter in pharmacies in eastern countries.
+[
+298
+]
+[
+299
+]
+In Belgium, four patients with severe musculoskeletal infections received bacteriophage therapy with concomitant antibiotics. After a single course of phage therapy, no recurrence of infection occurred and no severe side-effects related to the therapy were detected.
+[
+300
+]
+Computational and data analytical methods
+[
+edit
+]
+Analysing AMR data at scale requires dedicated computational approaches, as routine microbiological data from clinical laboratories can be large, heterogeneous, and subject to varying local standards. Several open-source tools have been developed to support this work.
+The
+AMR package
+for
+R
+provides functions for standardising and analysing phenotypical resistance data, including interpretation of MIC and disk diffusion results against
+EUCAST
+and
+CLSI
+breakpoints, and calculation of resistance rates across patient populations.
+[
+301
+]
+[
+302
+]
+See also
+[
+edit
+]
+Alliance for the Prudent Use of Antibiotics
+– American non-profit organization
+Anthelmintic resistance
+– Antiparasitic drugs that expel parasitic worms (helminths) from the body
+Pages displaying short descriptions of redirect targets
+Antimicrobial resistance in Australia
+Broad-spectrum antibiotic
+– Treatment for a wide range of bacteria
+Colonisation resistance
+– Physiological function of microbiomes
+Pages displaying short descriptions of redirect targets
+Drug of last resort
+– Type of drug
+Genetic engineering
+– Manipulation of an organism's genome
+Horizontal gene transfer
+– Transfer of genes from unrelated organisms
+(KPC) antibacterial resistance gene
+– Class of enzymes
+Multidrug-resistant Gram-negative bacteria
+– Gram-negative bacteria with resistance to multiple antibiotics
+Multidrug-resistant tuberculosis
+New Delhi metallo-beta-lactamase 1
+– Antibiotic resistance enzyme in bacteria
+One Health
+– Collaborative global initiative
+Persister cells
+– Dormant, persistent state of a bacterial population
+Resistance-nodulation-cell division superfamily
+(RND)
+Resistome
+References
+[
+edit
+]
+↑
+Kirby-Bauer Disk Diffusion Susceptibility Test Protocol
+Archived
+26 June 2011 at the
+Wayback Machine
+, Jan Hudzicki, ASM
+1
+2
+3
+"About Antimicrobial Resistance"
+.
+US
+Centers for Disease Control and Prevention
+. 22 April 2024
+. Retrieved
+11 October
+2024
+.
+1
+2
+World Health Organization (WHO) (21 November 2023).
+"Antimicrobial resistance"
+.
+1
+2
+3
+"Antimicrobial resistance Fact sheet N°194"
+.
+who.int
+. April 2014.
+Archived
+from the original on 10 March 2015
+. Retrieved
+7 March
+2015
+.
+1
+2
+Tanwar J, Das S, Fatima Z, Hameed S (2014).
+"Multidrug resistance: an emerging crisis"
+.
+Interdisciplinary Perspectives on Infectious Diseases
+.
+2014
+541340.
+doi
+:
+10.1155/2014/541340
+.
+PMC
+4124702
+.
+PMID
+25140175
+.
+↑
+Magiorakos AP, Srinivasan A, Carey RB, Carmeli Y, Falagas ME, Giske CG, et
+al. (March 2012).
+"Multidrug-resistant, extensively drug-resistant and pandrug-resistant bacteria: an international expert proposal for interim standard definitions for acquired resistance"
+.
+Clinical Microbiology and Infection
+.
+18
+(3):
+268–
+281.
+doi
+:
+10.1111/j.1469-0691.2011.03570.x
+.
+PMID
+21793988
+.
+1
+2
+3
+4
+Dabour R, Meirson T, Samson AO (December 2016). "Global antibiotic resistance is mostly periodic".
+Journal of Global Antimicrobial Resistance
+.
+7
+:
+132–
+134.
+doi
+:
+10.1016/j.jgar.2016.09.003
+.
+PMID
+27788414
+.
+↑
+Swedish work on containment of antibiotic resistance – Tools, methods and experiences
+(PDF)
+. Stockholm: Public Health Agency of Sweden. 2014. pp.
+16–
+17,
+121–
+128.
+ISBN
+978-91-7603-011-0
+. Archived from
+the original
+(PDF)
+on 23 July 2015
+. Retrieved
+23 July
+2015
+.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+"Better use of vaccines could reduce antibiotic use by 2.5 billion doses annually, says WHO"
+.
+World Health Organization
+. 10 October 2024
+. Retrieved
+11 October
+2024
+.
+1
+2
+Saha M, Sarkar A (December 2021).
+"Review on Multiple Facets of Drug Resistance: A Rising Challenge in the 21st Century"
+.
+Journal of Xenobiotics
+.
+11
+(4):
+197–
+214.
+doi
+:
+10.3390/jox11040013
+.
+PMC
+8708150
+.
+PMID
+34940513
+.
+↑
+Chanel S, Doherty B (10 September 2020).
+"
+'Superbugs' a far greater risk than Covid in Pacific, scientist warns"
+.
+The Guardian
+.
+ISSN
+0261-3077
+.
+Archived
+from the original on 5 December 2022
+. Retrieved
+14 September
+2020
+.
+↑
+Rodríguez-Baño J, Rossolini GM, Schultsz C, Tacconelli E, Murthy S, Ohmagari N, et
+al. (March 2021).
+"Key considerations on the potential impacts of the COVID-19 pandemic on antimicrobial resistance research and surveillance"
+.
+Trans R Soc Trop Med Hyg
+.
+115
+(10):
+1122–
+1129.
+doi
+:
+10.1093/trstmh/trab048
+.
+PMC
+8083707
+.
+PMID
+33772597
+.
+↑
+Israeli researchers uncover hidden mechanism behind rapid antibiotic resistance
+↑
+"What is Drug Resistance?"
+.
+niaid.nih.gov
+. Archived from
+the original
+on 27 July 2015
+. Retrieved
+26 July
+2015
+.
+↑
+"CDC: Get Smart: Know When Antibiotics Work"
+. Cdc.gov. 29 May 2018.
+Archived
+from the original on 29 April 2015
+. Retrieved
+12 June
+2013
+.
+↑
+MacGowan A, Macnaughton E (1 October 2017). "Antibiotic resistance".
+Medicine
+.
+45
+(10):
+622–
+628.
+doi
+:
+10.1016/j.mpmed.2017.07.006
+.
+1
+2
+3
+4
+5
+"WHO's first global report on antibiotic resistance reveals serious, worldwide threat to public health"
+Archived
+2 May 2014 at the
+Wayback Machine
+Retrieved 2 May 2014.
+1
+2
+3
+4
+Murray CJ, Ikuta KS, Sharara F, Swetschinski L, Robles Aguilar G, Gray A, et
+al. (Antimicrobial Resistance Collaborators) (February 2022).
+"Global burden of bacterial antimicrobial resistance in 2019: a systematic analysis"
+.
+Lancet
+.
+399
+(10325):
+629–
+655.
+doi
+:
+10.1016/S0140-6736(21)02724-0
+.
+PMC
+8841637
+.
+PMID
+35065702
+.
+S2CID
+246077406
+.
+1
+2
+"Antibiotic resistance"
+.
+who.int
+.
+Archived
+from the original on 21 May 2021
+. Retrieved
+16 March
+2020
+.
+↑
+Cassini A, Högberg LD, Plachouras D, Quattrocchi A, Hoxha A, Simonsen GS, et
+al. (January 2019).
+"Attributable deaths and disability-adjusted life-years caused by infections with antibiotic-resistant bacteria in the EU and the European Economic Area in 2015: a population-level modelling analysis"
+.
+The Lancet. Infectious Diseases
+.
+19
+(1):
+56–
+66.
+doi
+:
+10.1016/S1473-3099(18)30605-4
+.
+PMC
+6300481
+.
+PMID
+30409683
+.
+↑
+"Antibiotic-resistant bacteria responsible for over 33,000 deaths in Europe in 2015, study finds"
+.
+The Pharmaceutical Journal
+. 7 November 2018.
+Archived
+from the original on 28 March 2023
+. Retrieved
+28 March
+2023
+.
+↑
+Mestrovic T, Robles Aguilar G, Swetschinski LR, Ikuta KS, Gray AP, Davis Weaver N, et
+al. (November 2022).
+"The burden of bacterial antimicrobial resistance in the WHO European region in 2019: a cross-country systematic analysis"
+.
+The Lancet. Public Health
+.
+7
+(11):
+e897–
+e913.
+doi
+:
+10.1016/S2468-2667(22)00225-0
+.
+hdl
+:
+10023/26218
+.
+PMC
+9630253
+.
+PMID
+36244350
+.
+1
+2
+National Institute of Allergy and Infectious Diseases (2025).
+"Antimicrobial resistance: Causes"
+.
+↑
+"Antimicrobial Resistance " Cambridge Medicine Journal"
+. Retrieved
+27 February
+2020
+.
+[
+permanent dead link
+]
+1
+2
+Holmes AH, Moore LS, Sundsfjord A, Steinbakk M, Regmi S, Karkey A, et
+al. (January 2016).
+"Understanding the mechanisms and drivers of antimicrobial resistance"
+.
+Lancet
+.
+387
+(10014):
+176–
+87.
+doi
+:
+10.1016/S0140-6736(15)00473-0
+.
+hdl
+:
+10044/1/32225
+.
+PMID
+26603922
+.
+S2CID
+1944665
+.
+Archived
+from the original on 14 April 2022
+. Retrieved
+5 December
+2021
+.
+1
+2
+"CDC Newsroom"
+.
+CDC
+. 1 January 2016.
+Archived
+from the original on 9 March 2023
+. Retrieved
+28 February
+2023
+.
+1
+2
+Michael CA, Dominey-Howes D, Labbate M (2014).
+"The antimicrobial resistance crisis: causes, consequences, and management"
+.
+Frontiers in Public Health
+.
+2
+: 145.
+Bibcode
+:
+2014FrPH....2..145M
+.
+doi
+:
+10.3389/fpubh.2014.00145
+.
+PMC
+4165128
+.
+PMID
+25279369
+.
+↑
+Molnar D, Suranyi EV, Trombitas T, Füzesi D, Hirmondo R, Toth J (20 November 2024).
+"Genetic stability of Mycobacterium smegmatis under the stress of first-line antitubercular agents"
+.
+eLife
+.
+13
+(RP96695) RP96695.
+doi
+:
+10.7554/eLife.96695.3
+.
+PMC
+11578590
+.
+PMID
+39565350
+.
+↑
+Molnar D, Suranyi EV, Galik N, Toth J, Hirmondo R (15 November 2024).
+"Assessing the Impact of Bedaquiline, Clofazimine, and Linezolid on Mycobacterial Genome Integrity"
+.
+Biomolecules
+.
+14
+(1451): 1451.
+doi
+:
+10.3390/biom14111451
+.
+PMC
+11591709
+.
+PMID
+39595627
+.
+↑
+"What causes AMR?
+|
+Antimicrobial resistance"
+. Archived from
+the original
+on 7 March 2020
+. Retrieved
+20 December
+2025
+.
+↑
+Australian Government Department of Health and Aged Care. (2022).
+"What causes antimicrobial resistance?"
+. Archived from
+the original
+on 7 March 2020
+. Retrieved
+20 December
+2025
+.
+↑
+Michaelis C, Grohmann E (4 February 2023).
+"Horizontal Gene Transfer of Antibiotic Resistance Genes in Biofilms"
+.
+Antibiotics
+.
+12
+(2): 328.
+doi
+:
+10.3390/antibiotics12020328
+.
+ISSN
+2079-6382
+.
+PMC
+9952180
+.
+PMID
+36830238
+.
+1
+2
+3
+Salam MA, Al-Amin MY, Salam MT, Pawar JS, Akhter N, Rabaan AA, et
+al. (2023).
+"Antimicrobial Resistance: A Growing Serious Threat for Global Public Health"
+.
+Healthcare
+.
+11
+(3): 1946.
+doi
+:
+10.3390/healthcare11131946
+.
+PMC
+10340576
+.
+PMID
+37444780
+.
+1
+2
+"Natural selection"
+.
+evolution.berkeley.edu
+.
+Archived
+from the original on 30 October 2019
+. Retrieved
+10 March
+2020
+.
+1
+2
+Larsen J, Raisen CL, Ba X, Sadgrove NJ, Padilla-González GF, Simmonds MS, et
+al. (February 2022).
+"Emergence of methicillin resistance predates the clinical use of antibiotics"
+.
+Nature
+.
+602
+(7895):
+135–
+141.
+Bibcode
+:
+2022Natur.602..135L
+.
+doi
+:
+10.1038/s41586-021-04265-w
+.
+PMC
+8810379
+.
+PMID
+34987223
+.
+↑
+Lobanovska M, Pilla G (March 2017).
+"Penicillin's Discovery and Antibiotic Resistance: Lessons for the Future?"
+.
+The Yale Journal of Biology and Medicine
+.
+90
+(1):
+135–
+145.
+ISSN
+1551-4056
+.
+PMC
+5369031
+.
+PMID
+28356901
+.
+↑
+Crits-Christoph A, Hallowell HA, Koutouvalis K, Suez J (31 December 2022).
+"Good microbes, bad genes? The dissemination of antimicrobial resistance in the human microbiome"
+.
+Gut Microbes
+.
+14
+(1) 2055944.
+doi
+:
+10.1080/19490976.2022.2055944
+.
+PMC
+8959533
+.
+PMID
+35332832
+.
+1
+2
+3
+Ferri M, Ranucci E, Romagnoli P, Giaccone V (September 2017). "Antimicrobial resistance: A global emerging threat to public health systems".
+Critical Reviews in Food Science and Nutrition
+.
+57
+(13):
+2857–
+2876.
+doi
+:
+10.1080/10408398.2015.1077192
+.
+PMID
+26464037
+.
+S2CID
+24549694
+.
+↑
+"Global Database for Tracking Antimicrobial Resistance (AMR) Country Self- Assessment Survey (TrACSS)"
+.
+amrcountryprogress.org
+.
+Archived
+from the original on 28 March 2023
+. Retrieved
+28 March
+2023
+.
+1
+2
+3
+4
+Rather IA, Kim BC, Bajpai VK, Park YH (May 2017).
+"Self-medication and antibiotic resistance: Crisis, current challenges, and prevention"
+.
+Saudi Journal of Biological Sciences
+.
+24
+(4):
+808–
+812.
+doi
+:
+10.1016/j.sjbs.2017.01.004
+.
+PMC
+5415144
+.
+PMID
+28490950
+.
+1
+2
+Torres NF, Chibi B, Middleton LE, Solomon VP, Mashamba-Thompson TP (March 2019). "Evidence of factors influencing self-medication with antibiotics in low and middle-income countries: a systematic scoping review".
+Public Health
+.
+168
+:
+92–
+101.
+doi
+:
+10.1016/j.puhe.2018.11.018
+.
+PMID
+30716570
+.
+S2CID
+73434085
+.
+↑
+Ayukekbong JA, Ntemgwa M, Atabe AN (15 May 2017).
+"The threat of antimicrobial resistance in developing countries: causes and control strategies"
+.
+Antimicrobial Resistance and Infection Control
+.
+6
+(1) 47.
+doi
+:
+10.1186/s13756-017-0208-x
+.
+PMC
+5433038
+.
+PMID
+28515903
+.
+↑
+Chen C, Patterson B, Simpson R, Li Y, Chen Z, Lv Q, et
+al. (9 August 2022).
+"Do fluoroquinolones increase aortic aneurysm or dissection incidence and mortality? A systematic review and meta-analysis"
+.
+Frontiers in Cardiovascular Medicine
+.
+9
+949538.
+doi
+:
+10.3389/fcvm.2022.949538
+.
+PMC
+9396038
+.
+PMID
+36017083
+.
+↑
+Shu Y, Zhang Q, He X, Liu Y, Wu P, Chen L (6 September 2022).
+"Fluoroquinolone-associated suspected tendonitis and tendon rupture: A pharmacovigilance analysis from 2016 to 2021 based on the FAERS database"
+.
+Frontiers in Pharmacology
+.
+13
+990241.
+doi
+:
+10.3389/fphar.2022.990241
+.
+PMC
+9486157
+.
+PMID
+36147351
+.
+1
+2
+3
+Ventola CL (April 2015).
+"The antibiotic resistance crisis: part 1: causes and threats"
+.
+P & T
+.
+40
+(4):
+277–
+83.
+PMC
+4378521
+.
+PMID
+25859123
+.
+↑
+Fleming-Dutra KE, Hersh AL, Shapiro DJ, Bartoces M, Enns EA, File TM, et
+al. (May 2016).
+"Prevalence of Inappropriate Antibiotic Prescriptions Among US Ambulatory Care Visits, 2010–2011"
+.
+JAMA
+.
+315
+(17):
+1864–
+73.
+Bibcode
+:
+2016JAMA..315.1864F
+.
+doi
+:
+10.1001/jama.2016.4151
+.
+PMID
+27139059
+.
+↑
+Strachan CR, Davies J (February 2017).
+"The Whys and Wherefores of Antibiotic Resistance"
+.
+Cold Spring Harbor Perspectives in Medicine
+.
+7
+(2) a025171.
+doi
+:
+10.1101/cshperspect.a025171
+.
+PMC
+5287056
+.
+PMID
+27793964
+.
+↑
+Harris A, Chandramohan S, Awali RA, Grewal M, Tillotson G, Chopra T (August 2019). "Physicians' attitude and knowledge regarding antibiotic use and resistance in ambulatory settings".
+American Journal of Infection Control
+.
+47
+(8):
+864–
+868.
+doi
+:
+10.1016/j.ajic.2019.02.009
+.
+PMID
+30926215
+.
+S2CID
+88482220
+.
+↑
+Joshi MP (17 February 2021).
+"Don't let Covid boost another killer"
+.
+Knowable Magazine
+.
+doi
+:
+10.1146/knowable-021621-1
+.
+Archived
+from the original on 22 October 2021
+. Retrieved
+10 August
+2022
+.
+↑
+Rawson TM, Moore LS, Zhu N, Ranganathan N, Skolimowska K, Gilchrist M, et
+al. (December 2020).
+"Bacterial and Fungal Coinfection in Individuals With Coronavirus: A Rapid Review To Support COVID-19 Antimicrobial Prescribing"
+.
+Clinical Infectious Diseases
+.
+71
+(9):
+2459–
+2468.
+doi
+:
+10.1093/cid/ciaa530
+.
+PMC
+7197596
+.
+PMID
+32358954
+.
+↑
+Barnes S (10 February 2021).
+"Rutgers study finds antibiotic overuse is caused by misconceptions, financial incentives"
+.
+The Daily Targum
+.
+Archived
+from the original on 6 December 2021
+. Retrieved
+16 February
+2021
+.
+↑
+Blaser MJ, Melby MK, Lock M, Nichter M (February 2021). "Accounting for variation in and overuse of antibiotics among humans".
+BioEssays
+.
+43
+(2) e2000163.
+doi
+:
+10.1002/bies.202000163
+.
+PMID
+33410142
+.
+S2CID
+230811912
+.
+↑
+"Antimicrobials | American Veterinary Medical Association"
+.
+avma.org
+.
+Archived
+from the original on 24 April 2024
+. Retrieved
+24 April
+2024
+.
+↑
+Caneschi A, Bardhi A, Barbarossa A, Zaghini A (March 2023).
+"The Use of Antibiotics and Antimicrobial Resistance in Veterinary Medicine, a Complex Phenomenon: A Narrative Review"
+.
+Antibiotics
+.
+12
+(3): 487.
+doi
+:
+10.3390/antibiotics12030487
+.
+PMC
+10044628
+.
+PMID
+36978354
+.
+↑
+"Has COVID-19 made the superbug crisis worse?"
+.
+Global News
+.
+Archived
+from the original on 12 February 2022
+. Retrieved
+12 February
+2022
+.
+↑
+Lucien MA, Canarie MF, Kilgore PE, Jean-Denis G, Fénélon N, Pierre M, et
+al. (March 2021).
+"Antibiotics and antimicrobial resistance in the COVID-19 era: Perspective from resource-limited settings"
+.
+International Journal of Infectious Diseases
+.
+104
+:
+250–
+254.
+doi
+:
+10.1016/j.ijid.2020.12.087
+.
+PMC
+7796801
+.
+PMID
+33434666
+.
+1
+2
+"COVID-19 & Antibiotic Resistance"
+.
+Centers for Disease Control and Prevention
+. 18 November 2021.
+Archived
+from the original on 21 February 2022
+. Retrieved
+21 February
+2022
+.
+↑
+Lu J, Guo J (January 2021).
+"Disinfection spreads antimicrobial resistance"
+.
+Science
+.
+371
+(6528): 474.
+Bibcode
+:
+2021Sci...371..474L
+.
+doi
+:
+10.1126/science.abg4380
+.
+PMID
+33510019
+.
+S2CID
+231730007
+.
+↑
+Lobie TA, Roba AA, Booth JA, Kristiansen KI, Aseffa A, Skarstad K, et
+al. (October 2021).
+"Antimicrobial resistance: A challenge awaiting the post-COVID-19 era"
+.
+International Journal of Infectious Diseases
+.
+111
+:
+322–
+325.
+doi
+:
+10.1016/j.ijid.2021.09.003
+.
+PMC
+8425743
+.
+PMID
+34508864
+.
+S2CID
+237444117
+.
+↑
+Knight GM, Glover RE, McQuaid CF, Olaru ID, Gallandat K, Leclerc QJ, et
+al. (February 2021).
+"Antimicrobial resistance and COVID-19: Intersections and implications"
+.
+eLife
+.
+10
+e64139.
+doi
+:
+10.7554/eLife.64139
+.
+PMC
+7886324
+.
+PMID
+33588991
+.
+S2CID
+231936902
+.
+1
+2
+"Causes of Antimicrobial (Drug) Resistance
+|
+NIAID: National Institute of Allergy and Infectious Diseases"
+. 21 December 2011.
+↑
+"World Leaders Approve Milestone Commitment To Reduce Deaths From Antibiotic Resistance By 10% By 2030 - Health Policy Watch"
+. 26 September 2024
+. Retrieved
+28 September
+2024
+.
+↑
+"UN General Assembly High-Level Meeting on antimicrobial resistance 2024"
+.
+www.who.int
+. Retrieved
+28 September
+2024
+.
+↑
+Held L (25 September 2024).
+"The US Weakens a UN Declaration on Antibiotic Resistance"
+.
+Civil Eats
+.
+Archived
+from the original on 23 December 2024
+. Retrieved
+18 May
+2025
+.
+↑
+Van Boeckel TP, Pires J, Silvester R, Zhao C, Song J, Criscuolo NG, et
+al. (20 September 2019).
+"Global trends in antimicrobial resistance in animals in low- and middle-income countries"
+.
+Science
+.
+365
+(6459) eaaw1944.
+doi
+:
+10.1126/science.aaw1944
+.
+hdl
+:
+2013/ULB-DIPOT:oai:dipot.ulb.ac.be:2013/296867
+.
+PMID
+31604207
+.
+Archived
+from the original on 12 March 2025.
+↑
+Musoke D, Namata C, Lubega GB, Niyongabo F, Gonza J, Chidziwisano K, et
+al. (October 2021).
+"The role of Environmental Health in preventing antimicrobial resistance in low- and middle-income countries"
+.
+Environmental Health and Preventive Medicine
+.
+26
+(1) 100.
+Bibcode
+:
+2021EHPM...26..100M
+.
+doi
+:
+10.1186/s12199-021-01023-2
+.
+PMC
+8493696
+.
+PMID
+34610785
+.
+1
+2
+3
+4
+5
+6
+7
+8
+9
+10
+Stanley D, Batacan R, Bajagai YS (November 2022).
+"Rapid growth of antimicrobial resistance: the role of agriculture in the problem and the solutions"
+.
+Applied Microbiology and Biotechnology
+.
+106
+(21):
+6953–
+6962.
+doi
+:
+10.1007/s00253-022-12193-6
+.
+ISSN
+1432-0614
+.
+PMC
+9532813
+.
+PMID
+36197458
+.
+↑
+Kotwani A, Joshi J, Kaloni D (July 2021).
+"Pharmaceutical effluent: a critical link in the interconnected ecosystem promoting antimicrobial resistance"
+.
+Environmental Science and Pollution Research
+.
+28
+(25):
+32111–
+32124.
+doi
+:
+10.1007/s11356-021-14178-w
+.
+ISSN
+0944-1344
+.
+PMC
+8086231
+.
+PMID
+33929671
+.
+↑
+Wang J, Hui X, Liu H, Dai X (October 2024).
+"Classification, characteristics, harmless treatment and safety assessment of antibiotic pharmaceutical wastewater (APWW): A comprehensive review"
+.
+Chemosphere
+.
+366
+: 143504.
+doi
+:
+10.1016/j.chemosphere.2024.143504
+.
+{{
+cite journal
+}}
+: CS1 maint: article number as page number (
+link
+)
+↑
+"Guidance on wastewater and solid waste management for manufacturing of antibiotics"
+.
+www.who.int
+. Retrieved
+24 October
+2026
+.
+↑
+Monger XC, Gilbert AA, Saucier L, Vincent AT (October 2021).
+"Antibiotic Resistance: From Pig to Meat"
+.
+Antibiotics
+.
+10
+(10): 1209.
+doi
+:
+10.3390/antibiotics10101209
+.
+PMC
+8532907
+.
+PMID
+34680790
+.
+↑
+Torrella K (8 January 2023).
+"Big Meat just can't quit antibiotics"
+.
+Vox
+.
+Archived
+from the original on 23 January 2023
+. Retrieved
+23 January
+2023
+.
+1
+2
+Martin MJ, Thottathil SE, Newman TB (December 2015).
+"Antibiotics Overuse in Animal Agriculture: A Call to Action for Health Care Providers"
+.
+American Journal of Public Health
+.
+105
+(12):
+2409–
+2410.
+doi
+:
+10.2105/AJPH.2015.302870
+.
+PMC
+4638249
+.
+PMID
+26469675
+.
+↑
+"Farm antibiotic use"
+.
+saveourantibiotics.org
+.
+Archived
+from the original on 3 April 2024
+. Retrieved
+21 March
+2024
+.
+↑
+Tang KL, Caffrey NP, Nóbrega DB, Cork SC, Ronksley PE, Barkema HW, et
+al. (November 2017).
+"Restricting the use of antibiotics in food-producing animals and its associations with antibiotic resistance in food-producing animals and human beings: a systematic review and meta-analysis"
+.
+The Lancet. Planetary Health
+.
+1
+(8):
+e316–
+e327.
+doi
+:
+10.1016/S2542-5196(17)30141-9
+.
+PMC
+5785333
+.
+PMID
+29387833
+.
+1
+2
+Innes GK, Randad PR, Korinek A, Davis MF, Price LB, So AD, et
+al. (April 2020).
+"External Societal Costs of Antimicrobial Resistance in Humans Attributable to Antimicrobial Use in Livestock"
+.
+Annual Review of Public Health
+.
+41
+(1):
+141–
+157.
+doi
+:
+10.1146/annurev-publhealth-040218-043954
+.
+PMC
+7199423
+.
+PMID
+31910712
+.
+↑
+"Veterinary feed directive (VFD) basics | American Veterinary Medical Association"
+.
+avma.org
+.
+Archived
+from the original on 24 April 2024
+. Retrieved
+24 April
+2024
+.
+↑
+US EPA O (15 March 2013).
+"What are Antimicrobial Pesticides?"
+.
+US EPA
+.
+Archived
+from the original on 27 November 2022
+. Retrieved
+28 February
+2020
+.
+↑
+Ramakrishnan B, Venkateswarlu K, Sethunathan N, Megharaj M (March 2019). "Local applications but global implications: Can pesticides drive microorganisms to develop antimicrobial resistance?".
+The Science of the Total Environment
+.
+654
+:
+177–
+189.
+Bibcode
+:
+2019ScTEn.654..177R
+.
+doi
+:
+10.1016/j.scitotenv.2018.11.041
+.
+PMID
+30445319
+.
+S2CID
+53568193
+.
+↑
+Rhodes J, Abdolrasouli A, Dunne K, Sewell TR, Zhang Y, Ballard E, et
+al. (May 2022).
+"Population genomics confirms acquisition of drug-resistant Aspergillus fumigatus infection by humans from the environment"
+.
+Nature Microbiology
+.
+7
+(5):
+663–
+674.
+Bibcode
+:
+2022NatMb...7..663R
+.
+doi
+:
+10.1038/s41564-022-01091-2
+.
+PMC
+9064804
+.
+PMID
+35469019
+.
+1
+2
+Verweij PE, Arendrup MC, Alastruey-Izquierdo A, Gold JA, Lockhart SR, Chiller T, et
+al. (December 2022).
+"Dual use of antifungals in medicine and agriculture: How do we help prevent resistance developing in human pathogens?"
+.
+Drug Resistance Updates
+.
+65
+100885.
+doi
+:
+10.1016/j.drup.2022.100885
+.
+PMC
+10693676
+.
+PMID
+36283187
+.
+S2CID
+253052170
+.
+1
+2
+3
+Martin-Maldonado B, Marco-Fuertes A, Montoro-Dasi L, Lorenzo-Rebenaque L, Sansano-Maestre J, Jordá J, et
+al. (22 July 2025).
+"Exploring the Prevalence of Antimicrobial Resistance in the Environment Through Bonelli's Eagles (Aquila fasciata) as Sentinels"
+.
+Antibiotics
+.
+14
+(8): 734.
+doi
+:
+10.3390/antibiotics14080734
+.
+ISSN
+2079-6382
+.
+PMC
+12383151
+.
+PMID
+40867929
+.
+1
+2
+Daireaux A, Nobrega D (2025). "Antimicrobial resistance in companion animals: trends, threats and takeaways".
+Scientific and Technical Review of the World Organisation for Animal Health
+.
+44
+.
+doi
+:
+10.20506/rst.44.3706
+.
+1
+2
+Gwenzi W, Chaukura N, Muisa-Zikali N, Teta C, Musvuugwa T, Rzymski P (2021).
+"Insects, Rodents, and Pets as Reservoirs, Vectors, and Sentinels of Antimicrobial Resistance"
+.
+Pathogens
+.
+10
+(1): 68.
+doi
+:
+10.3390/antibiotics10010068
+.
+PMC
+7826649
+.
+PMID
+33445633
+.
+↑
+Rogers Van Katwyk S, Giubilini A, Kirchhelle C, Weldon I, Harrison M, McLean A, et
+al. (March 2023).
+"Exploring Models for an International Legal Agreement on the Global Antimicrobial Commons: Lessons from Climate Agreements"
+.
+Health Care Analysis
+.
+31
+(1):
+25–
+46.
+doi
+:
+10.1007/s10728-019-00389-3
+.
+PMC
+10042908
+.
+PMID
+31965398
+.
+↑
+Wilson LA, Van Katwyk SR, Weldon I, Hoffman SJ (2021).
+"A Global Pandemic Treaty Must Address Antimicrobial Resistance"
+.
+The Journal of Law, Medicine & Ethics
+.
+49
+(4):
+688–
+691.
+doi
+:
+10.1017/jme.2021.94
+.
+PMC
+8749967
+.
+PMID
+35006051
+.
+↑
+Salam M (2023).
+"Antimicrobial resistance: a growing serious threat for global public health"
+.
+Antibiotics
+.
+12
+(6).
+doi
+:
+10.3390/antibiotics12061045
+.
+PMC
+10295235
+.
+PMID
+37370364
+.
+↑
+Ballash G, Parker E, Mollenkopf D, Wittum T (2024). "The One Health dissemination of antimicrobial resistance occurs in both natural and clinical environments".
+Journal of the American Veterinary Medical Association
+.
+262
+(4):
+451–
+458.
+doi
+:
+10.2460/javma.24.01.0056
+.
+PMID
+38428137
+.
+↑
+Punch R (2025). "The surveillance of antimicrobial resistance in wastewater from a One Health perspective: a global review".
+Journal of Environmental Management
+.
+395
+.
+doi
+:
+10.1016/j.jenvman.2025.125549
+.
+PMID
+41176431
+.
+↑
+Sidhu HS, Slater GF (4 April 2026).
+"Beyond the Chemical Load: Wastewater Residuals as Drivers of Antibiotic Resistance Proliferation and Dissemination into Soil, Water, and Food Webs"
+.
+Environmental Toxicology and Chemistry
+.
+45
+(6):
+1599–
+1610.
+doi
+:
+10.1093/etojnl/vgag089
+.
+ISSN
+0730-7268
+.
+PMID
+41936068
+.
+↑
+Pinto Jimenez C (2023). "Biosecurity and water, sanitation, and hygiene (WASH) interventions in animal agricultural settings for reducing infection burden, antibiotic use, and antibiotic resistance: a systematic review".
+Lancet Planetary Health
+.
+7
+(5):
+e418–
+e434.
+doi
+:
+10.1016/S2542-5196(23)00049-9
+.
+PMID
+37164518
+.
+1
+2
+3
+Spurling GK, Dooley L, Clark J, Askew DA, et
+al. (Cochrane Acute Respiratory Infections Group) (October 2023).
+"Immediate versus delayed versus no antibiotics for respiratory infections"
+.
+The Cochrane Database of Systematic Reviews
+.
+2023
+(10) CD004417.
+doi
+:
+10.1002/14651858.CD004417.pub6
+.
+PMC
+10548498
+.
+PMID
+37791590
+.
+1
+2
+3
+4
+"Duration of antibiotic therapy and resistance"
+.
+NPS Medicinewise
+. National Prescribing Service Limited trading, Australia. 13 June 2013. Archived from
+the original
+on 23 July 2015
+. Retrieved
+22 July
+2015
+.
+1
+2
+3
+"Biggest Threats – Antibiotic/Antimicrobial Resistance – CDC"
+.
+cdc.gov
+. 10 September 2018.
+Archived
+from the original on 12 September 2017
+. Retrieved
+5 May
+2016
+.
+↑
+"HealthMap Resistance"
+. HealthMap.org Boston Children's Hospital.
+Archived
+from the original on 15 November 2017
+. Retrieved
+15 November
+2017
+.
+↑
+Scales D.
+"Mapping Antibiotic Resistance: Know The Germs in Your Neighborhood"
+.
+Commonhealth
+. National Public Radio.
+Archived
+from the original on 8 December 2015
+. Retrieved
+8 December
+2015
+.
+↑
+"ResistanceMap"
+. Center for Disease Dynamics, Economics & Policy.
+Archived
+from the original on 14 November 2017
+. Retrieved
+14 November
+2017
+.
+1
+2
+"Global Action Plan on Antimicrobial Resistance"
+(PDF)
+. WHO. Archived from
+the original
+(PDF)
+on 31 October 2017
+. Retrieved
+14 November
+2017
+.
+↑
+Mader R, Damborg P, Amat JP, Bengtsson B, Bourély C, Broens EM, et
+al. (January 2021).
+"Building the European Antimicrobial Resistance Surveillance network in veterinary medicine (EARS-Vet)"
+.
+Euro Surveillance
+.
+26
+(4).
+doi
+:
+10.2807/1560-7917.ES.2021.26.4.2001359
+.
+PMC
+7848785
+.
+PMID
+33509339
+.
+↑
+Feuer L, Frenzer SK, Merle R, Leistner R, Bäumer W, Bethe A, et
+al. (September 2024). "Prevalence of MRSA in canine and feline clinical samples from one-third of veterinary practices in Germany from 2019-2021".
+The Journal of Antimicrobial Chemotherapy
+.
+79
+(9):
+2273–
+2280.
+doi
+:
+10.1093/jac/dkae225
+.
+PMID
+39007221
+.
+1
+2
+3
+4
+5
+6
+7
+Fisher MC, Alastruey-Izquierdo A, Berman J, Bicanic T, Bignell EM, Bowyer P, et
+al. (September 2022).
+"Tackling the emerging threat of antifungal resistance to human health"
+.
+Nature Reviews. Microbiology
+.
+20
+(9):
+557–
+571.
+doi
+:
+10.1038/s41579-022-00720-1
+.
+PMC
+8962932
+.
+PMID
+35352028
+.
+↑
+Baur D, Gladstone BP, Burkert F, Carrara E, Foschi F, Döbele S, et
+al. (September 2017). "Effect of antibiotic stewardship on the incidence of infection and colonisation with antibiotic-resistant bacteria and Clostridium difficile infection: a systematic review and meta-analysis".
+The Lancet. Infectious Diseases
+.
+17
+(9):
+990–
+1001.
+doi
+:
+10.1016/S1473-3099(17)30325-0
+.
+PMID
+28629876
+.
+↑
+Gallagher JC, Justo JA, Chahine EB, Bookstaver PB, Scheetz M, Suda KJ, et
+al. (August 2018).
+"Preventing the Post-Antibiotic Era by Training Future Pharmacists as Antimicrobial Stewards"
+.
+American Journal of Pharmaceutical Education
+.
+82
+(6) 6770.
+doi
+:
+10.5688/ajpe6770
+.
+PMC
+6116871
+.
+PMID
+30181677
+.
+↑
+Andersson DI, Hughes D (September 2011).
+"Persistence of antibiotic resistance in bacterial populations"
+.
+FEMS Microbiology Reviews
+.
+35
+(5):
+901–
+11.
+doi
+:
+10.1111/j.1574-6976.2011.00289.x
+.
+PMID
+21707669
+.
+↑
+Gilberg K, Laouri M, Wade S, Isonaka S (2003).
+"Analysis of medication use patterns:apparent overuse of antibiotics and underuse of prescription drugs for asthma, depression, and CHF"
+.
+Journal of Managed Care Pharmacy
+.
+9
+(3):
+232–
+7.
+doi
+:
+10.18553/jmcp.2003.9.3.232
+.
+PMC
+10437266
+.
+PMID
+14613466
+.
+S2CID
+25457069
+.
+↑
+Llor C, Bjerrum L (December 2014).
+"Antimicrobial resistance: risk associated with antibiotic overuse and initiatives to reduce the problem"
+.
+Therapeutic Advances in Drug Safety
+.
+5
+(6):
+229–
+41.
+doi
+:
+10.1177/2042098614554919
+.
+PMC
+4232501
+.
+PMID
+25436105
+.
+↑
+"Pandemic of Antibiotic Resistance Killing Children in Bangladesh"
+.
+Science Trend
+. 18 July 2021. Archived from
+the original
+on 29 November 2021
+. Retrieved
+15 August
+2021
+.
+↑
+Chisti MJ, Harris JB, Carroll RW, Shahunja KM, Shahid AS, Moschovis PP, et
+al. (July 2021).
+"Antibiotic-Resistant Bacteremia in Young Children Hospitalized With Pneumonia in Bangladesh Is Associated With a High Mortality Rate"
+.
+Open Forum Infectious Diseases
+.
+8
+(7) ofab260.
+doi
+:
+10.1093/ofid/ofab260
+.
+PMC
+8280371
+.
+PMID
+34277885
+.
+↑
+The WHO AWaRe (Access, Watch, Reserve) antibiotic book
+. Geneva:
+World Health Organization
+(WHO). 2022.
+ISBN
+978-92-4-006238-2
+.
+Archived
+from the original on 13 August 2023
+. Retrieved
+28 March
+2023
+.
+↑
+Talento AF, Qualie M, Cottom L, Backx M, White PL (September 2021).
+"Lessons from an Educational Invasive Fungal Disease Conference on Hospital Antifungal Stewardship Practices across the UK and Ireland"
+.
+Journal of Fungi
+.
+7
+(10): 801.
+doi
+:
+10.3390/jof7100801
+.
+PMC
+8538376
+.
+PMID
+34682223
+.
+↑
+Doron S, Davidson LE (November 2011).
+"Antimicrobial stewardship"
+.
+Mayo Clinic Proceedings
+.
+86
+(11):
+1113–
+23.
+doi
+:
+10.4065/mcp.2011.0358
+.
+PMC
+3203003
+.
+PMID
+22033257
+.
+↑
+Davey P, Marwick CA, Scott CL, Charani E, McNeil K, Brown E, et
+al. (February 2017).
+"Interventions to improve antibiotic prescribing practices for hospital inpatients"
+.
+The Cochrane Database of Systematic Reviews
+.
+2017
+(2) CD003543.
+doi
+:
+10.1002/14651858.cd003543.pub4
+.
+PMC
+6464541
+.
+PMID
+28178770
+.
+1
+2
+Costa T, Pimentel AC, Mota-Vieira L, Castanha AC (1 May 2021).
+"The benefits of a unit dose system in oral antibiotics dispensing: Azorean hospital pharmacists tackling the socioeconomic problem of leftovers in Portugal"
+.
+Drugs & Therapy Perspectives
+.
+37
+(5):
+212–
+221.
+doi
+:
+10.1007/s40267-021-00825-2
+.
+ISSN
+1179-1977
+.
+↑
+Stroever S, Patel R, Meeks B, Schouten N, Stuart D, Hanrahan J, et
+al. (2026).
+"From infestation to infection: a systematic review of arthropod-mediated microbial transmission in hospitals"
+.
+Antimicrobial Stewardship & Healthcare Epidemiology
+.
+6
+(1): e16.
+doi
+:
+10.1017/ash.2025.10266
+.
+ISSN
+2732-494X
+.
+PMC
+12813724
+.
+PMID
+41562025
+.
+↑
+O'Sullivan JW, Harvey RT, Glasziou PP, McCullough A (November 2016).
+"Written information for patients (or parents of child patients) to reduce the use of antibiotics for acute upper respiratory tract infections in primary care"
+.
+The Cochrane Database of Systematic Reviews
+.
+2016
+(11) CD011360.
+doi
+:
+10.1002/14651858.CD011360.pub2
+.
+PMC
+6464519
+.
+PMID
+27886368
+.
+↑
+Bosley H, Henshall C, Appleton JV, Jackson D (March 2018).
+"A systematic review to explore influences on parental attitudes towards antibiotic prescribing in children"
+(PDF)
+.
+Journal of Clinical Nursing
+.
+27
+(
+5–
+6):
+892–
+905.
+doi
+:
+10.1111/jocn.14073
+.
+PMID
+28906047
+.
+S2CID
+4336064
+.
+Archived
+(PDF)
+from the original on 14 October 2023
+. Retrieved
+6 May
+2023
+.
+↑
+"The Five Rights of Medication Administration"
+.
+ihi.org
+. March 2007.
+Archived
+from the original on 24 October 2015
+. Retrieved
+30 October
+2015
+.
+↑
+"CDC Features – Mission Critical: Preventing Antibiotic Resistance"
+.
+cdc.gov
+. 4 April 2018.
+Archived
+from the original on 8 November 2017
+. Retrieved
+22 July
+2015
+.
+↑
+Leekha S, Terrell CL, Edson RS (February 2011).
+"General principles of antimicrobial therapy"
+.
+Mayo Clinic Proceedings
+.
+86
+(2):
+156–
+67.
+doi
+:
+10.4065/mcp.2010.0639
+.
+PMC
+3031442
+.
+PMID
+21282489
+.
+Archived
+from the original on 15 September 2019
+. Retrieved
+22 July
+2015
+.
+↑
+Thandar MM, Baba T, Matsuoka S, Ota E (29 January 2025). Cochrane Central Editorial Service (ed.).
+"Interventions to reduce non-prescription antimicrobial sales in community pharmacies"
+.
+Cochrane Database of Systematic Reviews
+.
+2025
+(1) CD013722.
+doi
+:
+10.1002/14651858.CD013722.pub2
+.
+PMC
+12043199
+.
+PMID
+39878150
+.
+↑
+"Are you using antibiotics wisely?"
+.
+Centers for Disease Control and Prevention
+. 3 January 2022.
+Archived
+from the original on 21 March 2024
+. Retrieved
+21 March
+2024
+.
+↑
+"Articles"
+.
+Cedars-Sinai
+. Archived from
+the original
+on 30 May 2020
+. Retrieved
+23 March
+2024
+.
+↑
+"Defined Daily Dose (DDD)"
+.
+WHO
+.
+Archived
+from the original on 10 May 2023
+. Retrieved
+28 March
+2023
+.
+↑
+"Indicator: Antibiotic prescribing"
+.
+QualityWatch
+. Nuffield Trust & Health Foundation.
+Archived
+from the original on 14 January 2015
+. Retrieved
+16 July
+2015
+.
+1
+2
+3
+IACG (2018)
+Reduce unintentional exposure and the need for antimicrobials, and optimize their use IACG Discussion Paper
+Archived
+6 July 2021 at the
+Wayback Machine
+, Interagency Coordination Group on Antimicrobial Resistance,
+public consultation process
+at WHO, Geneva, Switzerland
+1
+2
+3
+4
+5
+Araya P (May 2016).
+"The Impact of Water and Sanitation on Diarrhoeal Disease Burden and Over-Consumption of Anitbiotics"
+(PDF)
+.
+Archived
+(PDF)
+from the original on 1 October 2017
+. Retrieved
+12 November
+2017
+.
+↑
+"Goal 6: Ensure availability and sustainable management of water and sanitation for all"
+.
+United Nations Department of Economic and Social Affairs
+. Retrieved
+17 April
+2023
+.
+{{
+cite web
+}}
+: CS1 maint: deprecated archival service (
+link
+)
+↑
+Swoboda SM, Earsing K, Strauss K, Lane S, Lipsett PA (February 2004). "Electronic monitoring and voice prompts improve hand hygiene and decrease nosocomial infections in an intermediate care unit".
+Critical Care Medicine
+.
+32
+(2):
+358–
+63.
+doi
+:
+10.1097/01.CCM.0000108866.48795.0F
+.
+PMID
+14758148
+.
+S2CID
+9817602
+.
+(subscription required)
+↑
+WHO, UNICEF (2015).
+Water, sanitation and hygiene in health care facilities – Status in low and middle income countries and way forward
+Archived
+12 September 2018 at the
+Wayback Machine
+. World Health Organization (WHO), Geneva, Switzerland,
+ISBN
+978 92 4 150847 6
+↑
+Agga GE, Schmidt JW, Arthur TM (December 2016).
+"Effects of In-Feed Chlortetracycline Prophylaxis in Beef Cattle on Animal Health and Antimicrobial-Resistant Escherichia coli"
+.
+Applied and Environmental Microbiology
+.
+82
+(24):
+7197–
+7204.
+Bibcode
+:
+2016ApEnM..82.7197A
+.
+doi
+:
+10.1128/AEM.01928-16
+.
+PMC
+5118930
+.
+PMID
+27736789
+.
+1
+2
+Brown EE, Cooper A, Carrillo C, Blais B (2019).
+"Selection of Multidrug-Resistant Bacteria in Medicated Animal Feeds"
+.
+Frontiers in Microbiology
+.
+10
+456.
+doi
+:
+10.3389/fmicb.2019.00456
+.
+PMC
+6414793
+.
+PMID
+30894847
+.
+↑
+Marshall BM, Levy SB (October 2011).
+"Food animals and antimicrobials: impacts on human health"
+.
+Clinical Microbiology Reviews
+.
+24
+(4):
+718–
+33.
+Bibcode
+:
+2011CliMR..24..718M
+.
+doi
+:
+10.1128/CMR.00002-11
+.
+PMC
+3194830
+.
+PMID
+21976606
+.
+↑
+Casewell M, Friis C, Marco E, McMullin P, Phillips I (August 2003).
+"The European ban on growth-promoting antibiotics and emerging consequences for human and animal health"
+.
+The Journal of Antimicrobial Chemotherapy
+.
+52
+(2):
+159–
+61.
+doi
+:
+10.1093/jac/dkg313
+.
+PMID
+12837737
+.
+↑
+Castanon JI (November 2007).
+"History of the use of antibiotic as growth promoters in European poultry feeds"
+.
+Poultry Science
+.
+86
+(11):
+2466–
+71.
+doi
+:
+10.3382/ps.2007-00249
+.
+PMID
+17954599
+.
+(subscription required)
+↑
+Bengtsson B, Wierup M (2006). "Antimicrobial resistance in Scandinavia after ban of antimicrobial growth promoters".
+Animal Biotechnology
+.
+17
+(2):
+147–
+56.
+doi
+:
+10.1080/10495390600956920
+.
+PMID
+17127526
+.
+S2CID
+34602891
+.
+(subscription required)
+↑
+Angulo FJ, Baker NL, Olsen SJ, Anderson A, Barrett TJ (April 2004). "Antimicrobial use in agriculture: controlling the transfer of antimicrobial resistance to humans".
+Seminars in Pediatric Infectious Diseases
+.
+15
+(2):
+78–
+85.
+doi
+:
+10.1053/j.spid.2004.01.010
+.
+PMID
+15185190
+.
+↑
+"GAO-11-801, Antibiotic Resistance: Agencies Have Made Limited Progress Addressing Antibiotic Use in Animals"
+. gao.gov.
+Archived
+from the original on 5 November 2013
+. Retrieved
+25 January
+2014
+.
+↑
+Nelson JM, Chiller TM, Powers JH, Angulo FJ (April 2007).
+"Fluoroquinolone-resistant Campylobacter species and the withdrawal of fluoroquinolones from use in poultry: a public health success story"
+.
+Clinical Infectious Diseases
+.
+44
+(7):
+977–
+80.
+Bibcode
+:
+2007CliID..44..977N
+.
+doi
+:
+10.1086/512369
+.
+PMID
+17342653
+.
+↑
+"Extralabel Use and Antimicrobials"
+.
+FDA
+. 29 April 2022.
+Archived
+from the original on 19 April 2023
+. Retrieved
+19 April
+2023
+.
+↑
+Pallo-Zimmerman LM, Byron JK, Graves TK (July 2010).
+"Fluoroquinolones: then and now"
+(PDF)
+.
+Compendium
+.
+32
+(7): E1-9, quiz E9.
+PMID
+20957609
+. Archived from
+the original
+(PDF)
+on 21 June 2023
+. Retrieved
+19 April
+2023
+.
+↑
+"RAND Europe Focus on Antimicrobial Resistance (AMR)"
+.
+rand.org
+.
+Archived
+from the original on 21 April 2018
+. Retrieved
+23 April
+2018
+.
+↑
+"React"
+.
+Archived
+from the original on 16 November 2017
+. Retrieved
+16 November
+2017
+.
+↑
+"Antibiotic Resistance: the silent tsunami (youtube video)"
+.
+ReActTube
+. 6 March 2017.
+Archived
+from the original on 11 November 2021
+. Retrieved
+17 November
+2017
+.
+↑
+"The Antibiotic Apocalypse Explained"
+.
+Kurzgesagt – In a Nutshell
+. 16 March 2016.
+Archived
+from the original on 20 March 2021
+. Retrieved
+17 November
+2017
+.
+↑
+"Ireland's National Action Plan on Antimicrobial Resistance 2017 – 2020"
+. October 2017.
+Archived
+from the original on 10 August 2022
+. Retrieved
+11 January
+2019
+–
+via Lenus (Irish Health Repository).
+↑
+SARI Hospital Antimicrobial Stewardship Working Group (2009).
+Guidelines for antimicrobial stewardship in hospitals in Ireland
+. Dublin: HSE Health Protection Surveillance Centre (HPSC).
+ISBN
+978-0-9551236-7-2
+. Archived from
+the original
+on 5 December 2021
+. Retrieved
+11 January
+2019
+.
+↑
+"Taking antibiotics for colds and flu? There's no point"
+.
+HSE.ie
+. Archived from
+the original
+on 28 May 2018
+. Retrieved
+11 January
+2019
+.
+↑
+Murphy M, Bradley CP, Byrne S (May 2012).
+"Antibiotic prescribing in primary care, adherence to guidelines and unnecessary prescribing—an Irish perspective"
+.
+BMC Family Practice
+.
+13
+(1) 43.
+doi
+:
+10.1186/1471-2296-13-43
+.
+PMC
+3430589
+.
+PMID
+22640399
+.
+↑
+"UK 20-year vision for antimicrobial resistance"
+.
+GOV.UK
+.
+Archived
+from the original on 28 March 2023
+. Retrieved
+28 March
+2023
+.
+↑
+"UK 5-year action plan for antimicrobial resistance 2019 to 2024"
+.
+GOV.UK
+.
+Archived
+from the original on 28 March 2023
+. Retrieved
+28 March
+2023
+.
+↑
+"World Antibiotic Awareness Week"
+.
+World Health Organization
+. Archived from
+the original
+on 20 November 2015
+. Retrieved
+20 November
+2015
+.
+↑
+"World Antibiotic Awareness Week"
+.
+WHO
+. Archived from
+the original
+on 13 November 2017
+. Retrieved
+14 November
+2017
+.
+1
+2
+"WHO | UN Interagency Coordination Group (IACG) on Antimicrobial Resistance"
+.
+WHO
+. Archived from
+the original
+on 20 March 2017
+. Retrieved
+7 August
+2019
+.
+↑
+Interagency Coordination Group (IACG) (April 2019).
+No Time to Wait: Securing the Future from Drug-Resistant Infections
+(PDF)
+(Report).
+Archived
+(PDF)
+from the original on 19 April 2023
+. Retrieved
+19 April
+2023
+.
+↑
+"Global action plan on antimicrobial resistance"
+. World Health Organization. 2021
+. Retrieved
+15 May
+2023
+.
+↑
+"One Health and Antimicrobial Resistance"
+. CDC. 2023
+. Retrieved
+15 May
+2023
+.
+↑
+"Stop using antibiotics in healthy animals to prevent the spread of antibiotic resistance"
+. World Health Organization. 2017
+. Retrieved
+15 May
+2023
+.
+↑
+Tracking progress on food and agriculture-related SDG indicators
+(Report). Food and Agriculture Organization. 2020
+. Retrieved
+15 May
+2023
+.
+↑
+"OIE Annual Report on Antimicrobial Agents Intended for Use in Animals"
+(PDF)
+. World Organisation for Animal Health. 2022
+. Retrieved
+15 May
+2023
+.
+↑
+Berendonk T (2022). "Environmental antimicrobial resistance and its drivers: A potential threat to public health".
+The Lancet Infectious Diseases
+.
+22
+(7):
+e217–
+e228.
+doi
+:
+10.1002/ijop.12869
+.
+PMID
+35753343
+.
+↑
+National Action Plan for Combating Antibiotic-Resistant Bacteria
+(PDF)
+(Report). U.S. Government. 2020
+. Retrieved
+15 May
+2023
+.
+↑
+Reygaert WC (2018).
+"An overview of the antimicrobial resistance mechanisms of bacteria"
+.
+AIMS Microbiology
+.
+4
+(3):
+482–
+501.
+doi
+:
+10.3934/microbiol.2018.3.482
+.
+PMC
+6604941
+.
+PMID
+31294229
+.
+↑
+Baylay AJ, Piddock LJ, Webber MA (14 March 2019). "Molecular Mechanisms of Antibiotic Resistance – Part I".
+Bacterial Resistance to Antibiotics – from Molecules to Man
+. Wiley. pp.
+1–
+26.
+doi
+:
+10.1002/9781119593522.ch1
+.
+ISBN
+978-1-119-94077-7
+.
+S2CID
+202806156
+.
+↑
+Connell SR, Tracz DM, Nierhaus KH, Taylor DE (December 2003).
+"Ribosomal protection proteins and their mechanism of tetracycline resistance"
+.
+Antimicrobial Agents and Chemotherapy
+.
+47
+(12):
+3675–
+81.
+doi
+:
+10.1128/AAC.47.12.3675-3681.2003
+.
+PMC
+296194
+.
+PMID
+14638464
+.
+↑
+Henry RJ (December 1943).
+"The Mode of Action of Sulfonamides"
+.
+Bacteriological Reviews
+.
+7
+(4):
+175–
+262.
+doi
+:
+10.1128/br.7.4.175-262.1943
+.
+PMC
+440870
+.
+PMID
+16350088
+.
+↑
+Li XZ, Nikaido H (August 2009).
+"Efflux-mediated drug resistance in bacteria: an update"
+.
+Drugs
+.
+69
+(12):
+1555–
+623.
+doi
+:
+10.2165/11317030-000000000-00000
+.
+PMC
+2847397
+.
+PMID
+19678712
+.
+↑
+Aminov RI, Mackie RI (June 2007).
+"Evolution and ecology of antibiotic resistance genes"
+.
+FEMS Microbiology Letters
+.
+271
+(2):
+147–
+61.
+doi
+:
+10.1111/j.1574-6968.2007.00757.x
+.
+PMID
+17490428
+.
+↑
+Morita Y, Kodama K, Shiota S, Mine T, Kataoka A, Mizushima T, et
+al. (July 1998).
+"NorM, a putative multidrug efflux protein, of Vibrio parahaemolyticus and its homolog in Escherichia coli"
+.
+Antimicrobial Agents and Chemotherapy
+.
+42
+(7):
+1778–
+82.
+doi
+:
+10.1128/AAC.42.7.1778
+.
+PMC
+105682
+.
+PMID
+9661020
+.
+↑
+Duval M, Dar D, Carvalho F, Rocha EP, Sorek R, Cossart P (December 2018).
+"HflXr, a homolog of a ribosome-splitting factor, mediates antibiotic resistance"
+.
+Proceedings of the National Academy of Sciences of the United States of America
+.
+115
+(52):
+13359–
+13364.
+Bibcode
+:
+2018PNAS..11513359D
+.
+doi
+:
+10.1073/pnas.1810555115
+.
+PMC
+6310831
+.
+PMID
+30545912
+.
+↑
+"About Antibiotic Resistance"
+.
+CDC
+. 13 March 2020.
+Archived
+from the original on 1 October 2017
+. Retrieved
+8 September
+2017
+.
+↑
+Robicsek A, Jacoby GA, Hooper DC (October 2006). "The worldwide emergence of plasmid-mediated quinolone resistance".
+The Lancet. Infectious Diseases
+.
+6
+(10):
+629–
+40.
+doi
+:
+10.1016/S1473-3099(06)70599-0
+.
+PMID
+17008172
+.
+↑
+Ochiai K, Yamanaka T, Kimura K, Sawada O, O (1959). "Inheritance of drug resistance (and its transfer) between Shigella strains and Between Shigella and E.coli strains".
+Hihon Iji Shimpor
+(in Japanese).
+34
+: 1861.
+↑
+Watford S, Warrington SJ (2018).
+"Bacterial DNA Mutations"
+.
+StatPearls
+. StatPearls Publishing.
+PMID
+29083710
+.
+Archived
+from the original on 8 March 2021
+. Retrieved
+21 January
+2019
+.
+↑
+Levin BR, Perrot V, Walker N (March 2000).
+"Compensatory mutations, antibiotic resistance and the population genetics of adaptive evolution in bacteria"
+(PDF)
+.
+Genetics
+.
+154
+(3):
+985–
+97.
+doi
+:
+10.1093/genetics/154.3.985
+.
+PMC
+1460977
+.
+PMID
+10757748
+. Archived from
+the original
+(PDF)
+on 6 October 2024
+. Retrieved
+4 March
+2017
+.
+↑
+Hotchkiss RD (1951). "Transfer of penicillin resistance in pneumococci by the desoxyribonucleate derived from resistant cultures".
+Cold Spring Harbor Symposia on Quantitative Biology
+.
+16
+:
+457–
+61.
+doi
+:
+10.1101/SQB.1951.016.01.032
+.
+PMID
+14942755
+.
+↑
+Ubukata K, Konno M, Fujii R (September 1975).
+"Transduction of drug resistance to tetracycline, chloramphenicol, macrolides, lincomycin and clindamycin with phages induced from Streptococcus pyogenes"
+.
+The Journal of Antibiotics
+.
+28
+(9):
+681–
+8.
+doi
+:
+10.7164/antibiotics.28.681
+.
+PMID
+1102514
+.
+↑
+von Wintersdorff CJ, Penders J, van Niekerk JM, Mills ND, Majumder S, van Alphen LB, et
+al. (19 February 2016).
+"Dissemination of Antimicrobial Resistance in Microbial Ecosystems through Horizontal Gene Transfer"
+.
+Frontiers in Microbiology
+.
+7
+: 173.
+doi
+:
+10.3389/fmicb.2016.00173
+.
+PMC
+4759269
+.
+PMID
+26925045
+.
+↑
+Chan CX, Beiko RG, Ragan MA (August 2011).
+"Lateral transfer of genes and gene fragments in Staphylococcus extends beyond mobile elements"
+.
+Journal of Bacteriology
+.
+193
+(15):
+3964–
+77.
+doi
+:
+10.1128/JB.01524-10
+.
+PMC
+3147504
+.
+PMID
+21622749
+.
+↑
+Johansen TB, Scheffer L, Jensen VK, Bohlin J, Feruglio SL (June 2018).
+"Whole-genome sequencing and antimicrobial resistance in Brucella melitensis from a Norwegian perspective"
+.
+Scientific Reports
+.
+8
+(1) 8538.
+Bibcode
+:
+2018NatSR...8.8538J
+.
+doi
+:
+10.1038/s41598-018-26906-3
+.
+PMC
+5986768
+.
+PMID
+29867163
+.
+↑
+Tirumalai MR, Karouia F, Tran Q, Stepanov VG, Bruce RJ, Ott M, et
+al. (January 2019).
+"Evaluation of acquired antibiotic resistance in
+Escherichia coli
+exposed to long-term low-shear modeled microgravity and background antibiotic exposure"
+.
+mBio
+.
+10
+(e02637-18) e02637-18.
+Bibcode
+:
+2019mBio...1063718T
+.
+doi
+:
+10.1128/mBio.02637-18
+.
+PMC
+6336426
+.
+PMID
+30647159
+.
+↑
+Tirumalai MR, Karouia F, Tran Q, Stepanov VG, Bruce RJ, Ott M, et
+al. (May 2017).
+"The adaptation of
+Escherichia coli
+cells grown in simulated microgravity for an extended period is both phenotypic and genomic"
+.
+npj Microgravity
+.
+3
+(15) 15.
+Bibcode
+:
+2017npjMG...3...15T
+.
+doi
+:
+10.1038/s41526-017-0020-1
+.
+PMC
+5460176
+.
+PMID
+28649637
+.
+↑
+Ghaith DM, Mohamed ZK, Farahat MG, Aboulkasem Shahin W, Mohamed HO (March 2019).
+"Colonization of intestinal microbiota with carbapenemase-producing Enterobacteriaceae in paediatric intensive care units in Cairo, Egypt"
+.
+Arab Journal of Gastroenterology
+.
+20
+(1):
+19–
+22.
+doi
+:
+10.1016/j.ajg.2019.01.002
+.
+PMID
+30733176
+.
+S2CID
+73444389
+.
+Archived
+from the original on 27 November 2022
+. Retrieved
+30 May
+2022
+.
+↑
+Diene SM, Rolain JM (September 2014).
+"Carbapenemase genes and genetic platforms in Gram-negative bacilli: Enterobacteriaceae, Pseudomonas and Acinetobacter species"
+.
+Clinical Microbiology and Infection
+.
+20
+(9):
+831–
+8.
+doi
+:
+10.1111/1469-0691.12655
+.
+PMID
+24766097
+.
+↑
+Kumarasamy KK, Toleman MA, Walsh TR, Bagaria J, Butt F, Balakrishnan R, et
+al. (September 2010).
+"Emergence of a new antibiotic resistance mechanism in India, Pakistan, and the UK: a molecular, biological, and epidemiological study"
+.
+The Lancet. Infectious Diseases
+.
+10
+(9):
+597–
+602.
+doi
+:
+10.1016/S1473-3099(10)70143-2
+.
+PMC
+2933358
+.
+PMID
+20705517
+.
+↑
+Hudson CM, Bent ZW, Meagher RJ, Williams KP (7 June 2014).
+"Resistance determinants and mobile genetic elements of an NDM-1-encoding Klebsiella pneumoniae strain"
+.
+PLOS ONE
+.
+9
+(6) e99209.
+Bibcode
+:
+2014PLoSO...999209H
+.
+doi
+:
+10.1371/journal.pone.0099209
+.
+PMC
+4048246
+.
+PMID
+24905728
+.
+↑
+Lou Z, Sun Y, Rao Z (February 2014).
+"Current progress in antiviral strategies"
+.
+Trends in Pharmacological Sciences
+.
+35
+(2):
+86–
+102.
+doi
+:
+10.1016/j.tips.2013.11.006
+.
+PMC
+7112804
+.
+PMID
+24439476
+.
+↑
+Ai W, Zhang J, Zalloum WA, Jia R, Cherukupalli S, Ding X, et
+al. (1 April 2020).
+"Discovery of novel "Dual-site" binding oseltamivir derivatives as potent influenza virus neuraminidase inhibitors"
+.
+European Journal of Medicinal Chemistry
+.
+191
+112147.
+doi
+:
+10.1016/j.ejmech.2020.112147
+.
+ISSN
+0223-5234
+.
+PMID
+32092589
+.
+↑
+Geraghty RJ, Aliota MT, Bonnac LF (12 April 2021).
+"Broad-Spectrum Antiviral Strategies and Nucleoside Analogues"
+.
+Viruses
+.
+13
+(4): 667.
+doi
+:
+10.3390/v13040667
+.
+PMC
+8069527
+.
+PMID
+33924302
+.
+↑
+Aw DZ, Zhang DX, Vignuzzi M (9 June 2025).
+"Strategies and efforts in circumventing the emergence of antiviral resistance against conventional antivirals"
+.
+npj Antimicrobials and Resistance
+.
+3
+(1): 54.
+doi
+:
+10.1038/s44259-025-00125-z
+.
+ISSN
+2731-8745
+.
+PMC
+12149321
+.
+PMID
+40490516
+.
+↑
+Pennings PS (June 2013).
+"HIV Drug Resistance: Problems and Perspectives"
+.
+Infectious Disease Reports
+.
+5
+(Suppl 1) e5.
+doi
+:
+10.4081/idr.2013.s1.e5
+.
+PMC
+3892620
+.
+PMID
+24470969
+.
+↑
+Das K, Arnold E (April 2013).
+"HIV-1 reverse transcriptase and antiviral drug resistance. Part 1"
+.
+Current Opinion in Virology
+.
+3
+(2):
+111–
+8.
+doi
+:
+10.1016/j.coviro.2013.03.012
+.
+PMC
+4097814
+.
+PMID
+23602471
+.
+↑
+Ton Q, Frenkel L (March 2013). "HIV drug resistance in mothers and infants following use of antiretrovirals to prevent mother-to-child transmission".
+Current HIV Research
+.
+11
+(2):
+126–
+36.
+doi
+:
+10.2174/1570162x11311020005
+.
+PMID
+23432488
+.
+↑
+Ebrahim O, Mazanderani AH (June 2013).
+"Recent developments in hiv treatment and their dissemination in poor countries"
+.
+Infectious Disease Reports
+.
+5
+(Suppl 1) e2.
+doi
+:
+10.4081/idr.2013.s1.e2
+.
+PMC
+3892621
+.
+PMID
+24470966
+.
+↑
+Xie JL, Polvi EJ, Shekhar-Guturja T, Cowen LE (2014). "Elucidating drug resistance in human fungal pathogens".
+Future Microbiology
+.
+9
+(4):
+523–
+42.
+doi
+:
+10.2217/fmb.14.18
+.
+PMID
+24810351
+.
+↑
+Srinivasan A, Lopez-Ribot JL, Ramasubramanian AK (March 2014).
+"Overcoming antifungal resistance"
+.
+Drug Discovery Today: Technologies
+.
+11
+:
+65–
+71.
+doi
+:
+10.1016/j.ddtec.2014.02.005
+.
+PMC
+4031462
+.
+PMID
+24847655
+.
+↑
+Costa C, Dias PJ, Sá-Correia I, Teixeira MC (2014).
+"MFS multidrug transporters in pathogenic fungi: do they have real clinical impact?"
+.
+Frontiers in Physiology
+.
+5
+: 197.
+doi
+:
+10.3389/fphys.2014.00197
+.
+PMC
+4035561
+.
+PMID
+24904431
+.
+↑
+World Health Organization, ed. (25 October 2022).
+WHO fungal priority pathogens list to guide research, development and public health action
+. World Health Organization.
+ISBN
+978-92-4-006024-1
+.
+Archived
+from the original on 26 October 2022
+. Retrieved
+27 October
+2022
+.
+1
+2
+Andrews KT, Fisher G, Skinner-Adams TS (August 2014).
+"Drug repurposing and human parasitic protozoan diseases"
+.
+International Journal for Parasitology: Drugs and Drug Resistance
+.
+4
+(2):
+95–
+111.
+doi
+:
+10.1016/j.ijpddr.2014.02.002
+.
+PMC
+4095053
+.
+PMID
+25057459
+.
+↑
+Visser BJ, van Vugt M, Grobusch MP (October 2014). "Malaria: an update on current chemotherapy".
+Expert Opinion on Pharmacotherapy
+.
+15
+(15):
+2219–
+54.
+doi
+:
+10.1517/14656566.2014.944499
+.
+PMID
+25110058
+.
+S2CID
+34991324
+.
+↑
+Chia WN, Goh YS, Rénia L (2014).
+"Novel approaches to identify protective malaria vaccine candidates"
+.
+Frontiers in Microbiology
+.
+5
+: 586.
+doi
+:
+10.3389/fmicb.2014.00586
+.
+PMC
+4233905
+.
+PMID
+25452745
+.
+↑
+Franco JR, Simarro PP, Diarra A, Jannin JG (2014).
+"Epidemiology of human African trypanosomiasis"
+.
+Clinical Epidemiology
+.
+6
+:
+257–
+75.
+doi
+:
+10.2147/CLEP.S39728
+.
+PMC
+4130665
+.
+PMID
+25125985
+.
+↑
+Herrera L (2014).
+"Trypanosoma cruzi, the Causal Agent of Chagas Disease: Boundaries between Wild and Domestic Cycles in Venezuela"
+.
+Frontiers in Public Health
+.
+2
+: 259.
+Bibcode
+:
+2014FrPH....2..259H
+.
+doi
+:
+10.3389/fpubh.2014.00259
+.
+PMC
+4246568
+.
+PMID
+25506587
+.
+↑
+Mansueto P, Seidita A, Vitale G, Cascio A (2014).
+"Leishmaniasis in travelers: a literature review"
+(PDF)
+.
+Travel Medicine and Infectious Disease
+.
+12
+(6 Pt A):
+563–
+81.
+doi
+:
+10.1016/j.tmaid.2014.09.007
+.
+hdl
+:
+10447/101959
+.
+PMID
+25287721
+.
+Archived
+(PDF)
+from the original on 12 October 2022
+. Retrieved
+23 October
+2017
+.
+↑
+Chakravarty J, Sundar S (2010).
+"Drug resistance in leishmaniasis"
+.
+Journal of Global Infectious Diseases
+.
+2
+(2):
+167–
+176.
+doi
+:
+10.4103/0974-777X.62887
+.
+ISSN
+0974-8245
+.
+PMC
+2889657
+.
+PMID
+20606973
+.
+↑
+Peters W (1981). "The treatment of kala-azar--new approaches to an old problem".
+The Indian Journal of Medical Research
+. 73 Suppl:
+1–
+18.
+ISSN
+0971-5916
+.
+PMID
+6897932
+.
+1
+2
+3
+Munk P, Brinch C, Møller FD, Petersen TN, Hendriksen RS, Seyfarth AM, et
+al. (December 2022).
+"Genomic analysis of sewage from 101 countries reveals global landscape of antimicrobial resistance"
+.
+Nature Communications
+.
+13
+(1) 7251.
+Bibcode
+:
+2022NatCo..13.7251M
+.
+doi
+:
+10.1038/s41467-022-34312-7
+.
+PMC
+9715550
+.
+PMID
+36456547
+.
+↑
+"Antibiotika-Resistenzen verbreiten sich offenbar anders als gedacht"
+.
+Deutschlandfunk Nova
+(in German).
+Archived
+from the original on 17 January 2023
+. Retrieved
+17 January
+2023
+.
+↑
+"Superbugs on the rise: WHO report signals increase in antibiotic resistance"
+.
+World Health Organization via medicalxpress.com
+.
+Archived
+from the original on 2 February 2023
+. Retrieved
+18 January
+2023
+.
+↑
+"Global antimicrobial resistance and use surveillance system (GLASS) report: 2022"
+.
+who.int
+.
+Archived
+from the original on 21 January 2023
+. Retrieved
+18 January
+2023
+.
+↑
+"Patients contracted 165 antibiotic resistant infections each day in 2018, says PHE"
+. Pharmaceutical Journal. 31 October 2019. Archived from
+the original
+on 26 July 2020
+. Retrieved
+11 December
+2019
+.
+↑
+"National Infection & Death Estimates for AR"
+.
+Centers for Disease Control and Prevention
+. 6 July 2022.
+Archived
+from the original on 3 August 2023
+. Retrieved
+3 August
+2023
+.
+↑
+"Drug-resistant germs are 'growing threat' to US, causing more than 50,000 deaths annually: CDC"
+.
+ABC News
+. 27 October 2026
+. Retrieved
+28 October
+2026
+.
+↑
+"2022 SPECIAL REPORT: COVID-19 U.S. IMPACT ON ANTIMICROBIAL RESISTANCE"
+(PDF)
+.
+Centers for Disease Control and Prevention
+. 2022. p.
+7.
+Archived
+(PDF)
+from the original on 26 August 2023
+. Retrieved
+3 August
+2023
+.
+1
+2
+3
+Iqbal S (14 October 2024).
+"Why India is a stronghold for superbugs"
+.
+Nature India
+. Nature Publishing Group.
+doi
+:
+10.1038/d44151-024-00167-8
+(inactive 23 October 2026)
+. Retrieved
+15 November
+2025
+.
+{{
+cite journal
+}}
+: CS1 maint: DOI inactive as of October 2026 (
+link
+)
+↑
+Aminov RI (2010).
+"A brief history of the antibiotic era: lessons learned and challenges for the future"
+.
+Frontiers in Microbiology
+.
+1
+: 134.
+doi
+:
+10.3389/fmicb.2010.00134
+.
+PMC
+3109405
+.
+PMID
+21687759
+.
+↑
+Carvalho G, Forestier C, Mathias JD (December 2019).
+"Antibiotic resilience: a necessary concept to complement antibiotic resistance?"
+.
+Proceedings. Biological Sciences
+.
+286
+(1916) 20192408.
+doi
+:
+10.1098/rspb.2019.2408
+.
+PMC
+6939251
+.
+PMID
+31795866
+.
+1
+2
+Antimicrobial resistance: global report on surveillance
+. Geneva, Switzerland: World Health Organization. 2014.
+ISBN
+978-92-4-156474-8
+.
+OCLC
+880847527
+.
+↑
+Abraham EP, Chain E (1940). "An Enzyme from Bacteria able to Destroy Penicillin".
+Nature
+.
+146
+(3713): 837.
+Bibcode
+:
+1940Natur.146..837A
+.
+doi
+:
+10.1038/146837a0
+.
+↑
+Amábile-Cuevas CF, ed. (2007).
+Antimicrobial resistance in bacteria
+. Horizon Scientific Press.
+↑
+Fleming A (11 December 1945).
+"Penicillin"
+(PDF)
+.
+Nobel Lecture
+.
+Archived
+(PDF)
+from the original on 31 March 2018
+. Retrieved
+9 August
+2020
+.
+↑
+"WHO | Global action plan on antimicrobial resistance"
+.
+WHO
+. Archived from
+the original
+on 18 April 2018
+. Retrieved
+23 April
+2018
+.
+1
+2
+Pollack A (20 January 2016).
+"To Fight 'Superbugs,' Drug Makers Call for Incentives to Develop Antibiotics"
+.
+New York Times
+. Davos 2016 Special Report. Davos, Switzerland.
+Archived
+from the original on 24 April 2018
+. Retrieved
+24 January
+2016
+.
+↑
+Leonard C, Crabb N, Glover D, Cooper S, Bouvy J, Wobbe M, et
+al. (May 2023).
+"Can the UK 'Netflix' Payment Model Boost the Antibacterial Pipeline?"
+.
+Applied Health Economics and Health Policy
+.
+21
+(3):
+365–
+372.
+doi
+:
+10.1007/s40258-022-00786-1
+.
+PMC
+9842493
+.
+PMID
+36646872
+.
+1
+2
+Behdinan A, Hoffman SJ, Pearcey M (2015). "Some Global Policies for Antibiotic Resistance Depend on Legally Binding and Enforceable Commitments".
+The Journal of Law, Medicine & Ethics
+.
+43
+(2 Suppl 3):
+68–
+73.
+doi
+:
+10.1111/jlme.12277
+.
+PMID
+26243246
+.
+S2CID
+7415203
+.
+↑
+Hoffman SJ, Outterson K (2015).
+"What Will It Take to Address the Global Threat of Antibiotic Resistance?"
+.
+The Journal of Law, Medicine & Ethics
+.
+43
+(2):
+363–
+8.
+doi
+:
+10.1111/jlme.12253
+.
+PMID
+26242959
+.
+S2CID
+41987305
+.
+Archived
+from the original on 12 October 2022
+. Retrieved
+11 November
+2019
+.
+1
+2
+3
+Hoffman SJ, Outterson K, Røttingen JA, Cars O, Clift C, Rizvi Z, et
+al. (February 2015).
+"An international legal framework to address antimicrobial resistance"
+.
+Bulletin of the World Health Organization
+.
+93
+(2): 66.
+doi
+:
+10.2471/BLT.15.152710
+.
+PMC
+4339972
+.
+PMID
+25883395
+.
+↑
+Rizvi Z, Hoffman SJ (2015). "Effective Global Action on Antibiotic Resistance Requires Careful Consideration of Convening Forums".
+The Journal of Law, Medicine & Ethics
+.
+43
+(2 Suppl 3):
+74–
+8.
+doi
+:
+10.1111/jlme.12278
+.
+PMID
+26243247
+.
+S2CID
+24223063
+.
+↑
+Andresen S, Hoffman SJ (2015). "Much Can Be Learned about Addressing Antibiotic Resistance from Multilateral Environmental Agreements".
+Journal of Law, Medicine & Ethics
+.
+43
+(2):
+46–
+52.
+↑
+President's 2016 Budget Proposes Historic Investment to Combat Antibiotic-Resistant Bacteria to Protect Public Health
+Archived
+22 January 2017 at the
+Wayback Machine
+The White House, Office of the Press Secretary, 27 January 2015
+1
+2
+"FACT SHEET: Obama Administration Releases National Action Plan to Combat Antibiotic-Resistant Bacteria"
+.
+whitehouse.gov
+. 27 March 2015.
+Archived
+from the original on 21 January 2017
+. Retrieved
+30 October
+2015
+–
+via
+National Archives
+.
+1
+2
+"Antibiotic Resistance Threats in the United States, 2023"
+. Centers for Disease Control and Prevention
+. Retrieved
+20 October
+2023
+.
+↑
+Petrakis V, Panopoulou M, Rafailidis P, Lemonakis N, Lazaridis G, Terzi I, et
+al. (2023).
+"The Impact of the COVID-19 Pandemic on Antimicrobial Resistance and Management of Bloodstream Infections"
+.
+Pathogens
+.
+21
+(6):
+e22–
+e25.
+doi
+:
+10.3390/pathogens12060780
+.
+PMC
+10302285
+.
+PMID
+37375470
+.
+↑
+"Get Ahead of Sepsis"
+. Centers for Disease Control and Prevention
+. Retrieved
+20 October
+2023
+.
+↑
+Martonicz TW (1 April 2025).
+"
+'Ongoing assault': How HHS layoffs have eviscerated infection prevention support across the nation"
+.
+Infection Control Today
+. Retrieved
+1 June
+2025
+.
+↑
+"The disbanding of HICPAC is part of a larger, dangerous pattern of undermining health protections"
+.
+Global Biodefense
+. 7 May 2025
+. Retrieved
+1 June
+2025
+.
+↑
+Jegan NK (9 March 2025).
+"The real cost of funding cuts in medicine"
+.
+The California Aggie
+. Retrieved
+1 June
+2025
+.
+↑
+Stoltzfus H (8 May 2025).
+"The disbanding of HICPAC: A dangerous silencing in the fight against health care-associated infections"
+.
+Infection Control Today
+. Retrieved
+1 June
+2025
+.
+↑
+Dall C (8 May 2025).
+"Trump administration shuts down federal advisory committee on infection prevention"
+.
+CIDRAP
+. Retrieved
+1 June
+2025
+.
+↑
+Knight GM, Davies NG, Colijn C, Coll F, Donker T, Gifford DR, et
+al. (November 2019).
+"Mathematical modelling for antibiotic resistance control policy: do we know enough?"
+.
+BMC Infectious Diseases
+.
+19
+(1) 1011.
+doi
+:
+10.1186/s12879-019-4630-y
+.
+PMC
+6884858
+.
+PMID
+31783803
+.
+↑
+Hopkins H, Bruxvoort KJ, Cairns ME, Chandler CI, Leurent B, Ansah EK, et
+al. (March 2017).
+"Impact of introduction of rapid diagnostic tests for malaria on antibiotic prescribing: analysis of observational and randomised studies in public and private healthcare settings"
+.
+BMJ
+.
+356
+j1054.
+doi
+:
+10.1136/bmj.j1054
+.
+PMC
+5370398
+.
+PMID
+28356302
+.
+↑
+"Diagnostics Are Helping Counter Antimicrobial Resistance, But More Work Is Needed"
+.
+MDDI Online
+. 20 November 2018. Archived from
+the original
+on 2 December 2018
+. Retrieved
+2 December
+2018
+.
+1
+2
+van Belkum A, Bachmann TT, Lüdke G, Lisby JG, Kahlmeter G, Mohess A, et
+al. (January 2019).
+"Developmental roadmap for antimicrobial susceptibility testing systems"
+.
+Nature Reviews. Microbiology
+.
+17
+(1):
+51–
+62.
+doi
+:
+10.1038/s41579-018-0098-9
+.
+hdl
+:
+2445/132505
+.
+PMC
+7138758
+.
+PMID
+30333569
+.
+↑
+"Progress on antibiotic resistance"
+.
+Nature
+.
+562
+(7727): 307. October 2018.
+Bibcode
+:
+2018Natur.562Q.307.
+.
+doi
+:
+10.1038/d41586-018-07031-7
+.
+PMID
+30333595
+.
+↑
+Kim JI, Maguire F, Tsang KK, Gouliouris T, Peacock SJ, McAllister TA, et
+al. (September 2022).
+"Machine Learning for Antimicrobial Resistance Prediction: Current Practice, Limitations, and Clinical Perspective"
+.
+Clinical Microbiology Reviews
+.
+35
+(3) e00179-21: e0017921.
+doi
+:
+10.1128/cmr.00179-21
+.
+PMC
+9491192
+.
+PMID
+35612324
+.
+↑
+Banerjee R, Patel R (February 2023).
+"Molecular diagnostics for genotypic detection of antibiotic resistance: current landscape and future directions"
+.
+JAC-Antimicrobial Resistance
+.
+5
+(1) dlad018.
+doi
+:
+10.1093/jacamr/dlad018
+.
+PMC
+9937039
+.
+PMID
+36816746
+.
+↑
+Baltekin Ö, Boucharin A, Tano E, Andersson DI, Elf J (August 2017).
+"Antibiotic susceptibility testing in less than 30 min using direct single-cell imaging"
+.
+Proceedings of the National Academy of Sciences of the United States of America
+.
+114
+(34):
+9170–
+9175.
+Bibcode
+:
+2017PNAS..114.9170B
+.
+doi
+:
+10.1073/pnas.1708558114
+.
+PMC
+5576829
+.
+PMID
+28790187
+.
+↑
+Luro S, Potvin-Trottier L, Okumus B, Paulsson J (January 2020).
+"Isolating live cells after high-throughput, long-term, time-lapse microscopy"
+.
+Nature Methods
+.
+17
+(1):
+93–
+100.
+doi
+:
+10.1038/s41592-019-0620-7
+.
+PMC
+7525750
+.
+PMID
+31768062
+.
+↑
+Schuetz P, Wirz Y, Sager R, Christ-Crain M, Stolz D, Tamm M, et
+al. (Cochrane Acute Respiratory Infections Group) (October 2017).
+"Procalcitonin to initiate or discontinue antibiotics in acute respiratory tract infections"
+.
+The Cochrane Database of Systematic Reviews
+.
+10
+(10) CD007498.
+doi
+:
+10.1002/14651858.CD007498.pub3
+.
+PMC
+6485408
+.
+PMID
+29025194
+.
+↑
+Smedemark SA, Aabenhus R, Llor C, Fournaise A, Olsen O, Jørgensen KJ, et
+al. (Cochrane Acute Respiratory Infections Group) (October 2022).
+"Biomarkers as point-of-care tests to guide prescription of antibiotics in people with acute respiratory infections in primary care"
+.
+The Cochrane Database of Systematic Reviews
+.
+2022
+(10) CD010130.
+doi
+:
+10.1002/14651858.CD010130.pub3
+.
+PMC
+9575154
+.
+PMID
+36250577
+.
+↑
+Doan Q, Enarson P, Kissoon N, Klassen TP, Johnson DW (September 2014).
+"Rapid viral diagnosis for acute febrile respiratory illness in children in the Emergency Department"
+.
+The Cochrane Database of Systematic Reviews
+.
+2014
+(9) CD006452.
+doi
+:
+10.1002/14651858.CD006452.pub4
+.
+PMC
+6718218
+.
+PMID
+25222468
+.
+↑
+Mishra RP, Oviedo-Orta E, Prachi P, Rappuoli R, Bagnoli F (October 2012). "Vaccines and antibiotic resistance".
+Current Opinion in Microbiology
+.
+15
+(5):
+596–
+602.
+doi
+:
+10.1016/j.mib.2012.08.002
+.
+PMID
+22981392
+.
+↑
+Kennedy DA, Read AF (March 2017).
+"Why does drug resistance readily evolve but vaccine resistance does not?"
+.
+Proceedings. Biological Sciences
+.
+284
+(1851) 20162562.
+Bibcode
+:
+2017PBioS.28462562K
+.
+doi
+:
+10.1098/rspb.2016.2562
+.
+PMC
+5378080
+.
+PMID
+28356449
+.
+↑
+Kennedy DA, Read AF (December 2018).
+"Why the evolution of vaccine resistance is less of a concern than the evolution of drug resistance"
+.
+Proceedings of the National Academy of Sciences of the United States of America
+.
+115
+(51):
+12878–
+12886.
+Bibcode
+:
+2018PNAS..11512878K
+.
+doi
+:
+10.1073/pnas.1717159115
+.
+PMC
+6304978
+.
+PMID
+30559199
+.
+↑
+"Immunity, Infectious Diseases, and Pandemics—What You Can Do"
+. HomesteadSchools.com. Archived from
+the original
+on 3 December 2013
+. Retrieved
+12 June
+2013
+.
+↑
+Shinefield H, Black S, Fattom A, Horwith G, Rasgon S, Ordonez J, et
+al. (February 2002).
+"Use of a Staphylococcus aureus conjugate vaccine in patients receiving hemodialysis"
+.
+The New England Journal of Medicine
+.
+346
+(7):
+491–
+6.
+doi
+:
+10.1056/NEJMoa011297
+.
+PMID
+11844850
+.
+1
+2
+Fowler VG, Proctor RA (May 2014).
+"Where does a Staphylococcus aureus vaccine stand?"
+.
+Clinical Microbiology and Infection
+.
+20
+(5):
+66–
+75.
+doi
+:
+10.1111/1469-0691.12570
+.
+PMC
+4067250
+.
+PMID
+24476315
+.
+↑
+McNeely TB, Shah NA, Fridman A, Joshi A, Hartzel JS, Keshari RS, et
+al. (2014).
+"Mortality among recipients of the Merck V710 Staphylococcus aureus vaccine after postoperative S. aureus infections: an analysis of possible contributing host factors"
+.
+Human Vaccines & Immunotherapeutics
+.
+10
+(12):
+3513–
+6.
+doi
+:
+10.4161/hv.34407
+.
+PMC
+4514053
+.
+PMID
+25483690
+.
+↑
+Kim S, Lieberman TD, Kishony R (October 2014).
+"Alternating antibiotic treatments constrain evolutionary paths to multidrug resistance"
+.
+Proceedings of the National Academy of Sciences of the United States of America
+.
+111
+(40):
+14494–
+9.
+Bibcode
+:
+2014PNAS..11114494K
+.
+doi
+:
+10.1073/pnas.1409800111
+.
+PMC
+4210010
+.
+PMID
+25246554
+.
+↑
+Pál C, Papp B, Lázár V (July 2015).
+"Collateral sensitivity of antibiotic-resistant microbes"
+.
+Trends in Microbiology
+.
+23
+(7):
+401–
+7.
+doi
+:
+10.1016/j.tim.2015.02.009
+.
+PMC
+5958998
+.
+PMID
+25818802
+.
+↑
+Imamovic L, Ellabaan MM, Dantas Machado AM, Citterio L, Wulff T, Molin S, et
+al. (January 2018).
+"Drug-Driven Phenotypic Convergence Supports Rational Treatment Strategies of Chronic Infections"
+.
+Cell
+.
+172
+(
+1–
+2): 121–134.e14.
+doi
+:
+10.1016/j.cell.2017.12.012
+.
+PMC
+5766827
+.
+PMID
+29307490
+.
+↑
+Beckley AM, Wright ES (October 2021).
+"Identification of antibiotic pairs that evade concurrent resistance via a retrospective analysis of antimicrobial susceptibility test results"
+.
+The Lancet. Microbe
+.
+2
+(10):
+e545–
+e554.
+doi
+:
+10.1016/S2666-5247(21)00118-X
+.
+PMC
+8496867
+.
+PMID
+34632433
+.
+↑
+Ma Y, Chua SL (15 November 2021).
+"No collateral antibiotic sensitivity by alternating antibiotic pairs"
+.
+The Lancet Microbe
+.
+3
+(1): e7.
+doi
+:
+10.1016/S2666-5247(21)00270-6
+.
+ISSN
+2666-5247
+.
+PMID
+35544116
+.
+S2CID
+244147577
+.
+↑
+Liu J, Bedell TA, West JG, Sorensen EJ (June 2016).
+"Design and Synthesis of Molecular Scaffolds with Anti-infective Activity"
+.
+Tetrahedron
+.
+72
+(25):
+3579–
+3592.
+doi
+:
+10.1016/j.tet.2016.01.044
+.
+PMC
+4894353
+.
+PMID
+27284210
+.
+↑
+"Annual Report of the Chief Medical Officer - Infections and the rise of antimicrobial resistance"
+(PDF)
+. UK NHS. 2011. Archived from
+the original
+(PDF)
+on 30 October 2013.
+↑
+"Obama Administration Seeks To Ease Approvals For Antibiotics"
+.
+NPR.org
+. NPR. 4 June 2013.
+Archived
+from the original on 13 March 2015
+. Retrieved
+7 August
+2016
+.
+↑
+Prayle A, Watson A, Fortnum H, Smyth A (July 2010).
+"Side effects of aminoglycosides on the kidney, ear and balance in cystic fibrosis"
+.
+Thorax
+.
+65
+(7):
+654–
+658.
+doi
+:
+10.1136/thx.2009.131532
+.
+PMC
+2921289
+.
+PMID
+20627927
+.
+↑
+Alene KA, Wangdi K, Colquhoun S, Chani K, Islam T, Rahevar K, et
+al. (September 2021).
+"Tuberculosis related disability: a systematic review and meta-analysis"
+.
+BMC Medicine
+.
+19
+(1) 203.
+doi
+:
+10.1186/s12916-021-02063-9
+.
+PMC
+8426113
+.
+PMID
+34496845
+.
+1
+2
+Walsh F (11 March 2013).
+"BBC News
+– Antibiotics resistance 'as big a risk as terrorism' – medical chief"
+.
+BBC News
+. Bbc.co.uk.
+Archived
+from the original on 8 August 2018
+. Retrieved
+12 March
+2013
+.
+1
+2
+Berida T, Adekunle Y, Dada-Adegbola H, Kdimy A, Roy S, Sarker S (May 2024).
+"Plant antibacterials: The challenges and opportunities"
+.
+Heliyon
+.
+10
+(10) e31145.
+Bibcode
+:
+2024Heliy..1031145B
+.
+doi
+:
+10.1016/j.heliyon.2024.e31145
+.
+PMC
+11128932
+.
+PMID
+38803958
+.
+↑
+Khor M
+(18 May 2014).
+"Why Are Antibiotics Becoming Useless All Over the World?"
+.
+The Real News
+. Archived from
+the original
+on 18 May 2014
+. Retrieved
+18 May
+2014
+.
+↑
+Gever J (4 February 2011).
+"Pfizer Moves May Dim Prospect for New Antibiotics"
+.
+MedPage Today
+.
+Archived
+from the original on 14 December 2013
+. Retrieved
+12 March
+2013
+.
+↑
+Schmitt S, Montalbán-López M, Peterhoff D, Deng J, Wagner R, Held M, et
+al. (May 2019).
+"Analysis of modular bioengineered antimicrobial lanthipeptides at nanoliter scale"
+(PDF)
+.
+Nature Chemical Biology
+.
+15
+(5):
+437–
+443.
+doi
+:
+10.1038/s41589-019-0250-5
+.
+PMID
+30936500
+.
+S2CID
+91188986
+.
+Archived
+(PDF)
+from the original on 18 April 2023
+. Retrieved
+12 April
+2023
+.
+↑
+"Overview"
+.
+Carb-X
+.
+Archived
+from the original on 28 March 2023
+. Retrieved
+28 March
+2023
+.
+↑
+"Novel Gram Negative Antibiotic Now"
+.
+CORDIS
+.
+doi
+:
+10.3030/853979
+.
+Archived
+from the original on 28 March 2023
+. Retrieved
+28 March
+2023
+.
+↑
+"About"
+.
+REPAIR Impact Fund
+.
+Archived
+from the original on 23 January 2019
+. Retrieved
+28 March
+2023
+.
+↑
+"ADVANcing Clinical Evidence in Infectious Diseases (ADVANCE-ID)"
+.
+sph.nus.edu.sg
+.
+Archived
+from the original on 28 March 2023
+. Retrieved
+28 March
+2023
+.
+↑
+"About GARDP"
+.
+GARDP
+. 27 September 2022. Archived from
+the original
+on 28 March 2023
+. Retrieved
+28 March
+2023
+.
+↑
+Hoenigl M, Sprute R, Egger M, Arastehfar A, Cornely OA, Krause R, et
+al. (October 2021).
+"The Antifungal Pipeline: Fosmanogepix, Ibrexafungerp, Olorofim, Opelconazole, and Rezafungin"
+.
+Drugs
+.
+81
+(15):
+1703–
+1729.
+doi
+:
+10.1007/s40265-021-01611-0
+.
+PMC
+8501344
+.
+PMID
+34626339
+.
+↑
+"Antibiotic resistance outwitted by supercomputers"
+.
+University of Portsmouth
+.
+Archived
+from the original on 13 December 2021
+. Retrieved
+13 December
+2021
+.
+↑
+König G, Sokkar P, Pryk N, Heinrich S, Möller D, Cimicata G, et
+al. (November 2021).
+"Rational prioritization strategy allows the design of macrolide derivatives that overcome antibiotic resistance"
+.
+Proceedings of the National Academy of Sciences of the United States of America
+.
+118
+(46) e2113632118.
+Bibcode
+:
+2021PNAS..11813632K
+.
+doi
+:
+10.1073/pnas.2113632118
+.
+PMC
+8609559
+.
+PMID
+34750269
+.
+↑
+Leppäranta O, Vaahtio M, Peltola T, Zhang D, Hupa L, Hupa M, et
+al. (February 2008). "Antibacterial effect of bioactive glasses on clinically important anaerobic bacteria in vitro".
+Journal of Materials Science. Materials in Medicine
+.
+19
+(2):
+547–
+51.
+doi
+:
+10.1007/s10856-007-3018-5
+.
+PMID
+17619981
+.
+S2CID
+21444777
+.
+↑
+Munukka E, Leppäranta O, Korkeamäki M, Vaahtio M, Peltola T, Zhang D, et
+al. (January 2008). "Bactericidal effects of bioactive glasses on clinically important aerobic bacteria".
+Journal of Materials Science. Materials in Medicine
+.
+19
+(1):
+27–
+32.
+doi
+:
+10.1007/s10856-007-3143-1
+.
+PMID
+17569007
+.
+S2CID
+39643380
+.
+↑
+Drago L, De Vecchi E, Bortolin M, Toscano M, Mattina R, Romanò CL (August 2015). "Antimicrobial activity and resistance selection of different bioglass S53P4 formulations against multidrug resistant strains".
+Future Microbiology
+.
+10
+(8):
+1293–
+9.
+doi
+:
+10.2217/FMB.15.57
+.
+PMID
+26228640
+.
+↑
+Connelly E (18 April 2017).
+"Medieval medical books could hold the recipe for new antibiotics"
+.
+The Conversation
+.
+Archived
+from the original on 25 December 2022
+. Retrieved
+20 December
+2019
+.
+↑
+"AncientBiotics – a medieval remedy for modern day superbugs?"
+(Press release). University of Nottingham. 30 March 2015.
+Archived
+from the original on 21 October 2022
+. Retrieved
+13 August
+2019
+.
+1
+2
+Kim DW, Cha CJ (March 2021).
+"Antibiotic resistome from the One-Health perspective: understanding and controlling antimicrobial resistance transmission"
+.
+Experimental & Molecular Medicine
+.
+53
+(3):
+301–
+309.
+doi
+:
+10.1038/s12276-021-00569-z
+.
+PMC
+8080597
+.
+PMID
+33642573
+.
+↑
+Alcock BP, Huynh W, Chalil R, Smith KW, Raphenya AR, Wlodarski MA, et
+al. (January 2023).
+"CARD 2023: expanded curation, support for machine learning, and resistome prediction at the Comprehensive Antibiotic Resistance Database"
+.
+Nucleic Acids Research
+.
+51
+(D1):
+D690–
+D699.
+doi
+:
+10.1093/nar/gkac920
+.
+PMC
+9825576
+.
+PMID
+36263822
+.
+↑
+"The Comprehensive Antibiotic Resistance Database"
+.
+card.mcmaster.ca
+.
+Archived
+from the original on 28 March 2023
+. Retrieved
+28 March
+2023
+.
+↑
+Florensa AF, Kaas RS, Clausen PT, Aytan-Aktug D, Aarestrup FM (January 2022).
+"ResFinder – an open online resource for identification of antimicrobial resistance genes in next-generation sequencing data and prediction of phenotypes from genotypes"
+.
+Microbial Genomics
+.
+8
+(1).
+doi
+:
+10.1099/mgen.0.000748
+.
+PMC
+8914360
+.
+PMID
+35072601
+.
+↑
+"ResFinder 4.1"
+.
+cge.food.dtu.dk
+.
+Archived
+from the original on 28 March 2023
+. Retrieved
+28 March
+2023
+.
+↑
+"Silent Killers: Fantastic Phages?"
+.
+CBS News
+. 19 September 2002.
+Archived
+from the original on 10 February 2013
+. Retrieved
+14 November
+2017
+.
+↑
+McAuliffe O, Ross RP, Fitzgerald GF (2007).
+"The New Phage Biology: From Genomics to Applications" (introduction)"
+. In McGrath S, van Sinderen D (eds.).
+Bacteriophage: Genetics and Molecular Biology
+. Caister Academic Press.
+ISBN
+978-1-904455-14-1
+.
+Archived
+from the original on 26 November 2020
+. Retrieved
+11 August
+2021
+.
+↑
+Lin DM, Koskella B, Lin HC (August 2017).
+"Phage therapy: An alternative to antibiotics in the age of multi-drug resistance"
+.
+World Journal of Gastrointestinal Pharmacology and Therapeutics
+.
+8
+(3):
+162–
+173.
+doi
+:
+10.4292/wjgpt.v8.i3.162
+.
+PMC
+5547374
+.
+PMID
+28828194
+.
+1
+2
+Salmond GP, Fineran PC (December 2015). "A century of the phage: past, present and future".
+Nature Reviews. Microbiology
+.
+13
+(12):
+777–
+86.
+doi
+:
+10.1038/nrmicro3564
+.
+PMID
+26548913
+.
+S2CID
+8635034
+.
+↑
+Letarov AV, Golomidova AK, Tarasyan KK (April 2010).
+"Ecological basis for rational phage therapy"
+.
+Acta Naturae
+.
+2
+(1):
+60–
+72.
+doi
+:
+10.32607/20758251-2010-2-1-60-71
+.
+PMC
+3347537
+.
+PMID
+22649629
+.
+↑
+Parfitt T (June 2005). "Georgia: an unlikely stronghold for bacteriophage therapy".
+Lancet
+.
+365
+(9478):
+2166–
+7.
+doi
+:
+10.1016/S0140-6736(05)66759-1
+.
+PMID
+15986542
+.
+S2CID
+28089251
+.
+↑
+Golkar Z, Bagasra O, Pace DG (February 2014).
+"Bacteriophage therapy: a potential solution for the antibiotic resistance crisis"
+.
+Journal of Infection in Developing Countries
+.
+8
+(2):
+129–
+36.
+doi
+:
+10.3855/jidc.3573
+.
+PMID
+24518621
+.
+↑
+McCallin S, Alam Sarker S, Barretto C, Sultana S, Berger B, Huq S, et
+al. (September 2013).
+"Safety analysis of a Russian phage cocktail: from metagenomic analysis to oral application in healthy human subjects"
+.
+Virology
+.
+443
+(2):
+187–
+96.
+doi
+:
+10.1016/j.virol.2013.05.022
+.
+PMID
+23755967
+.
+↑
+Abedon ST, Kuhl SJ, Blasdel BG, Kutter EM (March 2011).
+"Phage treatment of human infections"
+.
+Bacteriophage
+.
+1
+(2):
+66–
+85.
+doi
+:
+10.4161/bact.1.2.15845
+.
+PMC
+3278644
+.
+PMID
+22334863
+.
+↑
+Onsea J, Soentjens P, Djebara S, Merabishvili M, Depypere M, Spriet I, et
+al. (September 2019).
+"Bacteriophage Application for Difficult-to-treat Musculoskeletal Infections: Development of a Standardized Multidisciplinary Treatment Protocol"
+.
+Viruses
+.
+11
+(10): 891.
+doi
+:
+10.3390/v11100891
+.
+PMC
+6832313
+.
+PMID
+31548497
+.
+↑
+Berends MS, Luz CF, Friedrich AW, Sinha BN, Albers CJ, Glasner C (2022).
+"AMR: An R Package for Working with Antimicrobial Resistance Data"
+.
+Journal of Statistical Software
+.
+104
+(3):
+1–
+31.
+doi
+:
+10.18637/jss.v104.i03
+.
+hdl
+:
+11370/b42e702e-a117-4da1-b266-84a765a83e7a
+.
+↑
+"AMR – Antimicrobial Resistance Data Analysis"
+. Retrieved
+23 May
+2026
+.
+[
+1
+]
+Books
+[
+edit
+]
+Caldwell R, Lindberg D, eds. (2011).
+"Understanding Evolution"
+[
+Mutations are random
+]
+. University of California Museum of Paleontology.
+Archived
+from the original on 8 February 2012
+. Retrieved
+15 August
+2011
+.
+Reynolds LA, Tansey EM, eds. (2008).
+Superbugs and superdrugs: a history of MRSA: the transcript of a Witness Seminar held by the Wellcome Trust Centre for the History of Medicine at UCL, London, on 11 July 2006
+. London: Wellcome Trust Centre for the History of Medicine at UCL.
+ISBN
+978-0-85484-114-1
+.
+Stemming the Superbug Tide: Just A Few Dollars More
+. OECD Health Policy Studies. Paris: OECD Publishing. 2018.
+doi
+:
+10.1787/9789264307599-en
+.
+ISBN
+978-92-64-30758-2
+.
+S2CID
+239804815
+.
+Journals
+[
+edit
+]
+Arias CA, Murray BE (January 2009).
+"Antibiotic-resistant bugs in the 21st century – a clinical super-challenge"
+.
+The New England Journal of Medicine
+.
+360
+(5):
+439–
+443.
+doi
+:
+10.1056/NEJMp0804651
+.
+PMID
+19179312
+.
+S2CID
+205104375
+.
+"Special Issue: Ethics and Antimicrobial Resistance"
+.
+Bioethics
+.
+365
+(33). 2019.
+Archived
+from the original on 9 March 2022
+. Retrieved
+22 January
+2020
+.
+Goossens H, Ferech M, Vander Stichele R, Elseviers M (2005). "Outpatient antibiotic use in Europe and association with resistance: a cross-national database study".
+Lancet
+. Group Esac Project.
+365
+(9459). Esac Project:
+579–
+587.
+Bibcode
+:
+2005Lanc..365..579G
+.
+doi
+:
+10.1016/S0140-6736(05)17907-0
+.
+PMID
+15708101
+.
+S2CID
+23782228
+.
+Hawkey PM, Jones AM (September 2009).
+"The changing epidemiology of resistance"
+(PDF)
+.
+The Journal of Antimicrobial Chemotherapy
+.
+64
+(Suppl 1): i3–10.
+doi
+:
+10.1093/jac/dkp256
+.
+PMID
+19675017
+.
+Archived
+from the original on 17 February 2024
+. Retrieved
+20 April
+2018
+.
+Soulsby EJ (November 2005).
+"Resistance to antimicrobials in humans and animals"
+.
+BMJ
+.
+331
+(7527):
+1219–
+1220.
+doi
+:
+10.1136/bmj.331.7527.1219
+.
+PMC
+1289307
+.
+PMID
+16308360
+.
+Peters W (1981). "The treatment of kala-azar--new approaches to an old problem".
+The Indian Journal of Medical Research
+. 73 Suppl:
+1–
+18.
+ISSN
+0971-5916
+.
+PMID
+6897932
+.
+"Alternatives to Antibiotics Reduce Animal Disease"
+. CSIRO. 9 January 2006.
+Archived
+from the original on 5 June 2011
+. Retrieved
+26 April
+2009
+.
+Cooke P, Rees-Roberts D (2017).
+CATCH
+.
+Archived
+from the original on 9 March 2022
+. Retrieved
+23 February
+2017
+.
+16-minute film about a post-antibiotic world. Review:
+Sansom C (March 2017). "Media Watch: An intimate family story in a world without antibiotics".
+Lancet Infect Dis
+.
+17
+(3): 274.
+doi
+:
+10.1016/S1473-3099(17)30067-1
+.
+Further reading
+[
+edit
+]
+Lecture by chemist Nathaniel Martin (
+Leiden University
+) on antibiotic resistance
+Bancroft, EA (October 2007).
+"Antimicrobial resistance: it's not just for hospitals"
+.
+JAMA
+.
+298
+(15):
+1803–
+1804.
+doi
+:
+10.1001/jama.298.15.1803
+.
+PMC
+2536104
+.
+PMID
+17940239
+.
+Larson, E (2007).
+"Community factors in the development of antibiotic resistance"
+.
+Annual Review of Public Health
+.
+28
+(1):
+435–
+447.
+doi
+:
+10.1146/annurev.publhealth.28.021406.144020
+.
+PMID
+17094768
+.
+External links
+[
+edit
+]
+Wikimedia Commons has media related to
+Antimicrobial resistance
+.
+Wikipedia's health care articles can be viewed offline with the
+Medical Wikipedia app
+.
+Quotations related to
+Antimicrobial resistance
+at Wikiquote
+WHO fact sheet on antimicrobial resistance
+Animation of Antibiotic Resistance
+Archived
+28 September 2022 at the
+Wayback Machine
+Bracing for Superbugs: Strengthening environmental action in the One Health response to antimicrobial resistance
+UNEP
+, 2023.
+CDC Guideline "Management of Multidrug-Resistant Organisms in Healthcare Settings, 2006"
+NIAID Data Ecosystem - Antimicrobial (Drug) Resistance
+v
+t
+e
+Use of
+antimicrobials
+Types
+Antibacterial
+Antifungal
+Antiviral
+Antiparasitic
+Concepts
+Antibiotic sensitivity
+Antimicrobial resistance
+multidrug
+Antibiotic prophylaxis
+Empiric therapy
+Directed therapy
+Social issues
+Antimicrobial stewardship
+Antibiotic misuse
+Pharmacology
+Antimicrobial pharmacodynamics
+List of antibiotics
+Production of antibiotics
+Agriculture
+Antibiotic use in livestock
+Antibiotics in poultry farming in America
+Subtherapeutic antibiotic use in swine
+Pesticide resistance
+v
+t
+e
+Pharmacology
+Ligand (biochemistry)
+Excitatory
+Agonist
+Endogenous agonist
+Irreversible agonist
+Partial agonist
+Superagonist
+Physiological agonist
+Inhibitory
+Antagonist
+Competitive antagonist
+Irreversible antagonist
+Physiological antagonist
+Inverse agonist
+Enzyme inhibitor
+Drug
+Neurotransmitter
+Agonist-antagonist
+Pharmacophore
+Pharmacodynamics
+Activity at receptor
+Mechanism of action
+Mode of action
+Binding
+Receptor (biochemistry)
+Desensitization (medicine)
+Other effects of ligand
+Selectivity (
+Binding
+,
+Functional
+)
+Pleiotropy (drugs)
+Non-specific effect of vaccines
+Adverse effect
+Toxicity
+(
+Neurotoxicity
+)
+Analysis
+Dose–response relationship
+Hill equation (biochemistry)
+Schild plot
+Del Castillo Katz model
+Cheng-Prussoff Equation
+Methods (
+Organ bath
+,
+Ligand binding assay
+,
+Patch clamp
+)
+Metrics
+Efficacy
+Intrinsic activity
+Potency
+(
+EC50
+,
+IC50
+,
+ED50
+,
+LD50
+,
+TD50
+)
+Therapeutic index
+Affinity
+Pharmacokinetics
+Metrics
+Loading dose
+Volume of distribution
+(
+Initial
+)
+Rate of infusion
+Onset of action
+Biological half-life
+Plasma protein binding
+Bioavailability
+LADME
+(L)ADME
+: (
+Liberation
+)
+Absorption
+Distribution
+Metabolism
+Excretion
+(
+Clearance
+)
+Compartment
+Bioequivalence
+Related
+fields
+Neuroscience
+and
+psychology
+Neuropsychopharmacology
+Neuropharmacology
+Psychopharmacology
+Electrophysiology
+Medicine
+Clinical pharmacology
+Pharmacy
+Medicinal chemistry
+Pharmacoepidemiology
+Biochemistry
+and
+genetics
+Pharmacoinformatics
+Pharmacogenetics
+Pharmacogenomics
+Toxicology
+Pharmacotoxicology
+Neurotoxicology
+Drug discovery
+Classical pharmacology
+Reverse pharmacology
+Photopharmacology
+Immunopharmacology
+Cell biology
+Physiology
+Other
+Coinduction (anesthetics)
+Combination therapy
+Functional analog (chemistry)
+Polypharmacology
+Chemotherapy
+Lists of drugs
+WHO list of essential medicines
+Tolerance and resistance
+Drug tolerance
+Tachyphylaxis
+Drug resistance
+Antibiotic resistance
+Multiple drug resistance
+Antimicrobial pharmacology
+Antimicrobial pharmacodynamics
+Minimum inhibitory concentration
+Bacteriostatic
+Minimum bactericidal concentration
+Bactericide
+Category
+Commons
+v
+t
+e
+Concepts in
+infectious disease
+(
+Outline
+)
+Determinants
+Agent
+Biofilm
+Germ theory of disease
+Infectivity
+Infectious dose
+Pathogenesis
+Pathogenicity
+Attack rate
+Quorum sensing
+Virulence
+Endotoxin
+Exotoxin
+Case fatality rate
+factors
+Antimicrobial resistance
+Drug resistance
+Horizontal gene transfer
+Multidrug-resistant bacteria
+Host tropism
+Host
+Burn
+Comorbidity
+Diabetes
+Host–pathogen interaction
+Immune response
+Immunodeficiency
+Immunosuppression
+Immunopathology
+Cytokine storm
+Microbiome health
+Opportunistic infection
+Risk of infection
+Susceptible individual
+Age
+Gender
+Nutrition status
+Vaccination status
+Genetic predisposition
+Behavioral/lifestyle factors
+Smoking
+Pregnancy
+Stress levels
+Environment
+Access to water, sanitation, and hygiene
+Air quality
+Biodiversity loss
+Climate change
+Climate zones
+El Niño
+Tropical diseases
+Commerce
+Deforestation
+Ecology
+Humidity
+Injection drug use
+Natural disaster
+Flood
+Poultry and livestock
+Poverty
+Travel
+Urbanization
+Vector control
+War and conflict
+Transmission
+Basic
+concepts
+Asymptomatic carrier
+Chain of infection
+Focus of infection
+Index case
+Natural reservoir
+Viral shedding
+Temporal
+concepts
+Incubation period
+Infectious period
+Latent period
+Window period
+Determinants
+Viral load
+Transmission heterogeneity
+Super-spreader
+Modes
+Endogenous
+Endogenous overgrowth
+Normal flora overgrowth
+Endogenous reactivation
+Endogenization
+Microbial translocation
+Endogenous seeding
+Biofilm
+formation
+Exogenous
+Cross-species
+Spillover infection
+Vector
+Zoonosis
+Reverse zoonosis
+Human-to-human
+/Cross-infection
+Contagious disease
+Source
+Nosocomial/Hospital
+Iatrogenic/Medical care
+Generational difference
+Vertical/Congenital
+Prenatal
+Perinatal
+Neonatal
+Horizontal
+Breakthrough infection
+Environment-
+to-human
+Sapronosis
+Routes
+Respiratory
+Air
+Bioaerosol
+Aerosol-generating procedure
+Dental aerosol
+Respiratory droplet
+Linked to
+Vascular system
+Blood-borne disease
+Percutaneous inoculation
+Injection site
+Intravenous line
+Insect bite
+Animal bite
+Surgical intervention
+Postoperative wound
+Surgical site infection
+Vector-borne
+Mosquito
+Tick
+Gastrointestinal
+Food
+Contamination
+Breastmilk
+Water
+Feces
+Cutaneous
+Burn
+Fomite
+Soil
+Open
+wound
+Genitourinary
+Sex
+Trans-placental
+Prenatal
+Cervico-vaginal
+Perinatal
+Other
+Ocular (Eye) mucosal membrane
+Modelling
+Agent-based model
+Animal disease model
+Attack rate
+Basic reproduction number
+Compartmental models in epidemiology
+Critical community size
+Force of infection
+Generation time
+Herd immunity
+Infection rate
+Machine learning
+Multiplicity of infection
+Secondary attack rate
+Serial interval
+WAIFW matrix
+Occurrence
+in population
+Cluster
+Endemic
+Epidemic
+Curve
+Farr's laws
+Virgin-soil epidemic
+Geographic distribution
+Holoendemic
+Hyperendemic
+Incidence
+Inequality
+Mesoendemic
+Outbreak
+Pandemic
+Prevalence
+Seasonality
+Social factors
+Sporadic
+Syndemic
+Twindemic
+Anatomical
+location
+Respiratory
+Ear-Nose-Throat/Upper respiratory tract
+Chest/Lower respiratory tract
+Gastrointestinal
+Intestinal
+Genitourinary
+Nervous system
+Skin
+Soft tissue
+Bone
+Joint
+Cardiovascular
+Systemic/Generalized
+Blood
+Tooth
+Mouth
+Fetus
+Eye
+Diagnostics
+Direct detection methods
+Microscopy
+Histopathology
+Smear test
+Staining
+Gram stain
+Acid-fast stain
+Microbiological culture
+Antimicrobial susceptibility testing
+Molecular diagnostics
+Nucleic acid amplification tests
+PCR
+Genomic sequencing
+Antigen testing
+Rapid antigen test
+Indirect detection methods
+Serology
+Antibody testing
+Antibody immunoassay
+Antibody titer
+Seroconversion
+Other
+Diagnostic stewardship
+Sensitivity and specificity
+Positive predictive value
+Negative predictive value
+Point-of-care testing
+Differential diagnosis
+Biomarker
+Course and
+states
+Pattern of infection
+Primary infection
+Secondary infection
+Coinfection
+Superinfection
+Reinfection
+Course of infection
+Acute infection
+Subacute infection
+Chronic infection
+Fulminant infection
+Persistent infection
+Latent infection
+Remission
+Relapse
+Resolution of infection
+Clinical state
+Asymptomatic infection
+Carrier state
+Silent/Subclinical infection
+Outcome
+Convalescence
+Cure
+(Recovery)
+Death
+Disability
+Disability-adjusted life years
+Healing
+Late effect
+Post-infectious syndrome
+Post-viral fatigue syndrome
+Sequela
+Prevention
+and Control
+measures
+Pharmaceutical
+Antibiotic
+prophylactic
+Antifungal
+Anthelmintic
+Ascaricide
+Antimicrobial
+Antimicrobial stewardship
+Antiseptic
+Antiviral
+Asepsis
+Combination
+Drug safety
+Immunization
+Immunotherapy
+Monoclonal antibody therapy
+Inoculation
+Phage therapy
+Pre-exposure prophylaxis
+Post-exposure prophylaxis
+Repurposed drugs
+Vaccination
+efficacy/effectiveness
+booster
+hesitancy
+resistance
+Vaccine-preventable disease
+Ring vaccination
+Non-
+pharmaceutical
+Contact tracing
+Cordon sanitaire
+Disease surveillance
+Disinfection
+Flattening the curve
+Hygiene
+Food hygiene
+Hand washing
+Gloves
+Isolation
+Barrier nursing
+Lockdown
+Notification
+list
+Protective sequestration
+Public health
+Community health
+services
+Health communication
+Health education
+Outbreak response
+Quarantine
+Respiratory source control
+N95 respirator
+Surgical mask
+PPE
+Safe sex
+Sanitation
+Screening
+Social distancing
+Sterilization
+Transmission-based precautions
+Travel restrictions
+Universal precautions
+Vector control
+Wastewater surveillance
+Zoning
+Emerging
+infections
+Antigenic drift
+Antigenic shift
+Antimicrobial resistance surveillance
+EARS-Net
+Biosecurity
+CRISPR
+Disease X
+Emergent virus
+Evolutionary epidemiology
+Genetic epidemiology
+Global Health Initiatives
+Microbial phylogenetics
+One Health Model
+Genomic reassortment
+Re-emerging disease
+Reverse zoonosis
+Selection pressure
+Synthetic biology
+Viral phylodynamics
+Other
+Discovery
+Disease ecology
+Eradication
+Economics of Infectious Diseases
+Infectious disease (medical specialty)
+Infectious disease informatics
+Microbial bioterrorism
+Pandemic prevention
+Tropical disease
+Tropical medicine
+Portals
+:
+Biology
+Medicine
+↑
+Salam MA, Al-Amin MY, Salam MT, Pawar JS, Akhter N, Rabaan AA, et
+al. (5 July 2023).
+"Antimicrobial Resistance: A Growing Serious Threat for Global Public Health"
+.
+Healthcare
+.
+11
+(13): 1946.
+doi
+:
+10.3390/healthcare11131946
+.
+ISSN
+2227-9032
+.
+PMC
+10340576
+.
+PMID
+37444780
+.
+Retrieved from "
+https://en.wikipedia.org/w/index.php?title=Antimicrobial_resistance&oldid=1384211331
+"
+Categories
+:
+Antimicrobial resistance
+Evolutionary biology
+Health disasters
+Microbiology
+Pharmaceuticals policy
+Veterinary medicine
+Global issues
+Hidden categories:
+Articles with short description
+Short description matches Wikidata
+Use dmy dates from May 2026
+Webarchive template wayback links
+All articles with dead external links
+Articles with dead external links from July 2023
+Articles with permanently dead external links
+CS1 maint: article number as page number
+All articles with failed verification
+Articles with failed verification from May 2026
+CS1 maint: deprecated archival service
+Pages containing links to subscription-only content
+Wikipedia articles needing clarification from May 2026
+All articles lacking reliable references
+Articles lacking reliable references from May 2026
+CS1 Japanese-language sources (ja)
+CS1: long volume value
+CS1 German-language sources (de)
+CS1 maint: DOI inactive as of October 2026
+Wikipedia articles in need of updating from October 2023
+All Wikipedia articles in need of updating
+All articles with unsourced statements
+Articles with unsourced statements from April 2023
+Articles with unsourced statements from May 2026
+Pages displaying short descriptions of redirect targets via Module:Annotated link
+Commons category link is on Wikidata
+Articles with medical app sidebar
+This page was last edited on 7 November 2026, at 04:22
+(UTC)
+.
+Page was rendered with
+Parsoid
+.
+Text is available under the
+Creative Commons Attribution-ShareAlike 4.0 License
+;
+additional terms may apply. By using this site, you agree to the
+Terms of Use
+and
+Privacy Policy
+. Wikipedia® is a registered trademark of the
+Wikimedia Foundation, Inc.
+, a non-profit organization.
+Privacy policy
+About Wikipedia
+Disclaimers
+Contact Wikipedia
+Legal & safety contacts
+Code of Conduct
+Developers
+Statistics
+Cookie statement
+Mobile view
+Search
+Search
+Toggle the table of contents
+Antimicrobial resistance
+54 languages
+Add topic

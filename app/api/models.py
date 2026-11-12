@@ -389,6 +389,10 @@ class QuickResearchRequest(BaseModel):
     """Requete de recherche rapide documentee."""
     query: str = Field(..., description="Question factuelle", min_length=5, max_length=2000)
     max_sources: int = Field(default=5, ge=1, le=15)
+    include_source_content: bool = Field(
+        default=False,
+        description="Joindre a chaque source le texte exact transmis au modele (controle des citations)",
+    )
 
 
 class QuickResearchSource(BaseModel):
@@ -398,6 +402,10 @@ class QuickResearchSource(BaseModel):
     relevance: Optional[float] = Field(
         default=None,
         description="Score du moteur de recherche pour ce resultat, si le moteur en fournit un"
+    )
+    content: Optional[str] = Field(
+        default=None,
+        description="Texte de la source transmis au modele (si include_source_content)",
     )
 
 

@@ -1,0 +1,24 @@
+{"id": "q01-neonic", "mode": "quick", "lang": "fr", "query": "En quelle année l'Union européenne a-t-elle interdit l'usage en plein champ de l'imidaclopride, de la clothianidine et du thiaméthoxame ?", "attendu": ["\\b2018\\b"]}
+{"id": "q02-paris", "mode": "quick", "lang": "en", "query": "On what date did the Paris Agreement on climate change enter into force?", "attendu": ["4 November 2016", "November 4,? 2016"]}
+{"id": "q03-montblanc", "mode": "quick", "lang": "fr", "query": "Quelle altitude du mont Blanc a été mesurée lors de la campagne de relevés de septembre 2021 ?", "attendu": ["4[\\s\\u00a0\\u202f]?807[,.]81"]}
+{"id": "q04-gdpr", "mode": "quick", "lang": "en", "query": "On what date did the EU General Data Protection Regulation (GDPR) start to apply?", "attendu": ["25 May 2018", "May 25,? 2018", "2018-05-25"]}
+{"id": "q05-c14", "mode": "quick", "lang": "en", "query": "What is the half-life of carbon-14?", "attendu": ["5[,.\\s\\u00a0\\u202f]?730", "5[,.\\s\\u00a0\\u202f]?700"]}
+{"id": "q06-jwst", "mode": "quick", "lang": "fr", "query": "À quelle date le télescope spatial James Webb a-t-il été lancé ?", "attendu": ["25 d[ée]cembre 2021"]}
+{"id": "q07-51peg", "mode": "quick", "lang": "en", "query": "In which year was the discovery of 51 Pegasi b, the first exoplanet found orbiting a Sun-like star, announced?", "attendu": ["\\b1995\\b"]}
+{"id": "q08-lumiere", "mode": "quick", "lang": "en", "query": "What is the exact speed of light in vacuum in metres per second?", "attendu": ["299[\\s,.\\u00a0\\u202f]?792[\\s,.\\u00a0\\u202f]?458"]}
+{"id": "q09-euro", "mode": "quick", "lang": "fr", "query": "En quelle année les pièces et billets en euros ont-ils été mis en circulation ?", "attendu": ["\\b2002\\b"]}
+{"id": "q10-montreal", "mode": "quick", "lang": "en", "query": "When did the Montreal Protocol on Substances that Deplete the Ozone Layer enter into force?", "attendu": ["\\b1989\\b"]}
+{"id": "q11-kyoto", "mode": "quick", "lang": "fr", "query": "À quelle date le protocole de Kyoto est-il entré en vigueur ?", "attendu": ["16 f[ée]vrier 2005"]}
+{"id": "q12-glyphosate", "mode": "quick", "lang": "fr", "query": "Depuis quelle date la vente de produits phytosanitaires de synthèse, dont le glyphosate, est-elle interdite aux jardiniers amateurs en France ?", "attendu": ["\\b2019\\b"]}
+{"id": "q13-giec", "mode": "quick", "lang": "fr", "query": "Selon le sixième rapport d'évaluation du GIEC, de combien la température de surface globale de 2011-2020 dépassait-elle celle de 1850-1900 ?", "attendu": ["1[,.]09", "1[,.]1\\s?°"]}
+{"id": "q14-croatie", "mode": "quick", "lang": "en", "query": "When did Croatia adopt the euro as its currency?", "attendu": ["1 January 2023", "January 1,? 2023"]}
+{"id": "q15-periph", "mode": "quick", "lang": "fr", "query": "Quelle est la vitesse maximale autorisée sur le boulevard périphérique parisien depuis octobre 2024 ?", "attendu": ["\\b50\\s?km"]}
+{"id": "q16-kigali", "mode": "quick", "lang": "en", "query": "In which year was the Kigali Amendment to the Montreal Protocol adopted?", "attendu": ["\\b2016\\b"]}
+{"id": "d01-neonic", "mode": "deep", "lang": "fr", "query": "Effets des néonicotinoïdes sur les abeilles et évolution de la réglementation européenne depuis 2013"}
+{"id": "d02-microplastics", "mode": "deep", "lang": "en", "query": "Current scientific evidence on the presence and health effects of microplastics in the human body"}
+{"id": "d03-zfe", "mode": "deep", "lang": "fr", "query": "Les zones à faibles émissions en France : cadre légal, calendrier, agglomérations concernées et effets mesurés sur la qualité de l'air"}
+{"id": "d04-perovskite", "mode": "deep", "lang": "en", "query": "Stability and commercialization status of perovskite solar cells"}
+{"id": "d05-trait-de-cote", "mode": "deep", "lang": "fr", "query": "Le recul du trait de côte en France : ampleur, causes et réponses publiques depuis la loi Climat et résilience"}
+{"id": "d06-cbam", "mode": "deep", "lang": "en", "query": "The EU Carbon Border Adjustment Mechanism: design, sectors covered, timeline and expected effects"}
+{"id": "d07-hydrogene", "mode": "deep", "lang": "fr", "query": "Hydrogène renouvelable en Europe : coûts de production, capacités d'électrolyse installées et objectifs 2030"}
+{"id": "d08-amr", "mode": "deep", "lang": "en", "query": "Antimicrobial resistance: global burden estimates and main drivers"}

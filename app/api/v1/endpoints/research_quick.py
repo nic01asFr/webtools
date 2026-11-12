@@ -182,9 +182,10 @@ async def research_quick(request: QuickResearchRequest) -> QuickResearchResponse
         # La pertinence est le score du moteur de recherche, quand il existe.
         sources = [
             QuickResearchSource(
-                title=e["title"], url=e["url"], relevance=e["score"] if e["score"] > 0 else None
+                title=e["title"], url=e["url"], relevance=e["score"] if e["score"] > 0 else None,
+                content=text if request.include_source_content else None,
             )
-            for e in extracted
+            for e, text in zip(extracted, texts)
         ]
         return QuickResearchResponse(
             query=request.query, answer=answer, sources=sources,

@@ -1,0 +1,2164 @@
+Érosion du littoral — Wikipédia
+Aller au contenu
+Menu principal
+Menu principal
+déplacer vers la barre latérale
+masquer
+Navigation
+Page d’accueil
+Portails thématiques
+Article au hasard
+Contact
+Contribuer
+Débuter sur Wikipédia
+Aide
+Communauté
+Pages spéciales
+Modifications récentes
+Rechercher
+Rechercher
+Apparence
+Faire un don
+Créer un compte
+Se connecter
+Outils personnels
+Faire un don
+Créer un compte
+Se connecter
+Sommaire
+déplacer vers la barre latérale
+masquer
+Début
+1
+Le phénomène
+2
+Causes
+3
+Histoire, enjeux
+4
+Méthode et indicateurs de position du trait de côte
+Afficher / masquer la sous-section Méthode et indicateurs de position du trait de côte
+4.1
+Méthode de relevé sur les côtes à falaises
+4.2
+Incertitudes et limite des méthodes de mesure
+5
+En France
+Afficher / masquer la sous-section En France
+5.1
+État des lieux (France)
+5.2
+Exemple des falaises de la pointe aux Oies dans le Nord-Pas-de-Calais
+5.3
+Mesures
+6
+Guides, prévention et gestion des risques
+7
+Notes et références
+8
+Annexes
+Afficher / masquer la sous-section Annexes
+8.1
+Bibliographie
+8.1.1
+Ouvrages en français
+8.1.2
+Ouvrages en anglais
+8.1.3
+Numéros spéciaux de revues et articles spécialisés
+8.2
+Articles connexes
+8.3
+Liens externes
+Basculer la table des matières
+Érosion du littoral
+23 langues
+العربية
+বাংলা
+Deutsch
+English
+Español
+Eesti
+فارسی
+עברית
+Bahasa Indonesia
+日本語
+Қазақша
+한국어
+Kernowek
+മലയാളം
+Nederlands
+Português
+සිංහල
+Simple English
+Svenska
+ไทย
+Türkçe
+粵語
+中文
+Modifier les liens
+Article
+Discussion
+français
+Lire
+Modifier
+Modifier le code
+Voir l’historique
+Enregistrer
+Outils
+Outils
+déplacer vers la barre latérale
+masquer
+Actions
+Lire
+Modifier
+Modifier le code
+Voir l’historique
+Enregistrer
+Général
+Pages liées
+Suivi des pages liées
+Téléverser un fichier
+Lien permanent
+Informations sur la page
+Citer cette page
+Obtenir l'URL raccourcie
+Utiliser l'ancien analyseur
+Imprimer / exporter
+Créer un livre
+Télécharger comme PDF
+Version imprimable
+Dans d’autres projets
+Wikimedia Commons
+Élément Wikidata
+Apparence
+déplacer vers la barre latérale
+masquer
+Un article de Wikipédia, l'encyclopédie libre.
+(Redirigé depuis
+Érosion côtière
+)
+Environ 75
+% du trait de côte européen régresse significativement et parfois rapidement. Les causes sont soit naturelles, soit liées à des
+activités humaines
+, ici sur l'
+île Heligoland
+(Allemagne).
+L’
+érosion du littoral
+, appelée aussi
+érosion côtière
+ou
+recul du trait de côte
+, est un phénomène d'origine naturelle et/ou
+anthropique
+, qui se produit en de nombreux endroits du monde (20
+% du littoral français est concerné en 2024) et qui peut être critique pour certaines villes littorales, infrastructures, notamment dans les îles. Différents facteurs peuvent causer cette érosion non compensée par l'engraissement local
+: facteurs planétaires telles que la légère
+montée des océans
+et les phénomènes de
+rééquilibrage isostatique
+, et facteurs locaux qui déséquilibrent le bilan sédimentaire et la disponibilité de sédiments
+:
+conditions hydrodynamiques
+[
+1
+]
+,
+courants marins
+, altération mécanique qui résulte de la pression des mouvements ondulatoires de l'eau (action des vagues et de la houle) particulièrement lors de grandes marées et de fortes tempêtes, suintements d'
+eau douce
+,
+ruissellement
+d'eau de pluie liée à la
+dénudation des surfaces
+favorisée par plusieurs facteurs anthropiques
+:
+artificialisation
+et imperméabilisation des sols
+[
+2
+]
+, circulation de véhicules
+[
+3
+]
+,
+surpiétinement
+des randonneurs, diminution des apports terrigènes en
+sable
+à la suite de la construction de nombreux
+barrages
+dans les
+bassins versants
+des
+cours d'eau
+ou de l'extraction de sables, installation d'ouvrages de protection qui perturbent le bilan sédimentaire, nettoyage excessif de la
+végétation qui participe à la fixation des sols
+[
+4
+]
+,
+déforestation
+[
+5
+]
+…
+On observe alors un recul du
+trait de côte
+, des couloirs de
+ravinement
+, l'abaissement des plages et des petits fonds, des dépôts de pente lorsque les roches sont globalement saines, ou des phénomènes plus ou moins spectaculaires lorsque les roches sont
+altérées
+:
+éboulements rocheux
+,
+glissements de matériaux
+ponctuels ou en masse, suivant la hauteur, la pente et la nature de la falaise.
+Pour répondre aux besoins d'état des lieux et de
+prospective
+(face notamment au
+dérèglement climatique
+et à la montée de la mer), une
+cartographie
+(
+normalisée
+) de l'évolution du trait de côte est en cours dans de nombreux pays, dont la France
+[
+6
+]
+.
+Le phénomène
+[
+modifier
+|
+modifier le code
+]
+Diagramme illustrant le
+bilan sédimentaire
+des plages qui peut être équilibré (plages stables), excédentaire (
+accrétion
+des plages qui s'engraissent) ou déficitaire (érosion des plages qui dégraissent).
+Érosion d'East Cliff, West Bay - partie du
+littoral du Dorset et de l'est du Devon
+. Le chemin côtier a été détourné pour éviter les terrains dangereux.
+La mobilité des
+dunes
+, des
+estuaires
+et du
+trait de côte
+est naturelle. Elle résulte de l'action combinée des
+vagues
+, du
+vent
+, des
+courants
+et des flores fixatrices des sables et vases, là où elles existent.
+L'érosion littorale est plus importante sur les substrats mous (
+sable
+). Les
+plages
+représentent environ 20
+% du linéaire côtier mondial. On estime actuellement que 70
+% de la longueur de ce linéaire est érodé, 20
+% est stable, et 10
+% seulement montre des signes d'élargissement (progradation du trait de côte par engraissement sédimentaire naturel des plages
+[
+7
+]
+, l'engraissement artificiel étant un
+épiphénomène
+)
+[
+8
+]
+.
+En France, en 2003, l'
+Institut français de l'environnement
+estime qu'un quart (24
+%) du trait de côte métropolitain recule, quand un dixième gagne sur la mer, près de 50
+% étant stable. Le reste (17
+%) étant artificiellement figées (zones portuaires et digues) ou de côtes dont la dynamique n'est pas étudiée (5
+%)
+[
+9
+]
+.
+20 ans
+plus tard, selon le
+CEREMA
+, plus de
+5 000 logements
+sont menacés et 200 routes pourraient être coupées entre 2025 et 2050
+[
+10
+]
+. Le phénomène est particulièrement grave pour les îles, par exemple pour les
+îles Tuvalu
+menacées de disparition en France pour la Guadeloupe (où en 2024, la commune de Deshaies a décidé de s'y adapter, et où douze communes se proposent de travailler à une nouvelle législation et à des aménagements
+ad hoc
+[
+11
+]
+.
+Causes
+[
+modifier
+|
+modifier le code
+]
+Elles sont nombreuses
+:
+La nature géologique de la côte. Par exemple, pour les falaises rocheuses dures (
+granite
+,
+gneiss
+), le recul moyen annuel est inférieure à
+1
+mm/an
+; pour les roches à côtes plus tendres (calcaire, schiste), il est de l'ordre de
+1 à 10
+mm/an
+; pour la craie et les roches sédimentaires du Tertiaire, de l'ordre de
+0,1 à 1
+m/an
+; de
+1 à 10
+m/an
+pour les dépôts quaternaires
+; de l'ordre de
+10
+m/an
+pour les falaises de roches meubles (molasse, flysch, argile à silex, sables, marnes, dépôts volcaniques meubles)
+[
+12
+]
+. Pour les côtes à falaises, la valeur de ce recul est tributaire de la
+lithologie
+du rivage, mais aussi de l'exposition de la côte aux agents de la dynamique marine
+;
+Le nettoyage des plages
+: en détruisant les
+laisses de mer
+qui servaient de nourriture aux
+micro-organismes
+vivant dans le sable, il élimine les cordons dunaires qui se forment à partir de ces
+laisses
+et qui constituent un frein à l'érosion naturelle
+;
+Le
+réchauffement climatique
+, en augmentant le niveau de l'eau, et la force des aléas climatiques.
+Les aménagements portuaires ou de
+digues
+, ayant des effets parfois spectaculaires, souvent via des modifications des courants qu'ils induisent
+;
+La diminution, voire la disparition dans certains cas, des apports sédimentaires à la côte, en raison de la construction de barrages, des programmes de canalisation et d'irrigation
+;
+Les
+gravières
+sous-marines peuvent aussi avoir des effets différés en termes de mouvements de sédiments
+;
+Des pompages ou drainages peuvent aussi indirectement modifier l'érosion de certaines falaises en y produisant des phénomènes de
+solifluxion
+ou des effets plus vifs du gel/dégel et des sécheresses (alternances de retraits et gonflements par exemple).
+Sur les plages, et face aux dunes, certains ouvrages de protection (épis par exemple) se sont eux-mêmes montrés capables de modifier les courants et surcreuser des
+plages
+ou des
+vasières
+plus en aval
+;
+La destruction des
+mangroves
+est un des principaux facteurs de ce recul en
+zone tropicale
+.
+Localement des événements tels que les
+tsunamis
+peuvent emporter des portions entières de littoraux.
+La résidence du
+Signal
+, à
+Soulac-sur-Mer
+, est devenue le symbole de l'érosion du littoral et a participé à une prise de conscience du phénomène.
+Érosion le long d'une piste cyclable au sud de
+Brooklyn
+(
+Sheepshead Bay
+(en)
+).
+Plus particulièrement, l'érosion des plages a des causes naturelles et anthropiques. Les principales causes naturelles sont la baisse des apports sédimentaires à la côte depuis la fin de la
+transgression marine
+holocène
+qui faisait remonter vers les rivages d'abondants stocks de sables sous-marins, aggravée par l'
+élévation actuelle du niveau marin
+en raison du
+réchauffement climatique
+(causes s'exerçant à l'échelle globale et sur de longues périodes de temps
+—
+années ou plus
+), et les
+surcotes
+des marées de tempêtes (cause s'exerçant à l'échelle locale, sur de courtes périodes de temps
+—
+quelques heures
+) dont les effets s'observent même sur des côtes non perturbées par l'homme). Les principales causes humaines sont l'
+anthropisation
+des fleuves (construction de digues et de barrages) et du littoral (urbanisation des
+cordons dunaires
+,
+bétonisation du littoral
+,
+extraction de sédiments
+, mise en place d'ouvrages littoraux
+—
+murs
+et
+ouvrages
+de soutènement, digues côtières,
+brise-lames
+,
+épis
+,
+surfréquentation
+touristique…)
+[
+13
+]
+.
+Histoire, enjeux
+[
+modifier
+|
+modifier le code
+]
+Jusqu'à l'
+ère industrielle
+, l'érosion marine était un phénomène essentiellement naturel et récurrent, plus ou moins équilibré par des zones d'engraissement (si les plages rétrécissent, les dunes reculent et les falaises se morcellent, des deltas avancent sur la mer… le
+trait de côte
+a toujours fluctué. Et à ce jour,
+«
+l’élévation du niveau de la mer n’est pas assez rapide pour causer une érosion des côtes (…) importante
+»
+[
+14
+]
+.
+L'urbanisation et l'industrialisation du littoral depuis
+150 ans
+ont changé la donne
+:
+«
+Autrefois, les hommes ne s’installaient pas sur les côtes sableuses, ils savaient que c’était mobile
+»
+[
+15
+]
+.
+«
+Dès le début du tourisme, il fallait être au plus près de la mer (…)
+; presque toutes les stations, d’
+Hendaye
+(
+Pyrénées-Atlantiques
+) à
+Bray-Dunes
+(
+Nord
+) ont été construites sur les dunes littorales. Les échanges naturels entre la plage et sa réserve de sable qui l’alimentait en cas de tempête ont été rompus. (…) Les systèmes de
+digues
+ou d’
+enrochement
+, destinés à contrer l’érosion, au lieu d’améliorer la situation, entravent encore plus ces échanges
+»
+[
+16
+]
+. Pour autant, les effets du réchauffement climatique sur les côtes ne peuvent être écartés, surtout dans l’avenir
+[
+17
+]
+. Ainsi, 200 millions d'européens vivent aujourd'hui à moins de
+50
+km
+de la mer, et les zones littorales continuent globalement à se vouloir
+«
+attractives
+»
+pour le tourisme et l'activité économique, en s'artificialisant. En France, de 2013 à 2050, selon l'INSEE, la population littorale pourrait encore croître de
+570 000
+habitants pour passer à 8,7 millions, alors même que le GIEC prévoit une hausse de la mer de 0,43 m à 0,84 m avant 2100 (menaçant
+850 000
+emplois)
+[
+18
+]
+.
+Méthode et indicateurs de position du trait de côte
+[
+modifier
+|
+modifier le code
+]
+Le
+trait de côte
+représente la limite entre
+terre
+–
+mer
+et varie avec le temps selon les conditions et le contexte dynamique (érosion
+accrétion
+), de ce fait, la détermination de cette limite n’est pas toujours aussi facile et précise. Des indicateurs permettent d’estimer la position du
+trait de côte
+dans différents endroits des
+zones littorales
+comme les lignes des hautes et basses eaux, la ligne du haut de la falaise et la ligne du pied de la falaise.
+La
+règle de Bruun
+(en)
+qui représente un concept simple d'érosion littorale liée à
+transgression marine
+est un outil de valeur, mais il se heurte à diverses difficultés d'application.
+Méthode de relevé sur les côtes à falaises
+[
+modifier
+|
+modifier le code
+]
+La méthode ne s'applique que pour les falaises directement exposées à l’action des vagues. Elle ne prend pas en compte la plateforme d'érosion qui est considérée comme une côte basse. La morphologie des falaises varie en fonction de la
+lithologie
+et la résistance des roches et selon l’intensité des processus d’érosion marine et aérienne. On distingue deux types de falaises
+: les
+falaises
+présentant une forte pente (>45°) et les falaises présentant une pente faible (<45° Fig.9 et Fig.10). Sur un secteur à falaise, quatre indicateurs peuvent être relevés
+:
+le pied de falaise (pour les falaises à faible pente)
+;
+le haut de falaise
+;
+la rupture de pente
+;
+la limite d'extension de la végétation.
+Dans tous les cas, le relevé du haut de falaise est à privilégier
+[
+19
+]
+.
+Incertitudes et limite des méthodes de mesure
+[
+modifier
+|
+modifier le code
+]
+La détermination du
+trait de côte
+n'est pas aussi simple qu'il n'y parait, en raison de la nature mouvante des dunes, de la végétation qui peut ponctuellement cacher certains phénomènes notamment, et au vu la limite des méthodes utilisées ( marge d’erreur lors du calage et
+géoréférencement
+des anciennes
+photos aériennes
+, difficulté de repérage des points de référence lors de
+géoréférencement
+, marges d'erreurs dans la
+numérisation
+du
+trait de côte
+sur les anciennes photos à prendre en compte dans la comparaison et le calcul de la distance de recul).
+En France
+[
+modifier
+|
+modifier le code
+]
+Pour un article plus général, voir
+littoral français
+.
+Géomorphologie des côtes de France par région
+: caractéristiques dominantes du trait de côte et
+% d'érosion du linéaire côtier (chiffres en 1996)
+[
+20
+]
+.
+Évolution du trait de côte des départements français selon le type de côte (donnée
+CEREMA
+, 2018)
+[
+21
+]
+.
+Des
+blockhaus
+construits en haut des dunes pendant la Seconde Guerre mondiale sont atteints par la mer.
+L'immeuble
+Signal
+à
+Soulac-sur-Mer
+, évacué en
+2014
+, est devenu un symbole de l'érosion côtière
+[
+22
+]
+.
+La gestion du trait de côte et l’élaboration des plans de prévention des risques prennent de l'importance, à cause des risques et coûts induits par ce phénomène.
+Une proposition de loi amende la
+loi littoral
+, et défini le «
+recul du trait de côte
+» comme
+:
+«
+déplacement, vers l’intérieur des terres, de la limite du domaine maritime en raison soit d’une érosion côtière par perte de matériaux rocheux ou sédimentaires, soit de l’élévation permanente du niveau de la mer. Ce recul du trait de côte peut s’étendre au-delà des limites du rivage de la mer tel qu’il est défini à l’article L. 2111-4 du code général de la propriété des personnes publiques
+»
+[
+23
+]
+En 2012, la France s'est dotée d'une
+Stratégie Nationale de Gestion Intégrée du Trait de Côte
+(cadre de cohérence pour les stratégies littorales régionales), et de programmes d'actions successifs, afin de mieux suivre les mouvements de la bande côtière et encourager des stratégies locales d'adaptation des territoires aux évolutions du littoral (et au réchauffement climatique
+: le plan national d’adaptation au changement climatique 2018 – 2022 renforce en effet cette exigence)
+[
+24
+]
+. Un Réseau National des Observatoires du Trait de Côte (RNOTC) a aussi été constitué
+[
+24
+]
+.
+État des lieux (France)
+[
+modifier
+|
+modifier le code
+]
+En 2006, l'
+IFEN
+estimait
+[
+25
+]
+que
+:
+25
+% du trait de côte reculaient alors que seuls 10
+% engraissaient, et ce, malgré les ouvrages de défense contre l'
+érosion
+des plages et des bancs de galets
+[
+26
+]
+;
+25,9
+% des côtes érodées étaient des zones urbanisées, commerciales ou artificialisées
+;
+9,7
+% étaient des terres labourées
+;
+17,4
+% étaient des plages et des dunes.
+Du point de vue du pourcentage des plages stables, dégraissant ou engraissant
+[
+27
+]
+, le phénomène semble stable depuis
+20 ans
+sur tout le littoral métropolitain, mais l'ampleur des reculs et avancées semble augmenter
+[
+28
+]
+. Ainsi, en Aquitaine, le trait de côte a reculé sur plusieurs zones de
+10 mètres
+ou plus, en raison des vents et d'une houle inhabituellement forte, fin 2013-début 2014. Du
+14 décembre
+au
+8 janvier
+, la hauteur de houle a atteint ou dépassé
+4 mètres
+, 60
+% du temps, c'était
+«
+un phénomène qui ne s'est jamais produit
+»
+en Aquitaine, selon les spécialistes. Le
+Conservatoire du littoral et des rivages lacustres
+a ainsi perdu une quantité significative de terrains. Le littoral rocheux de la Côte Basque, de Biarritz à Hendaye, est lui aussi régulièrement l’objet d’effondrements plus ou moins importants depuis le début du
+XX
+e
+siècle
+au moins
+[
+29
+]
+,
+[
+30
+]
+:
+Rocher du Basta
+à Biarritz, mais aussi
+Pile d’Assiettes
+à Saint-Jean-de-Luz et arche de l’un des
+Deux Jumeaux
+à Hendaye par exemple. Le rythme de cette érosion à Hendaye paraît plus soutenu depuis le début des années 2000, avec en particulier l’effondrement du
+Rocher de la Pointe Ste-Anne
+, en Baie de Loia (entre 2000 et 2006 - voir image ci-dessous) et, le
+29 octobre 2020
+, le spectaculaire éboulement de la corniche entre
+Socoa
+(
+Ciboure
+) et Hendaye
+[
+31
+]
+, à la hauteur du récif de
+Belharra
+; la route côtière (D912) est menacée à court terme.
+États successifs du Rocher de la Pointe Ste-Anne en Baie de Loia (Hendaye), entre 1996 et 2006. La fissure initiale correspond à la couche à iridium de la limite Crétacé-Tertiaire.
+Une étude du
+groupe de réflexion
+«
+la Fabrique écologique
+» évalue en 2019 entre 3 et
+4 milliards
+d'euros par an à l'horizon 2040 le coût des dommages dus à une montée des flots de
+45 centimètres
+. Un quart du littoral est grignoté par la mer et
+1,4 million
+de résidents sont à la merci de ce recul, ainsi que
+850 000 emplois
+. Si l'eau devait monter d'un mètre d'ici à 2100,
+200 kilomètres
+de routes nationales,
+355 kilomètres
+d'autoroutes,
+1 967 kilomètres
+de voies ferrées et
+4 388 kilomètres
+de routes départementales seraient noyés. Plus d'un tiers des 303 communes tenues d'avoir un plan de prévention des risques littoraux (PPRL) approuvé n'en disposent toujours pas
+[
+32
+]
+. En 2023, environ 500 communes sont concernées (avec
+16 000
+ouvrages de protection à gérer). 242 de ces communes sont engagées dans leur adaptation à cet enjeu, selon les données du gouvernement présentées en 2025.
+900
+km
+de côte sont en recul (sur les
+20 000
+km
+de littoral français) d'après le
+Cerema
+[
+33
+]
+.
+Ainsi, la
+Normandie
+connaît une importante
+érosion
+de son littoral, en grande partie liée à l'
+anthropisation
+. 60
+% des plages normandes tendent à reculer
+[
+34
+]
+. L'érosion du littoral la plus active a lieu entre la
+baie du Mont Saint-Michel
+et le
+cap de la Hague
+, à l'ouest du département de la
+Manche
+: le recul peut y atteindre
+5 mètres
+par an en moyenne
+[
+34
+]
+. Sur les falaises de
+craie
+de
+Seine-Maritime
+, le recul est de
+20
+cm
+/an en moyenne
+[
+34
+]
+.
+Dans le département du
+Nord
+et dans le
+Pas-de-Calais
+, 70
+% environ du trait de côte est en régression, un «
+plan littoral d'action pour la gestion de l'érosion
+» («
+P.L.A.G.E
+») a été mis en place, avec le syndicat mixte de la
+Côte d'Opale
+[
+35
+]
+.
+Exemple des falaises de la pointe aux Oies dans le
+Nord-Pas-de-Calais
+[
+modifier
+|
+modifier le code
+]
+La zone côtière du
+Nord-Pas-de-Calais
+est une zone densément peuplée, le recul du trait de côte et les submersions de tempête représentent une menace pour les habitations dans plusieurs secteurs de ce littoral. La falaise de la pointe aux Oies, ainsi que toutes les falaises du
+Boulonnais
+, n’ont pas fait l’objet d’une étude détaillée et synthétique visant à établir les vraies valeurs de leur recul et à déterminer les causes de leur évolution, mais des auteurs indiquent que la cartographie à grande échelle permet de lever cet obstacle et que la
+lithologie
+et la
+topographie
+de ces falaises jouent un rôle important dans leurs évolutions.
+Les falaises de la pointe aux Oies font partie des falaises de
+Boulonnais
+qui sont taillées dans des terrains du Secondaire. Elles sont relativement basses (
+12
+m
+d'altitude environ) et constituées de sables et de grès calcareux du
+Portlandien
+supérieur, surmontés par des argiles sableuses, ocres, à concrétions de
+limonite
+, d’âge
+wealdien
+[
+36
+]
+.
+Le recul du haut de falaise dans ce secteur étudié est bien marqué sur les cinquante années passées entre 1959 et 2013 jusqu’à aujourd’hui. Si on compare les valeurs moyennes de recul à des endroits différents, on peut constater que le recul n’est pas homogène dans tout le secteur parce que, dans la partie sud de la pointe aux Oies, on a pu constater des valeurs moyenne de recul de
+20
+m
+tandis que, dans la partie nord, le recul est moins important et ne dépasse pas les
+10
+m
+. Le paysage est nettement modifié soit par des brusques
+effondrements
+soit par la déstabilisation des blockhaus, ce qui représente un vrai danger pour les maisons situées à proximité de la zone rouge.
+Le recul du haut de falaise représente un vrai danger pour les maisons situées à proximité, les valeurs moyennes de recul montrent qu’à court terme le chemin de randonnée pourrait être coupé et à moyen terme la seconde ligne de maisons pourrait être à son tour menacée.
+Cette tendance de recul est favorisée par différents agents climatiques comme les fortes précipitations qui provoquent la déstabilisation des terrains en haut de la falaise et l’érosion marine due à l’action des
+vagues
+au pied de la falaise bien que cette dernière (l’érosion marine) soit affaiblie par les blocs gréseux sur le haut de l’
+estran
+qui représente une sorte de barrière contre les vagues
+[
+37
+]
+.
+Mesures
+[
+modifier
+|
+modifier le code
+]
+La
+loi littoral
+en
+Droit français
+encadre l'
+aménagement
+de la
+côte
+pour, notamment, la protéger des excès de la
+spéculation immobilière
+.
+Le
+Grenelle de la mer
+en
+2009
+a estimé qu'elle était insuffisamment appliquée, mais souligne aussi un «
+manque de coordination entre les communes d’une même partie du littoral concernées par ledit processus physique
+: la création d’épis ou d’autres ouvrages de défense contre la mer sur une commune ayant des conséquences sur les communes voisines devrait, pour être efficace, s'inscrire dans une démarche globale et cohérente. Les risques littoraux (érosion, submersion…) ne sont pas pris en compte dans les
+SCOT
+. Le risque corrélatif d’ensablement ou d’envasement de certaines zones est également décrit et invite à cette vision globale et de réseaux de suivi pour évaluer ces risques
+»
+[
+38
+]
+. Le Centre d'Études Techniques Maritimes et Fluviales (CETMEF) peut aider les collectivités quant aux aspects techniques.
+Le
+Grenelle de la mer
+suggère aussi de mieux «
+apprécier l’impact de l’extraction des
+granulats
+sur l’évolution du trait de côte et sur les
+écosystèmes
+», soulignant que «
+compte tenu de la raréfaction des ressources terrestres, cette activité est amenée à se développer (actuellement
+: 1
+% de
+granulat
+marin au regard de la production totale de granulats en France, à comparer avec les 20
+% en Grande-Bretagne et les 40
+% aux Pays-Bas). Les conditions de l’'exploitation doivent être très strictes au regard de l'impact sur les
+milieux marins
+et
+Littoraux
+et autorisée sur des zones restreintes afin que son développement économique et durable puisse faire l'objet d'une programmation
+»
+[
+38
+]
+.
+Un
+Comité national du trait de côte
+(CNTC) est créé en mars 2023, après que la loi «
+Climat et Résilience
+» du 22 août 2021 ait placé l'érosion côtière parmi les priorités du gouvernement
+; et
+«
+une liste des communes "dont l'action en matière d'urbanisme et la politique d'aménagement doivent être adaptées aux phénomènes hydrosédimentaires entraînant l'érosion du littoral
+»
+(dispositif «
+volontaire
+» permettant à ces communes de bénéficier d'un
+droit de préemption
+spécifique, de mobilisation des
+établissements publics fonciers
+, d'un
+«
+bail réel d'adaptation à l'érosion côtière
+»
+(
+BRAEC
+), de dérogation à certaines règles de la loi Littoral, à certaines conditions
+,
+etc.
+) est créé dans le cadre du
+Plan national d'adaptation au changement climatique
+. Mi-2023, 242 communes s'y étaient inscrites
+[
+39
+]
+. Pour faciliter
+«
+la relocalisation progressive de l'habitat et des activités
+»
+, un
+droit de préemption
+spécifique a été créé par l’article 244 de la
+loi Climat et Résilience
+, primant le droit de préemption des
+SAFER
+au bénéfice des communes et EPCI concernées
+«
+qui intègrent une cartographie des zones exposées à horizon 0-30 ans et 30-100 ans dans leur
+document d'urbanisme
+»
+, à des conditions précisées par un décret
+[
+40
+]
+du 29 juin 2024
+;
+«
+Il permet d'acquérir des biens situés dans les zones concernées, en vue d'en assurer la renaturation avant leur disparition, et de pouvoir éventuellement autoriser à titre temporaire un usage ou une activité compatible avec son niveau d'exposition. Il peut être délégué notamment à des établissements publics y ayant vocation, tels que les établissements publics fonciers (EPF) de l'État et locaux, dont les missions ont été renforcées dans ce domaine par la même loi et qui couvrent l'intégralité du littoral métropolitain et ultramarin (...) La collectivité territoriale concernée peut ainsi mobiliser directement le droit de préemption qu'elle a instauré, le déléguer à un acteur compétent, notamment à un EPF, et/ou conventionner avec une SAFER pour intervenir dans certaines situations
+»
+[
+40
+]
+.
+En 2025, au Congrès des maires, les élus du littoral confirment leur difficulté à recomposer leurs communes face au recul du trait de côte là où il existe ou là où il est prévu, et ils demandent toujours la création d'un fonds «
+érosion côtière
+» alimenté par la solidarité nationale
+[
+41
+]
+.
+Guides, prévention et gestion des risques
+[
+modifier
+|
+modifier le code
+]
+L'importance actuelle et plus encore
+prospective
+des enjeux fonciers
+[
+42
+]
+, territoriaux et stratégiques des risques risques de
+submersion marine
+[
+43
+]
+, des outils et référentiels sont publiés par divers niveaux de collectivités.
+Concernant l'évaluation du niveau de risque, les méthodes de caractérisation des aléas littoraux ont beaucoup évolué, en intégrant les progrès de la
+modélisation
+[
+44
+]
+, des indicateurs de suivi
+[
+45
+]
+et une caractérisation des zones de vulnérabilité
+[
+46
+]
+.
+En Europe, alors qu'environ 70 des
+455 millions
+d'habitants vivent sur le littoral (soit 16
+% de la population) et que de plus en plus de gens veulent y vivre ou finir leurs jours, un guide a été produit en 2004 à la suite du projet «
+Eurosion
+» soutenu par la
+commission européenne
+, sur la protection des biens et des personnes contre les
+ondes de tempête
+, l’intrusion d'eaux marines, la pollution par les
+engrais
+,
+pesticides
+et autres
+polluants
+apportés en mer par les fleuves et les crues, et pour la réhabilitation des
+services écosystémiques
+fournis par les écosystèmes littoraux
+[
+47
+]
+.
+En France, un
+guide de la gestion du trait de côte
+(avec une version numérique) a été élaboré par le ministère chargé de l'écologie, prévu pour fin 2009, publié en 2010
+[
+48
+]
+pour faciliter l'aide et la décision, via une méthodologie de choix et mise en œuvre d'options de gestion du trait de côte, et une description des techniques de défense contre la mer (et de leurs limites). Il s'inscrit dans un projet de
+stratégie nationale de gestion du trait de côte
+, intégrant une gestion plus «
+naturelle
+[
+49
+]
+» ou un recul stratégique et une défense contre la mer prenant en compte le changement climatique. Un nouvel
+indicateur de prédisposition au risque d’érosion côtière
+a été proposé, et testé en Manche et en Vendée
+[
+50
+]
+. Des «
+cartographies
+prospectives
+» sont publiées
+[
+51
+]
+. Des guides concernent aussi des enjeux plus locaux, avec par exemple la protection des milieux dunaires et forêts sur dunes
+[
+52
+]
+, ces dernières étant particulièrement vulnérables aux tempêtes
+[
+53
+]
+. Dans le Nord, au début des années 2020 l'outil collaboratif de
+science participative
+de suivi du trait de côte et de la morphologie côtière
+CoastSnap
+est testé, notamment utile en période de tempêtes ou de surcote
+[
+54
+]
+Notes et références
+[
+modifier
+|
+modifier le code
+]
+↑
+Type de côte (basse, ou haute, sableuse ou rocheuse…), configuration de la côte ou des fonds.
+↑
+Notamment l'
+urbanisation
+qui conquiert la frange littorale (
+littoralisation
+), le développement de l'
+agriculture intensive
+.
+↑
+Notamment ceux liés aux stationnements et aux activités de loisir
+: vtt, quad…
+↑
+Disparition à cause de ce nettoyage, de végétaux stabilisant les
+vasières
+, les plages, les
+dunes
+ou arrières-dunes.
+↑
+Ywenn De la Torre, Éric Palvadeau, «
+Érosion du littoral
+», sur
+universalis.fr
+(consulté le
+16 mars 2023
+)
+.
+↑
+Cartographie normalisée de l'évolution du trait de côte
+.
+↑
+Les matériaux (
+sable
+,
+galets
+) de cet engraissement ont des origines diverses
+: les cours d'eau qui sont les principaux pourvoyeurs de matériaux, l'érosion des
+falaises
+, les vents qui soufflent du continent, et l'avant-côte. Cf
+Roland Paskoff
+, «
+L'érosion des plages
+»,
+Penn ar Bed
+,
+n
+o
+114,
+‎
+1983
+,
+p.
+132
+.
+↑
+Roland Paskoff
+,
+Côtes en danger
+, Masson,
+1993
+,
+p.
+49
+.
+↑
+«
+Analyse statistique et cartographique de l'érosion marine
+»,
+Les dossiers Ifen
+,
+n
+o
+6,
+‎
+octobre 2007
+,
+p.
+7
+(
+lire en ligne
+)
+.
+↑
+Batiactu
+, «
+Érosion côtière
+: plus de 5.000 logements menacés et 200 routes coupées d'ici à 2050
+»
+, sur
+Batiactu
+,
+5 avril 2024
+(consulté le
+8 avril 2024
+)
+.
+↑
+«
+Guadeloupe
+: la commune de Deshaies adapte son littoral au recul du trait de côte
+», sur
+Cadredeville
+(consulté le
+8 novembre 2024
+)
+.
+↑
+(en)
+Tsuguo Sunamura,
+Geomorphology of Rocky Coasts
+, Chichester,
+1992
+,
+p.
+302
+.
+↑
+Roland Paskoff, Christine Clus-Auby,
+«
+L'acuité de l'érosion des plages
+»
+, dans
+L'érosion des plages
+: les causes, les remèdes
+, Institut océanographique,
+2007
+.
+↑
+Henri Le Cozannet, ingénieur au Bureau de recherches géologiques et minières.
+↑
+Patrick Bazin, responsable du département Gestion patrimoniale au Conservatoire du littoral.
+↑
+Yvonne Battiau-Queney, professeur émérite à l’Université de Lille et présidente de l’association de protection des littoraux EUCC-France.
+↑
+Journal
+Le Télégramme de Brest et de l'Ouest
+,
+n
+o
+21818
+, 22 août 2015.
+↑
+Benjamin
+Taupin
+,
+Érosion du littoral: Pour une organisation renouvelée
+, Éditions EMS,
+2 mai 2024
+(
+ISBN
+978-2-37687-943-5
+,
+lire en ligne
+)
+.
+↑
+«
+CETMEF.2012. Levé du trait de côte à partir de photographies aériennes orthorectifiées
+: Proposition de méthodologie nationale
+»,
+CETMEF.2012.
+,
+‎
+2012
+,
+p.
+12-22
+.
+↑
+Chiffres tirés de la carte de la géomorphologie côtière par région,
+Le Moniteur
+n
+o
+4839
+, 23 août 1996.
+↑
+L'indicateur national de l’érosion côtière produit par le CEREMA est basé sur l'estimation du taux de recul par comparaison d'
+orthophotographies
+à deux dates éloignées de plusieurs décennies. Cf.
+Cerema, «
+Spécification technique de l’indicateur national de l’érosion côtière
+»
+[
+PDF
+]
+, sur
+geolittoral.developpement-durable.gouv.fr
+,
+décembre 2017
+.
+↑
+Claire Mayer, «
+En Gironde, les expropriés de l’immeuble Signal, symbole de l’érosion côtière, seront indemnisés
+»,
+Le Monde
+,
+‎
+28 janvier 2021
+(
+lire en ligne
+)
+.
+↑
+projet d' Art. L. 567-1. du
+Proposition de Loi
+portant adaptation des territoires littoraux au changement climatique et densification de l’urbanisation dans les espaces littoraux présentée par M. GILLES Lurton, M. ...
+1
+2
+«
+Réseau d'Observation du Littoral de Normandie et des Hauts-de-France - Objectifs et missions
+», sur
+rolnhdf.fr
+(consulté le
+22 août 2024
+)
+.
+↑
+IFEN, septembre 2006
+↑
+En France, pour
+4 471
+km
+de côtes en 1983, on compte en moyenne
+97
+m
+de longueur d'ouvrage de défense par kilomètre. Cf
+Roland Paskoff
+, «
+L'érosion des plages
+»,
+Penn ar Bed
+,
+n
+o
+114,
+‎
+1983
+,
+p.
+142
+.
+↑
+Selon le cycle sédimentaire du littoral, au début de l'hiver, les vagues de tempêtes, lorsque les ventes soufflent vers la côte, sont destructives
+: elles prélèvent du matériel (sable, galets) sur l'estran et le transfèrent sur l'avant-plage où il s'accumule sous la forme de barres immergées (phase d'amaigrissement ou de dégraissement). À la belle saison, les vagues de houle, plus faibles et moins cambrées, sont au contraire constructives, faisant migrer le matériel de l'avant-plage vers la plage (phénomène d'engraissement). Les barres immergées tendent à s'effacer tandis que le profil de l'estran se relève jusqu'à ce qu'il soit assez redressé pour former une
+berme
+et que l'action de la nappe de retrait sot compensée par celle du
+jet de rive
+(en)
+. Cf
+Roland Paskoff
+,
+Les littoraux. Impact des aménagements sur leur évolution
+,
+Armand Colin
+,
+2010
+(
+lire en ligne
+)
+,
+p.
+81
+.
+↑
+Anne Lenormand avec AFP (2014)
+Le trait de côte du littoral aquitain a reculé en de nombreux points de
+10 mètres
+ou plus…
+; Localtis/AFP, 12/02/2014
+; d'après un communiqué du 11 février l'observatoire de la côte Aquitaine qui se base sur les relevés du BRGM et de l'ONF faits sur environ
+270
+km
+de côtes
+↑
+Aubié, S., Genna, A., Petitjean, J., 2005 - Évolution historique du littoral basque français. Rapport BRGM/RP-53454- FR, 59pp.
+↑
+Genna, A., Capdeville, J.-P., Dubreuilh, J. et Mallet, C., 2005 – Évolution récente et actuelle de la côte basque française (analyse et perspectives. Comptes Rendus Géoscience, 337, 16, 1474-1483.
+↑
+Jans, F., 2020 – Urrugne (64)
+: une partie de la corniche basque s’est effondrée.
+Sud Ouest
+(éd. Bayonne), 31/10/2020.
+↑
+La France est mal outillée pour faire face à l'érosion de ses côtes
+,
+Les Échos
+, 31 juillet 2019.
+↑
+Lilas-Apollonia
+Fournier
+, «
+Recul du trait de côte
+: les maires se sentent "seuls" pour faire face à ce phénomène
+», sur
+Batiactu
+,
+24 novembre 2025
+(consulté le
+26 novembre 2025
+)
+.
+1
+2
+3
+Christiane Galus, «
+L'érosion touche plus du quart du littoral français
+», dans
+Le Monde
+du 12-08-2007,
+[
+lire en ligne
+]
+.
+↑
+Page de l'observatoire du Littoral
+(IFEN).
+↑
+Averbuch O., Tribovillard N., Hatem E., Guillot F., Vidier D., Lefebvre S., Leduc A., 2014. (Averbuch et al. 2014), «
+Développement et inversion du bassin jurassique supérieur du Boulonnais
+»,
+apport des affleurements côtiers
+,
+‎
+2014
+.
+↑
+Pierre, G., «
+Pierre, G. 2005. Structure et évolution des falaises gréseuses et argileuses du cap gris nez boulonnais France, Geomorphologie
+: relief, processus, environnement, vol. 4, pp. 297-310.
+»,
+Structure et évolution des falaises gréseuses et argileuses du cap gris nez boulonnais France, Geomorphologie
+: relief, processus, environnement
+,
+‎
+2005
+.
+1
+2
+Rapport du Groupe I –
+La délicate rencontre entre la terre et la mer
+, Grenelle de la Mer, juin 2009
+(voir Chapitre "Diagnostic"
+p.
+73-74
+sur 114).
+↑
+décret modificatif
+n
+o
+2023-698
+du 31 juillet 2023 a porté la liste à un total de 242 communes.
+1
+2
+«
+Décret n° 2024-638 du 27 juin 2024 relatif aux modalités d'application du droit de préemption pour l'adaptation des territoires au recul du trait de côte
+»
+(consulté le
+2 juillet 2024
+)
+.
+↑
+Anaëlle
+Penche
+, «
+Les élus du littoral luttent toujours pour la création d’un fonds "érosion côtière" alimenté par la solidarité nationale
+», sur
+aefinfo.fr
+(consulté le
+26 novembre 2025
+)
+.
+↑
+Martin
+Renard
+,
+Enjeux fonciers de la relocalisation des activités et des biens menacés par des risques littoraux
+,
+vol.
+Numéro 19,
+24 mai 2016
+, 50–55
+p.
+(
+ISSN
+2109-3016
+,
+DOI
+10.3917/set.019.0050
+,
+lire en ligne
+)
+.
+↑
+Mineo-Kleiner, L. (2017). Thèse
+: L'option de la relocalisation des activités et des biens face aux risques côtiers
+: stratégies et enjeux territoriaux en France et au Québec (Université de Bretagne occidentale-Brest) | url=
+https://theses.hal.science/tel-01611685/
+↑
+Céline Perherin, Amélie Roche, Évolution des méthodes de caractérisation des aléas littoraux (
+p.
+609-616
+) DOI:10.5150/jngcgc.2010.071-P (
+Lire en ligne
+)
+↑
+Étienne
+Quillet
+, Catherine
+Meur-Férec
+, Étienne
+Chauveau
+et Manuelle
+Philippe
+, «
+Contribution à la mise en place d’indicateurs de suivi de la gestion des risques côtiers en France Métropolitaine : vers un observatoire intégré des risques d’érosion submersion
+»,
+Norois
+,
+n
+o
+250,
+‎
+19 juin 2019
+,
+p.
+81–99
+(
+ISSN
+0029-182X
+et
+1760-8546
+,
+DOI
+10.4000/norois.7417
+,
+lire en ligne
+, consulté le
+22 août 2024
+)
+.
+↑
+Céline Perherin, Amélie Roche, Frédéric Pons, Isabelle Roux, Guy Désire, Céline Boura Vulnérabilité du territoire national aux risques littoraux (
+p.
+617-624
+) DOI:10.5150/jngcgc.2010.072-P (
+Lire en ligne
+).
+↑
+(2004)
+(
+ISBN
+9-289-47496-3
+)
+PDF, 21 pages (reproduction est autorisée à condition que la source soit mentionnée).
+↑
+La gestion du trait de côte
+; Ministère de l'Écologie, de l'Énergie, du Développement durable et de la Mer
+; Édition Quae, 2010, 352 p
+;
+(
+ISBN
+978-2-7592-0360-4
+)
+;
+(
+ISSN
+1952-1251
+)
+.
+↑
+Nicholas Grunnet Gestion souple du littoral en harmonie avec la nature (
+p.
+583-592
+) DOI:10.5150/jngcgc.2010.068-G (
+Lire en ligne
+)
+↑
+Martin
+Juigner
+, Marc
+Robin
+, Morgane
+Audère
+et Paul
+Fattal
+, «
+Un nouvel indicateur de prédisposition au risque d’érosion côtière, application en Manche et en Vendée (France)
+»,
+Cybergeo
+,
+‎
+20 juillet 2021
+(
+ISSN
+1278-3366
+,
+DOI
+10.4000/cybergeo.37114
+,
+lire en ligne
+, consulté le
+22 août 2024
+)
+.
+↑
+Arnaud
+Héquette
+, Marie-Hélène
+Ruz
+, Olivier
+Cohen
+et François G.
+Schmitt
+, «
+Cartographie prospective d’évolution du trait de côte et des risques de submersion dans le contexte du changement climatique
+: une méthode appliquée au littoral du nord de la France
+»,
+VertigO
+,
+n
+o
+Volume 22 Numéro 3,
+‎
+6 décembre 2022
+(
+ISSN
+1492-8442
+,
+DOI
+10.4000/vertigo.36442
+,
+lire en ligne
+, consulté le
+22 août 2024
+)
+.
+↑
+Monique
+Toublanc
+, Nathalie
+Carcaud
+, Véronique
+Beaujouan
+et Patrick
+Moquay
+,
+Guider pour protéger : les sols forestiers dunaires témoins de l’histoire urbaine récente du paysage littoral
+,
+30 décembre 2022
+(
+ISSN
+1969-6124
+,
+DOI
+10.4000/paysage.31746
+,
+lire en ligne
+)
+.
+↑
+Franck
+DESMAZES
+, Manuel
+GARCIN
+, Alexandre
+NICOLAE LERMA
+et Héloïse
+MULLER
+, «
+Méthodes de détermination du recul maximal des dunes côtières lors de tempêtes dans le cadre des Plans de Prévention des Risques Littoraux
+»,
+XVèmes Journées, La Rochelle
+, Editions Paralia,
+‎
+2018
+(
+DOI
+10.5150/jngcgc.2018.088
+,
+lire en ligne
+, consulté le
+22 août 2024
+)
+.
+↑
+Adrien
+Cartier
+, Emmanuel
+Blaise
+et Nicolas
+Giraud
+, «
+Paramétrage et évaluation de la performance du système CoastSnap dans la surveillance du trait de côte sur le littoral du nord de la France, Dunkerque (59)
+»,
+Revue Paralia
+,
+n
+o
+49,
+‎
+juin 2024
+,
+p.
+467–476
+(
+DOI
+10.5150/jngcgc.2024.049
+,
+lire en ligne
+, consulté le
+22 août 2024
+)
+.
+Annexes
+[
+modifier
+|
+modifier le code
+]
+Sur les autres projets Wikimedia
+:
+Érosion du littoral
+, sur
+Wikimedia Commons
+Bibliographie
+[
+modifier
+|
+modifier le code
+]
+Ouvrages en français
+[
+modifier
+|
+modifier le code
+]
+André Guilcher, 1954.
+Morphologie littorale et sous-marine
+, PUF, Collection Orbis.
+Alain Miossec, 1998.
+Les littoraux entre nature et aménagement
+. Sedes.
+Alain Miossec, «
+Les processus littoraux
+» in Veyret Y.,
+L'érosion entre nature et société
+, Sedes,
+p.
+161-178
+.
+Roland Paskoff
+, 1992.
+Côtes en danger
+. Masson.
+Roland Paskoff, 1998.
+Les littoraux. Impacts des aménagements sur leur évolution
+. Masson,
+3
+e
+édition
+.
+Roland Paskoff, 2001.
+L'élévation du niveau de la mer et les espaces côtiers, le mythe et la réalité
+. Institut océanographique.
+Jean-Pierre Peulvast et Jean-René Vanney, 2001 et 2002.
+Géomorphologie structurale
+. Tomes 1 & 2. Gordon & Breach (chapitres sur l'océanographie).
+Jean-Pierre Pinot, 1998.
+La gestion du littoral
+: littoraux tempérés. Côtes rocheuses et sableuses
+, tome 1, Institut océanographique.
+Jean-Pierre Pinot, 2000.
+La gestion du littoral
+: littoraux tempérés. Littoraux vaseux et embouchures
+, tome 2, Institut océanographique.
+Paolo Pirazzoli
+, 1993.
+Les littoraux
+, Nathan Université, Collection Géographie d'aujourd'hui.
+Jean-René Vanney, 2002.
+Géographie de l’océan global
+. Gordon & Breach.
+Meur-Férec C. et al, 2006,
+Vers une stratégie de gestion à long terme de l’érosion côtière
+: l’apport de l’évaluation de la vulnérabilité
+, La Baule, Interaction Nature, Société, Analyses et modèles, UMR 6664 LEGT, 5 p.
+Marie-Claire Prat et Teddy Auly, «
+L’évolution du littoral médocain à
+Lacanau
+»,
+Sud-Ouest européen
+,
+n
+o
+29,
+‎
+2010
+,
+p.
+53-64
+(
+lire en ligne
+, consulté le
+26 janvier 2020
+)
+.
+Ouvrages en anglais
+[
+modifier
+|
+modifier le code
+]
+Davis R.A. & Fitzgerald D.M. 2003. Beaches and Coasts, Blackwell Science
+Carter R.W.G. 1988. Coastal environments, AP.
+Kelletat D.H. 1995. Atlas of coastal geomorphology and zonality. CERF, special issue
+n
+o
+13
+.
+Sunamura T. 1992. Geomorphology of rocky coats, Wiley.
+Viles H. 1988. Biogeomorphology, Blacwell, Oxford. (Chapitre Coastal biogeomorphology par T. Spencer)
+Viles H. & Spencer T. 1995. Coastal problems. Geomorphology, ecology and society at the coast.
+Numéros spéciaux de revues et articles spécialisés
+[
+modifier
+|
+modifier le code
+]
+Mappemonde,
+n
+o
+1
+-1993.
+Hommes et Terres du Nord,
+n
+o
+3
+-1992,
+n
+o
+1
+/2-1995.
+Norois,
+n
+o
+165
+-1995.
+Cahiers nantais,
+n
+o
+41
+/42 – 1994.
+Cahiers nantais,
+n
+o
+47
+/48 – 1997.
+Finkl, C. (2004). Coastal classification: systematic approaches to consider in the development of a comprehensive scheme. Journal of Coastal Research, 20,
+p.
+166-213
+.
+Trenhaile, A. S. (2002).
+Rocky coasts, with particular emphasis on shore platforms
+. Geomorphology 48,
+p.
+7-22
+.
+Trenhaile, A. S. (2002).
+Modeling the effect of weathering on the evolution and morphology of shore platforms
+. Journal of Coastal Research, 17,
+p.
+398-406
+.
+Meur-Férec, C., & Morel, V. (2004).
+L'érosion sur la frange côtière: un exemple de gestion des risques
+. Natures Sciences Sociétés, 12(3), 263-273 (
+résumé
+).
+Articles connexes
+[
+modifier
+|
+modifier le code
+]
+Courant marin
+Domaine public maritime
+Dunwich (Royaume-Uni)
+EcoPort
+Élévation du niveau de la mer
+Épi (maritime)
+Érosion
+Érosion des sols
+Géomorphologie littorale
+Grenelle de la mer
+Grotte marine
+Laisses de mer
+Littoral
+Mangrove
+Palétuvier
+Sécurité civile
+Sédiment
+Tsunami
+Vase
+Vasière
+Liens externes
+[
+modifier
+|
+modifier le code
+]
+Baptiste Clarke, «
+Erosion du littoral
+: l'Homme contraint de se plier aux règles de la nature
+», sur
+actu-environnement.com
+,
+Actu Environement
+,
+20 avril 2015
+Rapport IFEN
+«
+WIRED
+», sur
+nweurope.org via
+Wikiwix
+«
+Channel coast change 2100
+», sur
+nweurope.org via
+Internet Archive
+«
+Mesures déployées sur la côte aquitaine pour suivre et contrer l'érosion, CNRS, 2015
+», sur
+CNRS Le journal
+v
+·
+m
+Risques naturels
+et
+technologiques
+Aléa naturel
+Astronomiques
+Éruption solaire
+Météorite
+Supernova
+Géologiques
+Aléa sismique
+Coulée de boue
+Écroulement
+Glissement de terrain
+Solifluxion
+sous-marin
+Lave torrentielle
+Liquéfaction du sol
+Séisme
+Maritimes
+Érosion du littoral
+Forte houle
+Onde de tempête
+Retournement d'iceberg
+Submersion marine
+Tsunami
+Mégatsunami
+Vague scélérate
+Météorologiques
+Avalanche
+Canicule
+Crue
+Crue éclair
+Cyclone
+Tropical
+Extratropical
+Subtropical
+Feu de forêt
+Algérie
+France
+Grand froid
+Inondation
+boueuse
+soudaine
+Neige
+Poudrerie
+Orage
+Foudre
+Grêle
+de neige
+Pluie torrentielle
+Rafale descendante
+Multicellulaire
+Supercellulaire
+Unicellulaire
+Pluie verglaçante
+Sécheresse
+Tempête
+de feu
+de neige
+de sable
+Tornade
+Tsunami météorologique
+Verglas
+Volcaniques
+Coulée de lave
+Éruption
+limnique
+volcanique
+Lahar
+Nuée ardente
+Danger biologique
+Aléa technologique
+Chute de débris spatial
+Contamination radioactive
+Effondrement minier
+Explosion
+de gaz
+Coup de grisou
+Installation classée (ICPE)
+Marée noire
+Neige noire
+Nuisance
+Pollution
+de l'air
+de l'eau
+électromagnétique
+lumineuse
+olfactive
+plastique
+radioactive
+des sols
+sonore
+visuelle
+Site Seveso
+Risque
+et
+accident
+Accident
+majeur
+nucléaire
+Catastrophe
+environnementale
+naturelle
+planétaire/globale
+Danger
+Échelle de
+Beaufort
+Fujita
+radiation
+sismologie
+Saffir-Simpson
+Torro
+Gestion des risques
+Gestion du risque météorologique en entreprise
+Risque
+Biologique
+Chimique
+Climatique
+Géologique
+Industriel
+Majeur
+Nucléaire
+Sismique
+Volcanique
+Vulnérabilité
+Prévention
+Cartographie
+Construction
+paracyclonique
+,
+parasismique
+DICRIM
+Étude de dangers
+Prévision
+Crues
+Cyclones tropicaux
+Orages violents
+Séismes
+Volcanologique
+Plan de prévention
+Inondation
+Dossier départemental des risques majeurs
+Plan de Réduction des Risques Naturels
+Directives ATEX
+Sécurité industrielle
+Directive Seveso
+Sûreté nucléaire
+Zonage
+Protection
+Brise-lame
+Digue
+Épi
+Forêt de protection
+Jetée
+Levée
+Protection
+civile
+contre les explosions
+paravalanche
+Turcie
+Zone d'expansion de crue
+Crise
+Alerte
+cyclonique
+météorologique
+aux populations
+Situation d'urgence
+Avis
+de coup de vent
+d'ouragan
+de tempête
+Gestion de crise
+Plan communal de sauvegarde PCS
+Plan d'urgence
+Plan particulier de mise en sûreté
+Résilience
+écologique
+géographique
+psychologique
+Retour d'expérience
+Vigilance météorologique
+Sciences
+reliées
+Cindynique
+Géologie
+Géotechnique
+Glaciologie
+Hydraulique
+Hydrologie
+Mécanique des fluides
+Météorologie
+Nivologie
+Radioactivité
+Sismologie
+Volcanologie
+Portail de la géographie
+Portail du monde maritime
+Portail des littoraux
+Ce document provient de «
+https://fr.wikipedia.org/w/index.php?title=Érosion_du_littoral&oldid=239722337
+».
+Catégories
+:
+Géomorphologie littorale
+Défense côtière
+Phénomène d'érosion
+Catégories cachées :
+Page contenant un lien à préciser vers une page d'homonymie
+Article contenant un appel à traduction en anglais
+Catégorie Commons avec lien local identique sur Wikidata
+Portail:Géographie/Articles liés
+Portail:Maritime/Articles liés
+Portail:Littoral/Articles liés
+La dernière modification de cette page a été faite le 22 septembre 2026 à 12:00.
+La page a été rendue avec
+Parsoid
+.
+Droit d'auteur
+: les textes sont disponibles sous
+licence Creative Commons attribution, partage dans les mêmes conditions
+; d’autres conditions peuvent s’appliquer. Voyez les
+conditions d’utilisation
+pour plus de détails, ainsi que les
+crédits graphiques
+. En cas de réutilisation des textes de cette page, voyez
+comment citer les auteurs et mentionner la licence
+.
+Wikipedia® est une marque déposée de la
+Wikimedia Foundation, Inc.
+, organisation de bienfaisance régie par le paragraphe
+501(c)(3)
+du code fiscal des États-Unis.
+Politique de confidentialité
+À propos de Wikipédia
+Avertissements
+Contact
+Contacts juridiques & sécurité
+Code de conduite
+Développement
+Statistiques
+Déclaration sur les témoins (cookies)
+Version mobile
+Rechercher
+Rechercher
+Basculer la table des matières
+Érosion du littoral
+23 langues
+Ajouter un sujet

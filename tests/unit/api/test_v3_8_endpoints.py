@@ -112,6 +112,19 @@ def test_quick_ni_rang_ni_nombre_de_sources(
     assert body["confidence"] is None
 
 
+def test_quick_texte_transmis_au_modele_joint_sur_demande(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Le controle des citations compare chaque affirmation au texte que le
+    # modele avait reellement sous les yeux.
+    llm = _quick_setup(monkeypatch, {URL_A: _long_page()}, [make_result(URL_A, "A")])
+    body = client.post("/api/v1/research/quick", json=QUICK_BODY).json()
+    assert body["sources"][0]["content"] is None
+    body = client.post("/api/v1/research/quick", json={**QUICK_BODY, "include_source_content": True}).json()
+    content = body["sources"][0]["content"]
+    assert content and content in llm.calls_for(kind="generate")[-1].prompt
+
+
 def test_quick_echec_de_recherche_sans_detail_brut(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
