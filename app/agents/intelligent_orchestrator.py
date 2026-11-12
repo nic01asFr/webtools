@@ -32,6 +32,8 @@ from app.services.search_service import searxng_client
 from app.manager import ExtractorManager
 from app.api.models import ExtractionOptions
 from app.core.data_extractor import GenericDataExtractor, DataValidator
+from app.research.diagnostics import Diagnostics
+from app.research.pipeline_config import PipelineConfig
 
 logger = logging.getLogger(__name__)
 
@@ -91,8 +93,11 @@ class Tool:
 class ExecutionContext:
     """Contexte d'exécution avec historique et apprentissage."""
 
-    def __init__(self, query: str):
+    def __init__(self, query: str, config: PipelineConfig | None = None):
         self.query = query
+        # Configuration effective et journal des degradations de CETTE requete.
+        self.config: PipelineConfig = config if config is not None else PipelineConfig.from_env()
+        self.diagnostics: Diagnostics = Diagnostics()
         # Langue de recherche et de redaction, decidee par le plan (langue de
         # la consigne). "all" ne restreint rien - c'est le defaut sur, alors
         # que "auto" fait tomber PubMed de 20 a 0 resultats (verifie).
@@ -179,13 +184,26 @@ class IntelligentOrchestrator:
     Orchestrateur intelligent qui connaît ses outils et s'adapte dynamiquement.
     """
 
-    def __init__(self, llm_client: BaseLLMClient, timeout: int = 300):
+    def __init__(
+        self,
+        llm_client: BaseLLMClient,
+        timeout: int = 300,
+        *,
+        search_client: Any | None = None,
+        extractor_manager: Any | None = None,
+        config: PipelineConfig | None = None,
+    ):
         self.llm_client = llm_client
         self.timeout = timeout
+        self.config: PipelineConfig = config if config is not None else PipelineConfig.from_env()
+
+        # Coutures d'injection : par defaut les objets de production, des
+        # doublures dans les tests.
+        self.search_client = search_client if search_client is not None else searxng_client
 
         # Initialiser les outils
         self.adaptive_navigator = AdaptiveNavigator(llm_client, timeout)
-        self.extractor_manager = ExtractorManager()
+        self.extractor_manager = extractor_manager if extractor_manager is not None else ExtractorManager()
         self.data_extractor = GenericDataExtractor(llm_client)
 
         # Catalogue d'outils
@@ -880,7 +898,7 @@ EXEMPLE pour requête APPROFONDIE "écosystème Rust 2024, adoption entreprise, 
 
                 logger.info(f"  🔍 Recherche SearXNG: {query}")
 
-                results = await searxng_client.search(
+                results = await self.search_client.search(
                     query, max_results=max_results,
                     categories=categories, time_range=time_range
                 )
@@ -1903,7 +1921,7 @@ CRITÈRES:
 
         try:
             # Recherche SearXNG
-            results = await searxng_client.search(search_query, max_results=5)
+            results = await self.search_client.search(search_query, max_results=5)
 
             # Meme filtrage que la recherche de section : sans cela, le
             # complement pre-redaction reintroduisait des domaines exclus.
@@ -2714,7 +2732,7 @@ Retourne JSON:
         }
 
         try:
-            search_results = await searxng_client.search(
+            search_results = await self.search_client.search(
                 query=search_params["query"],
                 max_results=search_params["max_results"],
                 categories=",".join(search_params["categories"]),
@@ -3417,7 +3435,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
 
             engines_param = ",".join(selected_engines) if selected_engines else None
 
-            search_results = await searxng_client.search(
+            search_results = await self.search_client.search(
                 query=search_query,
                 max_results=max_sources,
                 language=getattr(self, "_search_language", "all"),
@@ -3440,7 +3458,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {', '.join(topics_f
                 _plain = " ".join(_plain.split())
                 if _plain and _plain != search_query:
                     logger.info(f"       ↩️  opérateur infructueux, repli sans dork : '{_plain[:60]}'")
-                    search_results = await searxng_client.search(
+                    search_results = await self.search_client.search(
                         query=_plain,
                         max_results=max_sources,
                         language=getattr(self, "_search_language", "all"),
