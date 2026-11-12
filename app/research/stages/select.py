@@ -115,6 +115,7 @@ async def semantic_chunk_selection(
     depth: str = "moderate",
     min_score_threshold: float = None,
     context: Optional["ExecutionContext"] = None,
+    section: Optional[str] = None,
 ) -> List[Dict]:
     """
     Sélectionne intelligemment les chunks les plus pertinents selon la profondeur demandée.
@@ -339,6 +340,17 @@ async def semantic_chunk_selection(
             f"  🛟 Repli: {fallback_n} chunk(s) retenus malgré un score sous "
             f"le seuil — une section vide serait pire qu'une section imparfaite"
         )
+        # Visible dans la reponse : mesure du 12/11/2026, 10 des 24 sections
+        # passees par ce repli ont ete refusees par le modele (passages hors
+        # sujet), contre 2 sur 28 apres une selection normale.
+        if context is not None:
+            context.diagnostics.note(
+                "selection.repli_sous_seuil",
+                section=section,
+                meilleur=round(max(s["score"] for s in scored_items), 1),
+                seuil=min_score_threshold,
+                passages=fallback_n,
+            )
 
     # Le log precedent calculait la moyenne sur scored_items[:len(selected)] :
     # quand rien n'est selectionne, la tranche est vide et il affichait

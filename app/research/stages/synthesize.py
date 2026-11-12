@@ -75,6 +75,7 @@ async def synthesize_single_section(
     )
     selected_data = await semantic_chunk_selection(
         svc,
+        section=section_name,
         all_data=enriched_data,
         query=scoring_query,
         # Budget de MATIERE, independant de la longueur du texte a

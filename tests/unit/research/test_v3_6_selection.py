@@ -277,3 +277,19 @@ async def test_chiffres_absents_notes_sans_changer_le_texte() -> None:
     assert len(events) == 1
     assert events[0]["details"]["section"] == SECTION
     assert events[0]["details"]["nombre"] >= 1
+
+
+# --- Repli sous le seuil visible dans la reponse (citecheck, 12/11/2026) -------
+
+
+async def test_repli_sous_le_seuil_note_avec_la_section() -> None:
+    orch, ctx = _orch(), _ctx()
+    selected = await semantic_chunk_selection(
+        orch.services(), [_item("https://s.org/a")], QUERY, min_score_threshold=1000.0,
+        context=ctx, section="Recul du trait de cote",
+    )
+    assert len(selected) == 1
+    events = _events(ctx, "selection.repli_sous_seuil")
+    assert len(events) == 1
+    assert events[0]["details"]["section"] == "Recul du trait de cote"
+    assert events[0]["details"]["seuil"] == 1000.0
