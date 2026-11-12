@@ -632,7 +632,7 @@ class IntelligentOrchestrator:
             report["unsourced_sections"] = unsourced
             report["metadata"]["unsourced_sections_count"] = len(unsourced)
         report = self._convert_sources_to_bibliography(
-            report, provided_urls=ctx.discovered_sources
+            report, ctx.diagnostics, provided_urls=ctx.discovered_sources
         )
         marker = _re_partial.compile(r'\s*\[SOURCE:[^\]]*\]?')
         for section in report["sections"]:
