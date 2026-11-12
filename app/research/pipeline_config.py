@@ -92,7 +92,9 @@ class PipelineConfig:
     exploration_uses_plan_query: bool = False  # exploration : requete reduite et moteurs de la cascade (C31)
     targeted_search_skip_structured: bool = False  # recherche ciblee sans appel LLM d'extraction structuree (C36, C79)
     chunking_v2: bool = False  # transmis a document_to_chunk_items (C73)
-    rss_tier_root_only: bool = False  # transmis a ExtractionOptions : palier RSS reserve a la racine ou aux flux
+    # Vrai par defaut depuis le 12/11/2026 : constate deux fois en production,
+    # le flux RSS d'un site etait rendu comme contenu d'un article (C56).
+    rss_tier_root_only: bool = True  # palier RSS reserve a la racine du site ou aux flux
     single_llm_pass_enabled: bool = True  # transmis a ExtractionOptions : reecriture LLM unique du contenu direct
 
     # --- Lot V3-8 : recherche rapide ---

@@ -29,6 +29,20 @@ class LLMConfig(BaseModel):
     )
 
 
+def _pipeline_default(name: str) -> Any:
+    """Valeur par defaut tiree de la configuration du deploiement.
+
+    Sans cela, seul le pipeline approfondi suivait les drapeaux du deploiement
+    (WEBTOOLS_PIPELINE_*) : /extract et /research/quick construisaient leurs
+    options avec les valeurs du code. Observe en production, /research/quick
+    servait encore trois articles par le flux RSS de leur site alors que le
+    profil du deploiement l'interdisait.
+    """
+    from app.research.pipeline_config import PipelineConfig
+
+    return getattr(PipelineConfig.from_env(), name)
+
+
 class ExtractionOptions(BaseModel):
     """Options pour l'extraction."""
 
@@ -49,11 +63,11 @@ class ExtractionOptions(BaseModel):
         description="Tenter le palier RSS/Atom avant le navigateur"
     )
     rss_tier_root_only: bool = Field(
-        default=False,
+        default_factory=lambda: _pipeline_default("rss_tier_root_only"),
         description="Ne tenter le palier RSS que pour la racine du site ou un flux"
     )
     single_llm_pass_enabled: bool = Field(
-        default=True,
+        default_factory=lambda: _pipeline_default("single_llm_pass_enabled"),
         description="Reecrire par un appel LLM unique un contenu direct de 100 a 500 caracteres; "
                     "faux : rendre le texte extrait tel quel"
     )

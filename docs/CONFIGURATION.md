@@ -45,7 +45,7 @@ périmé ou si un champ manque.
 
 | Nom | Type | Défaut | Variable d'environnement | Effet | Campagne | Valeur essayée |
 |---|---|---|---|---|---|---|
-| `rss_tier_root_only` | bool | `false` | `WEBTOOLS_PIPELINE_RSS_TIER_ROOT_ONLY` | transmis a ExtractionOptions : palier RSS reserve a la racine ou aux flux | M2 | `true` |
+| `rss_tier_root_only` | bool | `true` | `WEBTOOLS_PIPELINE_RSS_TIER_ROOT_ONLY` | palier RSS reserve a la racine du site ou aux flux | M2 | `true` |
 | `single_llm_pass_enabled` | bool | `true` | `WEBTOOLS_PIPELINE_SINGLE_LLM_PASS_ENABLED` | transmis a ExtractionOptions : reecriture LLM unique du contenu direct | M2 | `false` |
 | `clean_title` | bool | `false` | `WEBTOOLS_PIPELINE_CLEAN_TITLE` | titre court derive de la consigne au lieu de "Analyse: ..." (C41) | M3 | `true` |
 | `summary_mode` | str | `"extract"` | `WEBTOOLS_PIPELINE_SUMMARY_MODE` | "extract" (2 premieres phrases) ou "none" (resume vide) (C07) | M3 | `none` |

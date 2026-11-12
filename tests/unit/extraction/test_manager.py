@@ -76,7 +76,8 @@ async def test_tier_pdf() -> None:
 
 async def test_tier_rss() -> None:
     manager = make_manager(rss=FakeTier(ok(ARTICLE)))
-    result = await manager.extract(ARTICLE)
+    # Palier RSS force pour une URL d'article : verifie l'etiquette du palier.
+    result = await manager.extract(ARTICLE, options=ExtractionOptions(rss_tier_root_only=False))
     assert result.metadata["extraction_tier"] == "rss"
 
 
@@ -99,10 +100,11 @@ async def test_tier_agent_et_tier_pose_par_l_agent_respecte() -> None:
 # --- rss_tier_root_only --------------------------------------------------
 
 
-async def test_rss_sert_une_url_d_article_par_defaut() -> None:
+async def test_rss_sert_une_url_d_article_si_le_drapeau_est_coupe() -> None:
     rss = FakeTier(ok(ARTICLE, "liste des titres"))
     manager = make_manager(rss=rss)
-    result = await manager.extract(ARTICLE, options=ExtractionOptions(use_agent=False))
+    opts = ExtractionOptions(use_agent=False, rss_tier_root_only=False)
+    result = await manager.extract(ARTICLE, options=opts)
     assert result.metadata["extraction_tier"] == "rss"
 
 
@@ -199,11 +201,24 @@ def test_options_refusent_les_champs_inconnus() -> None:
         ExtractionOptions(extract_images=False)
 
 
-def test_options_defauts_reproduisent_le_comportement_actuel() -> None:
+def test_options_defauts(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("WEBTOOLS_PIPELINE_RSS_TIER_ROOT_ONLY", raising=False)
+    monkeypatch.delenv("WEBTOOLS_PIPELINE_SINGLE_LLM_PASS_ENABLED", raising=False)
     opts = ExtractionOptions()
-    assert opts.rss_tier_root_only is False
+    # C56 : un article n'est plus servi par le flux RSS de son site.
+    assert opts.rss_tier_root_only is True
     assert opts.single_llm_pass_enabled is True
     assert opts.try_rss_first is True
+
+
+def test_options_suivent_la_configuration_du_deploiement(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("WEBTOOLS_PIPELINE_RSS_TIER_ROOT_ONLY", "0")
+    monkeypatch.setenv("WEBTOOLS_PIPELINE_SINGLE_LLM_PASS_ENABLED", "0")
+    opts = ExtractionOptions()
+    assert opts.rss_tier_root_only is False
+    assert opts.single_llm_pass_enabled is False
+    # Une valeur explicite de l'appelant prime toujours.
+    assert ExtractionOptions(rss_tier_root_only=True).rss_tier_root_only is True
 
 
 # --- budget global -------------------------------------------------------
@@ -276,7 +291,9 @@ async def test_paliers_suivants_recoivent_le_temps_restant() -> None:
             return None
 
     manager.rss_extractor = SlowRss(None)
-    await manager.extract(ARTICLE, options=ExtractionOptions(use_agent=False, timeout=45))
+    await manager.extract(
+        ARTICLE, options=ExtractionOptions(use_agent=False, timeout=45, rss_tier_root_only=False)
+    )
     assert direct.options["timeout"] == pytest.approx(25.0)
 
 

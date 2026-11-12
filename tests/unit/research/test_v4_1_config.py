@@ -30,7 +30,7 @@ EXPECTED_DEFAULTS: dict[str, Any] = {
     "exploration_uses_plan_query": False,
     "targeted_search_skip_structured": False,
     "chunking_v2": False,
-    "rss_tier_root_only": False,
+    "rss_tier_root_only": True,
     "single_llm_pass_enabled": True,
     "quick_uses_chunk_selection": False,
     "max_sources_per_section": None,
