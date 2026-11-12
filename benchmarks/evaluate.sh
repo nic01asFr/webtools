@@ -27,14 +27,19 @@ MODEL_NAME="${1:?usage: evaluate.sh <model-name> [race|fact|all]}"
 PHASE="${2:-all}"
 JUDGE="${JUDGE:-sovereign}"
 
-BENCH="/home/onyxia/work/benchmarks/deep_research_bench"
+# Emplacement de DeepResearch Bench : variable obligatoire, aucun chemin
+# par defaut (voir benchmarks/INSTALL.md).
+BENCH="${DRB_HOME:?DRB_HOME requis : chemin du depot DeepResearch Bench (voir benchmarks/INSTALL.md)}"
+[ -d "$BENCH" ] || { echo "DRB_HOME ne designe pas un dossier : $BENCH"; exit 1; }
+PYTHON_BIN="${PYTHON:-python}"
 cd "$BENCH"
 
 case "$JUDGE" in
   sovereign)
     export LLM_BACKEND="openai"
-    export OPENAI_BASE_URL="https://llm.lab.sspcloud.fr/api"
-    export OPENAI_API_KEY="$(cat /tmp/llm_key.txt)"
+    export OPENAI_BASE_URL="${SOVEREIGN_BASE_URL:-https://llm.lab.sspcloud.fr/api}"
+    : "${SOVEREIGN_LLM_API_KEY:?SOVEREIGN_LLM_API_KEY requis pour le mode sovereign}"
+    export OPENAI_API_KEY="$SOVEREIGN_LLM_API_KEY"
     export RACE_MODEL="${RACE_MODEL:-qwen3-6-35b-moe}"
     export FACT_MODEL="${FACT_MODEL:-qwen3-6-35b-moe}"
     # Le proxy litellm de SSPCloud rejette reasoning_effort en 400 pour
@@ -55,11 +60,12 @@ case "$JUDGE" in
 esac
 
 # Cle Jina pour l'etape scrape de FACT (recuperation des pages citees pour
-# verifier qu'elles soutiennent l'affirmation). Lue depuis un fichier hors
-# depot si la variable n'est pas deja definie. Sans elle, Jina limite le
-# debit et toutes les recuperations echouent en 401.
-if [ -z "${JINA_API_KEY:-}" ] && [ -f /tmp/jina_key.txt ]; then
-  export JINA_API_KEY="$(cat /tmp/jina_key.txt)"
+# verifier qu'elles soutiennent l'affirmation). Lue dans l'environnement
+# uniquement. Sans elle, Jina limite le debit et toutes les recuperations
+# echouent en 401 : on refuse donc de lancer FACT.
+if [ "$PHASE" = "fact" ] || [ "$PHASE" = "all" ]; then
+  : "${JINA_API_KEY:?JINA_API_KEY requis pour la phase FACT}"
+  export JINA_API_KEY
 fi
 
 RAW="$BENCH/data/test_data/raw_data/${MODEL_NAME}.jsonl"
@@ -77,7 +83,7 @@ if [ "$PHASE" = "race" ] || [ "$PHASE" = "all" ]; then
   RACE_EXTRA=""
   [ "${ONLY_EN:-1}" = "1" ] && RACE_EXTRA="--only_en"
 
-  python -u deepresearch_bench_race.py "$MODEL_NAME" \
+  "$PYTHON_BIN" -u deepresearch_bench_race.py "$MODEL_NAME" \
     --raw_data_dir "$BENCH/data/test_data/raw_data" \
     --query_file "$BENCH/data/prompt_data/query.jsonl" \
     --output_dir "$RESULTS/race" \
@@ -94,22 +100,22 @@ if [ "$PHASE" = "fact" ] || [ "$PHASE" = "all" ]; then
   QUERY="$BENCH/data/prompt_data/query.jsonl"
   NPROC="${WORKERS:-4}"
 
-  python -u -m utils.extract --raw_data_path "$RAW" \
+  "$PYTHON_BIN" -u -m utils.extract --raw_data_path "$RAW" \
     --output_path "$FACT_OUT/extracted.jsonl" \
     --query_data_path "$QUERY" --n_total_process "$NPROC"
 
-  python -u -m utils.deduplicate --raw_data_path "$FACT_OUT/extracted.jsonl" \
+  "$PYTHON_BIN" -u -m utils.deduplicate --raw_data_path "$FACT_OUT/extracted.jsonl" \
     --output_path "$FACT_OUT/deduplicated.jsonl" \
     --query_data_path "$QUERY" --n_total_process "$NPROC"
 
-  python -u -m utils.scrape --raw_data_path "$FACT_OUT/deduplicated.jsonl" \
+  "$PYTHON_BIN" -u -m utils.scrape --raw_data_path "$FACT_OUT/deduplicated.jsonl" \
     --output_path "$FACT_OUT/scraped.jsonl" --n_total_process "$NPROC"
 
-  python -u -m utils.validate --raw_data_path "$FACT_OUT/scraped.jsonl" \
+  "$PYTHON_BIN" -u -m utils.validate --raw_data_path "$FACT_OUT/scraped.jsonl" \
     --output_path "$FACT_OUT/validated.jsonl" \
     --query_data_path "$QUERY" --n_total_process "$NPROC"
 
-  python -u -m utils.stat --input_path "$FACT_OUT/validated.jsonl" \
+  "$PYTHON_BIN" -u -m utils.stat --input_path "$FACT_OUT/validated.jsonl" \
     --output_path "$FACT_OUT/fact_result.txt"
 fi
 
