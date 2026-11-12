@@ -226,6 +226,9 @@ def format_deep_report(payload: dict[str, Any]) -> str:
     for index, entry in enumerate(biblio if isinstance(biblio, list) else [], start=1):
         if not isinstance(entry, dict):
             continue
+        # Les [n] du texte sont les identifiants de l'API, pas la position.
+        if isinstance(entry.get("id"), int):
+            index = entry["id"]
         label = entry.get("title") or entry.get("url") or "Source"
         line = f"{index}. {label}"
         if entry.get("url") and entry.get("url") != label:
@@ -240,21 +243,33 @@ def format_deep_report(payload: dict[str, Any]) -> str:
     return "\n\n".join(parts)
 
 
+def _count_sources(sources: Any) -> int:
+    """Nombre de sources : l'API les groupe par categorie (websites, apis, ...)."""
+    if isinstance(sources, list):
+        return len(sources)
+    if not isinstance(sources, dict):
+        return 0
+    return sum(len(group) for group in sources.values() if isinstance(group, list))
+
+
 def build_deep_diagnostics(payload: dict[str, Any]) -> dict[str, Any]:
     """Bloc diagnostics : ce que l'API dit de l'execution, sans le contenu."""
     diagnostics: dict[str, Any] = {}
     api_diag = payload.get("diagnostics")
     if isinstance(api_diag, dict):
         diagnostics.update(api_diag)
-    for key in ("degraded", "failed_sections", "processing_time", "error"):
-        if key in payload and key not in diagnostics:
+    for key in (
+        "degraded", "timed_out", "failed_sections", "unsourced_sections",
+        "missing_sections", "processing_time", "error",
+    ):
+        if payload.get(key) is not None and key not in diagnostics:
             diagnostics[key] = payload[key]
     execution = _scalar_items(payload.get("execution"))
     if execution and "execution" not in diagnostics:
         diagnostics["execution"] = execution
     sources = payload.get("sources")
     if isinstance(sources, (list, dict)) and "sources_count" not in diagnostics:
-        diagnostics["sources_count"] = len(sources)
+        diagnostics["sources_count"] = _count_sources(sources)
     return diagnostics
 
 
@@ -357,10 +372,24 @@ def _running_count() -> int:
     return sum(1 for t in _TASKS.values() if t.get("status") == "running")
 
 
-async def _run_research_deep_background(task_id: str, topic: str) -> None:
+def _deep_request_body(topic: str, max_sources_per_section: int | None) -> dict[str, Any]:
+    """Corps de la requete /research/deep : seuls les parametres donnes sont envoyes."""
+    body: dict[str, Any] = {"topic": topic}
+    if max_sources_per_section is not None:
+        body["max_sources_per_section"] = max_sources_per_section
+    return body
+
+
+async def _run_research_deep_background(
+    task_id: str, topic: str, max_sources_per_section: int | None = None
+) -> None:
     task = _TASKS[task_id]
     try:
-        payload = await _api_post("/api/v1/research/deep", {"topic": topic}, _DEEP_TIMEOUT)
+        payload = await _api_post(
+            "/api/v1/research/deep",
+            _deep_request_body(topic, max_sources_per_section),
+            _DEEP_TIMEOUT,
+        )
         outcome = deep_result(payload)
         if outcome["success"]:
             task["status"] = "completed"
@@ -517,6 +546,10 @@ async def webtools_research_quick(
 )
 async def webtools_research_deep(
     topic: Annotated[str, Field(min_length=5, max_length=500, description="Sujet de la recherche approfondie")],
+    max_sources_per_section: Annotated[
+        int | None,
+        Field(ge=1, le=20, description="Plafond de sources par section ; absent : selon la profondeur de la section"),
+    ] = None,
     ctx: Context = None,
 ) -> dict:
     """
@@ -528,7 +561,9 @@ async def webtools_research_deep(
     """
     if ctx:
         await ctx.report_progress(progress=0, total=100, message=f"Demarrage de la recherche sur '{topic}'...")
-    payload = await _api_post("/api/v1/research/deep", {"topic": topic}, _DEEP_TIMEOUT)
+    payload = await _api_post(
+        "/api/v1/research/deep", _deep_request_body(topic, max_sources_per_section), _DEEP_TIMEOUT
+    )
     if ctx:
         await ctx.report_progress(progress=100, total=100, message="Recherche terminee")
     return deep_result(payload)
@@ -545,6 +580,10 @@ async def webtools_research_deep(
 )
 async def webtools_research_deep_start(
     topic: Annotated[str, Field(min_length=5, max_length=500, description="Sujet de la recherche approfondie")],
+    max_sources_per_section: Annotated[
+        int | None,
+        Field(ge=1, le=20, description="Plafond de sources par section ; absent : selon la profondeur de la section"),
+    ] = None,
 ) -> dict:
     """
     Démarre une recherche approfondie en tâche de fond et retourne
@@ -572,7 +611,9 @@ async def webtools_research_deep_start(
         "started_at": time.time(),
     }
     _persist_task(task_id)
-    handle = asyncio.create_task(_run_research_deep_background(task_id, topic))
+    handle = asyncio.create_task(
+        _run_research_deep_background(task_id, topic, max_sources_per_section)
+    )
     _BACKGROUND.add(handle)
     handle.add_done_callback(_BACKGROUND.discard)
     return {
