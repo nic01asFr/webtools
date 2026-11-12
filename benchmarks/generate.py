@@ -180,7 +180,13 @@ def build_manifest(
     task_ids: list[Any],
     warnings: list[str],
 ) -> dict[str, Any]:
-    engines = health.get("engines") or health.get("engine_catalog")
+    # /health publie l'etat du catalogue sous dependencies.engine_catalog
+    # (lot V1-2) ; les cles racines restent acceptees pour un service ancien.
+    engines = (
+        (health.get("dependencies") or {}).get("engine_catalog")
+        or health.get("engines")
+        or health.get("engine_catalog")
+    )
     return {
         "run": run,
         "created_at": now_iso(),
