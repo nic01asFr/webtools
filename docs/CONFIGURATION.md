@@ -41,7 +41,7 @@ périmé ou si un champ manque.
 
 <!-- DEBUT-GENERE : ne pas modifier a la main, voir docs/generer_configuration.py -->
 
-### Drapeaux à mesurer (type B) : 25 champs
+### Drapeaux à mesurer (type B) : 26 champs
 
 | Nom | Type | Défaut | Variable d'environnement | Effet | Campagne | Valeur essayée |
 |---|---|---|---|---|---|---|
@@ -49,7 +49,7 @@ périmé ou si un champ manque.
 | `single_llm_pass_enabled` | bool | `true` | `WEBTOOLS_PIPELINE_SINGLE_LLM_PASS_ENABLED` | transmis a ExtractionOptions : reecriture LLM unique du contenu direct | M2 | `false` |
 | `clean_title` | bool | `false` | `WEBTOOLS_PIPELINE_CLEAN_TITLE` | titre court derive de la consigne au lieu de "Analyse: ..." (C41) | M3 | `true` |
 | `summary_mode` | str | `"extract"` | `WEBTOOLS_PIPELINE_SUMMARY_MODE` | "extract" (2 premieres phrases) ou "none" (resume vide) (C07) | M3 | `none` |
-| `enrichment_enabled` | bool | `true` | `WEBTOOLS_PIPELINE_ENRICHMENT_ENABLED` | faux : saute l'enrichissement iteratif (C42) | M3 | `false` |
+| `enrichment_enabled` | bool | `false` | `WEBTOOLS_PIPELINE_ENRICHMENT_ENABLED` | vrai : enrichissement iteratif des sections faibles (C42) | M3 | `true` |
 | `coherence_append_enabled` | bool | `false` | `WEBTOOLS_PIPELINE_COHERENCE_APPEND_ENABLED` | vrai : colle les suggestions de coherence en fin de section | M3 | `false` |
 | `regenerate_v2` | bool | `false` | `WEBTOOLS_PIPELINE_REGENERATE_V2` | vrai : regeneration de section avec langue, citations et schema (C43) | M3 (essai isole si M3 reste dans le bruit) | `true` |
 | `validate_cited_urls` | bool | `false` | `WEBTOOLS_PIPELINE_VALIDATE_CITED_URLS` | rapproche ou retire les URL citees non fournies (C45) | M4 | `true` |
@@ -67,6 +67,7 @@ périmé ou si un champ manque.
 | `selection_fallback_enabled` | bool | `true` | `WEBTOOLS_PIPELINE_SELECTION_FALLBACK_ENABLED` | vrai : sans passage au-dessus du seuil, retenir quand meme les meilleurs | citecheck (benchmarks/CITATIONS.md) | `false` |
 | `deep_verify_sections` | bool | `true` | `WEBTOOLS_PIPELINE_DEEP_VERIFY_SECTIONS` | recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89) | citecheck (benchmarks/CITATIONS.md) | `false` |
 | `quick_verify_answer` | bool | `false` | `WEBTOOLS_PIPELINE_QUICK_VERIFY_ANSWER` | /research/quick: chaque phrase verifiee contre ses sources, reecriture unique si fautive (C89) | citecheck (benchmarks/CITATIONS.md) | `true` |
+| `synthesis_v3` | bool | `true` | `WEBTOOLS_PIPELINE_SYNTHESIS_V3` | faux : prompt de redaction precedent (URL recopiees, passages en JSON) | citecheck sur rejeu (benchmarks/CITATIONS.md) | `false` |
 | `plan_prompt_v2` | bool | `false` | `WEBTOOLS_PIPELINE_PLAN_PROMPT_V2` | prompt de plan sans ancien JSON ni exemples, contexte reduit (C33) | hors campagne | `true` |
 | `targeted_search_skip_structured` | bool | `false` | `WEBTOOLS_PIPELINE_TARGETED_SEARCH_SKIP_STRUCTURED` | recherche ciblee sans appel LLM d'extraction structuree (C36, C79) | hors campagne | `true` |
 | `quick_uses_chunk_selection` | bool | `false` | `WEBTOOLS_PIPELINE_QUICK_USES_CHUNK_SELECTION` | /research/quick: passages choisis par pertinence au lieu de 2000 car. de tete (C63) | hors campagne | `true` |
@@ -77,7 +78,7 @@ périmé ou si un champ manque.
 |---|---|---|---|---|
 | `max_sources_per_section` | int \| None | `None` | `WEBTOOLS_PIPELINE_MAX_SOURCES_PER_SECTION` | Plafond de sources par section, pour la recherche et pour l'extraction (C20). None : plafond selon la profondeur de la section (3, 5 ou 8) et 5 pages extraites au plus. |
 
-### Budgets et seuils : 112 champs
+### Budgets et seuils : 115 champs
 
 #### Étape exploration
 
@@ -201,6 +202,9 @@ périmé ou si un champ manque.
 | `synthesis_temperature` | float | `0.3` | `WEBTOOLS_PIPELINE_SYNTHESIS_TEMPERATURE` | temperature de la synthese d'une section |
 | `synthesis_max_attempts` | int | `3` | `WEBTOOLS_PIPELINE_SYNTHESIS_MAX_ATTEMPTS` | essais de la synthese d'une section |
 | `synthesis_retry_backoff_base` | int | `2` | `WEBTOOLS_PIPELINE_SYNTHESIS_RETRY_BACKOFF_BASE` | base de l'attente entre deux essais (base ** essai, en secondes) |
+| `synthesis_facts_chars` | int | `3000` | `WEBTOOLS_PIPELINE_SYNTHESIS_FACTS_CHARS` | caracteres de faits deja etablis transmis a la redaction v3 |
+| `synthesis_facts_per_section_chars` | int | `600` | `WEBTOOLS_PIPELINE_SYNTHESIS_FACTS_PER_SECTION_CHARS` | caracteres de faits repris de chaque section deja redigee (v3) |
+| `verification_model` | str | `""` | `WEBTOOLS_PIPELINE_VERIFICATION_MODEL` | modele du verificateur de sections ; vide = modele de redaction |
 
 #### Étape cohérence
 
@@ -236,7 +240,7 @@ périmé ou si un champ manque.
 | `enrichment_regenerate_v2_max_tokens` | int | `6000` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_V2_MAX_TOKENS` | jetons maximaux de la regeneration de section v2 |
 | `enrichment_regenerate_temperature` | float | `0.1` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_TEMPERATURE` | temperature de la regeneration de section (v1 et v2) |
 
-Total : 138 champs, soit tous ceux de `PipelineConfig`.
+Total : 142 champs, soit tous ceux de `PipelineConfig`.
 
 <!-- FIN-GENERE -->
 

@@ -212,7 +212,7 @@ async def create_orchestrator(config: PipelineConfig, section_budget_timeout: in
     # Rejeu de la collecte (V4-3) : actif seulement si WEBTOOLS_REPLAY_MODE est
     # pose ; la recherche et l'extraction sont alors enregistrees ou rejouees.
     from app.manager import ExtractorManager
-    from app.research.replay import build_replay_clients, read_replay_env
+    from app.research.replay import ReplayPlanLLM, build_replay_clients, read_replay_env
     from app.services.search_service import searxng_client
 
     mode, directory = read_replay_env()
@@ -221,7 +221,7 @@ async def create_orchestrator(config: PipelineConfig, section_budget_timeout: in
             mode, directory, searxng_client, ExtractorManager()
         )
         return IntelligentOrchestrator(
-            llm_client,
+            ReplayPlanLLM(mode, directory, llm_client),
             timeout=section_budget_timeout,
             config=config,
             search_client=search_client,
@@ -360,6 +360,7 @@ async def research_deep(request: DeepResearchRequest):
             replay = replay_summary(
                 getattr(orchestrator, "search_client", None),
                 getattr(orchestrator, "extractor_manager", None),
+                getattr(orchestrator, "llm_client", None),
             )
             if replay is not None and isinstance(diagnostics, dict):
                 diagnostics["replay"] = replay

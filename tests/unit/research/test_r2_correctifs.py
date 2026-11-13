@@ -3,6 +3,7 @@
 import json
 from typing import Any
 
+import pytest
 from app.agents.intelligent_orchestrator import ExecutionContext, IntelligentOrchestrator
 from app.research.pipeline_config import PipelineConfig
 from app.research.stages.enrich import iterative_enrichment
@@ -30,6 +31,7 @@ def _report() -> dict[str, Any]:
 
 async def _enrichi(provided: bool) -> tuple[dict[str, Any], ExecutionContext]:
     cfg = PipelineConfig(
+        enrichment_enabled=True,
         validate_cited_urls=True,
         regenerate_v2=True,
         targeted_search_skip_structured=True,
@@ -49,6 +51,8 @@ async def _enrichi(provided: bool) -> tuple[dict[str, Any], ExecutionContext]:
             "gaps_to_fill": [],
         }),
     )
+    # Contrat de reecriture (app/research/guard.py) : aucune phrase fautive.
+    llm.on_structured("verification", {"phrases": []})
     llm.on_structured(
         "section_regeneree",
         {"content": f"Fait ancien [SOURCE:{URL_OLD}] et fait nouveau [SOURCE:{URL_NEW}]."},
@@ -157,6 +161,30 @@ def test_replay_summary_compte_les_manques(tmp_path: Any) -> None:
     assert replay_summary(search, extractor) == {
         "mode": "replay", "served": 3, "missed": 2, "recorded": 0,
     }
+
+
+async def test_rejeu_du_plan_seul(tmp_path: Any) -> None:
+    # Le plan fixe les requetes : rejoue. La redaction et la verification,
+    # que la comparaison mesure, ne le sont jamais.
+    from app.research.replay import ReplayMissError, ReplayPlanLLM, replay_summary
+
+    llm = FakeLLM()
+    llm.on_structured("research_plan", {"sections": ["A"]})
+    llm.on_structured("verification", [{"phrases": []}, {"phrases": [{"numero": 1}]}])
+    messages = [{"role": "user", "content": "plan de q"}]
+    rec = ReplayPlanLLM("record", tmp_path, llm)
+    assert await rec.generate_structured(messages, {}, "research_plan") == {"sections": ["A"]}
+
+    other = FakeLLM()
+    other.on_structured("verification", {"phrases": [{"numero": 2}]})
+    rep = ReplayPlanLLM("replay", tmp_path, other)
+    assert await rep.generate_structured(messages, {}, "research_plan") == {"sections": ["A"]}
+    assert other.calls_for(schema_name="research_plan") == []
+    assert await rep.generate_structured(messages, {}, "verification") == {"phrases": [{"numero": 2}]}
+    assert rep.supports_structured is True  # attribut delegue
+    with pytest.raises(ReplayMissError):
+        await rep.generate_structured([{"role": "user", "content": "autre"}], {}, "research_plan")
+    assert replay_summary(None, None, rep) == {"mode": "replay", "served": 1, "missed": 1, "recorded": 0}
 
 
 def test_plan_temperature_est_un_champ_de_configuration() -> None:

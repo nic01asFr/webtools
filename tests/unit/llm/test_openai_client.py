@@ -152,6 +152,27 @@ async def test_qwen_desactive_le_raisonnement() -> None:
     await client.force_close()
 
 
+@pytest.mark.parametrize("structured", [False, True])
+async def test_modele_par_appel(structured: bool) -> None:
+    # Verificateur distinct du redacteur (verification_model) : meme point
+    # d'acces, autre modele, le temps d'un appel.
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request_body(request))
+        return httpx.Response(200, json=chat_payload('{"a": 1}'))
+
+    client = make_client(httpx.MockTransport(handler), model="qwen3-redacteur")
+    if structured:
+        await client.generate_structured(MESSAGES, schema=SCHEMA, model="qwen3-verificateur")
+        await client.generate_structured(MESSAGES, schema=SCHEMA)
+    else:
+        await client.generate(MESSAGES, model="qwen3-verificateur")
+        await client.generate(MESSAGES)
+    assert [b["model"] for b in seen] == ["qwen3-verificateur", "qwen3-redacteur"]
+    await client.force_close()
+
+
 async def test_structured_nominal_envoie_le_schema() -> None:
     seen = {}
 

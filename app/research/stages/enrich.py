@@ -158,6 +158,14 @@ async def iterative_enrichment(
                 updated_section = await regenerate_section(
                     svc, query, section_title, report, enrichment_data, ctx
                 )
+                if (
+                    isinstance(updated_section, dict)
+                    and updated_section is not _before
+                    and updated_section.get("content") != _before.get("content")
+                ):
+                    updated_section = await _guarded(
+                        svc, ctx, report, section_title, _before, updated_section, enrichment_data
+                    )
                 _after = updated_section if isinstance(updated_section, dict) else {}
                 ctx.diagnostics.note(
                     "enrichissement.section_regeneree",
@@ -179,6 +187,27 @@ async def iterative_enrichment(
                         break
 
     return report
+
+
+async def _guarded(
+    svc: StageServices,
+    ctx: ExecutionContext,
+    report: Dict[str, Any],
+    section_title: str,
+    before: Dict[str, Any],
+    after: Dict[str, Any],
+    enrichment_data: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Contrat de reecriture (app/research/guard.py) : la section regeneree
+    remplace la precedente seulement si elle passe la verification."""
+    from app.research.enrichment_utils import numbered_to_source
+    from app.research.guard import accept_rewrite, sources_from
+
+    text = numbered_to_source(str(after.get("content") or ""), report.get("bibliography") or [])
+    sources = sources_from(before.get("data") or [], enrichment_data.get("sources") or [])
+    if await accept_rewrite(svc.llm_client, ctx, f"enrichissement:{section_title}", text, sources):
+        return after
+    return before
 
 
 async def analyze_report_quality(

@@ -81,7 +81,11 @@ class PipelineConfig:
     max_chunks_per_source: int = 0  # plafond de passages retenus par source ; 0 = pas de plafond (C38)
 
     # --- Lot V3-5 : enrichissement et coherence ---
-    enrichment_enabled: bool = True  # faux : saute l'enrichissement iteratif (C42)
+    # Faux par defaut depuis le 13/11/2026 : toutes les mesures citecheck ont
+    # ete faites sans (profil sspcloud-modele-lent), et la regeneration
+    # demandait au modele d'ajouter des chiffres, sans verification ensuite.
+    # Active, chaque section regeneree passe par la verification (C93).
+    enrichment_enabled: bool = False  # vrai : enrichissement iteratif des sections faibles (C42)
     # Faux par defaut depuis le 12/11/2026 : constate en production, la
     # suggestion du modele ("Une fois la section corrigee, ajouter...") etait
     # collee telle quelle dans le rapport (C40).
@@ -110,6 +114,12 @@ class PipelineConfig:
     # pour 25 % de temps en plus.
     deep_verify_sections: bool = True  # recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89)
     quick_verify_answer: bool = False  # /research/quick: chaque phrase verifiee contre ses sources, reecriture unique si fautive (C89)
+    # Redaction v3 (C93, 13/11/2026) : sources etiquetees [S1], [S2]... au lieu
+    # d'URL a recopier, passages en texte et non en JSON, consignes sans
+    # contradiction, questions du plan traitees seulement si les sources y
+    # repondent, faits deja etablis dans les sections precedentes, citation
+    # ajoutee par le code quand le verificateur designe la source d'une phrase.
+    synthesis_v3: bool = True  # faux : prompt de redaction precedent (URL recopiees, passages en JSON)
 
     # --- Lot V3-3 : contrat de l'API de recherche approfondie ---
     # Plafond de sources par section, pour la recherche et pour l'extraction
@@ -240,6 +250,9 @@ class PipelineConfig:
     synthesis_temperature: float = 0.3  # temperature de la synthese d'une section
     synthesis_max_attempts: int = 3  # essais de la synthese d'une section
     synthesis_retry_backoff_base: int = 2  # base de l'attente entre deux essais (base ** essai, en secondes)
+    synthesis_facts_chars: int = 3000  # caracteres de faits deja etablis transmis a la redaction v3
+    synthesis_facts_per_section_chars: int = 600  # caracteres de faits repris de chaque section deja redigee (v3)
+    verification_model: str = ""  # modele du verificateur de sections ; vide = modele de redaction
 
     # Etape coherence
     coherence_preview_chars: int = 500  # caracteres de chaque section envoyes a l'analyse de coherence

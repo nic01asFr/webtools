@@ -336,10 +336,12 @@ class OpenAILLMClient(BaseLLMClient):
                 (LLMEmptyContentError), echeance totale (LLMTimeoutError)
         """
         self._record_finish_reason(None)
+        # Modele par appel (ex. verificateur distinct du redacteur), meme point d'acces.
+        model = kwargs.pop("model", None) or self.model
         try:
             response = await self._call(
                 kwargs,
-                lambda client, kw: self._complete(client, model=self.model, messages=messages, **kw),
+                lambda client, kw: self._complete(client, model=model, messages=messages, **kw),
             )
 
             if not response.choices:
@@ -421,6 +423,7 @@ class OpenAILLMClient(BaseLLMClient):
             LLMClientError: toute autre erreur du fournisseur
         """
         self._record_finish_reason(None)
+        model = kwargs.pop("model", None) or self.model
         try:
             response_format = {
                 "type": "json_schema",
@@ -429,7 +432,7 @@ class OpenAILLMClient(BaseLLMClient):
             response = await self._call(
                 kwargs,
                 lambda client, kw: self._complete(
-                    client, model=self.model, messages=messages, response_format=response_format, **kw
+                    client, model=model, messages=messages, response_format=response_format, **kw
                 ),
             )
         except LLMClientError:

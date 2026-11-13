@@ -227,20 +227,27 @@ class IntelligentOrchestrator:
         # ===================================================================
         logger.info("\n🔗 PHASE 3: Revue de cohérence globale")
 
-        # Étape 3.1: Analyse inter-sections
-        coherence_analysis = await self._analyze_intersections(
-            query=query,
-            plan=plan,
-            context=ctx
-        )
-        logger.info(f"  ✓ {len(coherence_analysis.get('improvements', []))} améliorations identifiées")
+        # Étape 3.1: Analyse inter-sections, seulement si son resultat sert.
+        # Ajout des transitions coupe (C40) : l'analyse etait un appel LLM
+        # dont rien ne lisait le resultat (constat du 13/11/2026). La
+        # coherence entre sections passe desormais par les faits deja etablis,
+        # transmis a la redaction de chaque section (synthesis_v3).
+        if ctx.config.coherence_append_enabled:
+            coherence_analysis = await self._analyze_intersections(
+                query=query,
+                plan=plan,
+                context=ctx
+            )
+            logger.info(f"  ✓ {len(coherence_analysis.get('improvements', []))} améliorations identifiées")
 
-        # Étape 3.2: Application des améliorations de cohérence
-        await apply_coherence_improvements(
-            coherence_analysis=coherence_analysis,
-            context=ctx
-        )
-        logger.info("  ✓ Cohérence narrative améliorée")
+            # Étape 3.2: Application des améliorations de cohérence
+            await apply_coherence_improvements(
+                coherence_analysis=coherence_analysis,
+                context=ctx
+            )
+            logger.info("  ✓ Cohérence narrative améliorée")
+        else:
+            ctx.diagnostics.note("coherence.analyse_sautee", raison="coherence_append_enabled faux")
 
         # ===================================================================
         # PHASE 4: FINALISATION

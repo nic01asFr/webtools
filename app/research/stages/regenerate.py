@@ -56,8 +56,8 @@ NOUVELLES DONNÉES COLLECTÉES:
 MANQUES IDENTIFIÉS: {", ".join(enrichment_data.get("missing", []))}
 
 Ta mission:
-1. ENRICHIR le contenu existant avec les nouvelles données
-2. AJOUTER des chiffres précis, dates, noms trouvés
+1. ENRICHIR le contenu existant avec ce que les nouvelles données établissent
+2. N'ajouter un chiffre, une date ou un nom que s'il figure dans les nouvelles données, recopié exactement ; rien de mémoire
 3. MAINTENIR la cohérence avec le reste du rapport
 4. CITER les nouvelles sources utilisées
 
@@ -68,7 +68,7 @@ Retourne JSON:
   "sources": [{{"url": "...", "title": "..."}}]
 }}
 
-IMPORTANT: Le contenu doit être PLUS détaillé et factuel que l'original.
+IMPORTANT: si les nouvelles données n'apportent rien de vérifiable, rends le contenu actuel inchangé.
 """
 
     try:
@@ -161,7 +161,7 @@ MANQUES IDENTIFIES: {", ".join(enrichment_data.get("missing", []))}
 
 Consignes:
 1. {language_rule}
-2. Enrichis le contenu actuel avec les nouvelles donnees (chiffres, dates, noms).
+2. Enrichis le contenu actuel avec ce que les nouvelles donnees etablissent ; un chiffre, une date ou un nom n'est ajoute que s'il y figure, recopie exactement, jamais de memoire.
 3. Conserve chaque citation [SOURCE:url] du contenu actuel, avec la meme URL.
 4. Cite les nouvelles donnees au format [SOURCE:url], avec une URL presente dans les donnees ci-dessus. N'invente aucune URL.
 5. Aucun nombre de paragraphes n'est impose : garde la longueur et la structure que le contenu exige.

@@ -36,21 +36,31 @@ exposes).
   fragment ni barre finale). Les options d'extraction varient d'un appel a
   l'autre sans changer la page.
 
-## Condition de rejeu : un plan stable
+## Le plan est rejoue
 
-Les requetes de recherche viennent du plan redige par le LLM, a temperature
-non nulle par defaut (`PipelineConfig.plan_temperature`, 0.2). Deux runs
-peuvent donc formuler des requetes differentes, et le rejeu echoue alors sur
-une requete inconnue. Pour l'enregistrement ET pour les rejeux, poser
-`WEBTOOLS_PIPELINE_PLAN_TEMPERATURE=0`. Cela reduit la variation du plan mais
-ne garantit pas le determinisme : un fournisseur peut repondre autrement a
-temperature 0. Un rejeu n'est fidele que si le plan est le meme.
+Les requetes de recherche viennent du plan redige par le LLM. Depuis le
+13/11/2026, le plan est enregistre et rejoue comme la collecte
+(`ReplayPlanLLM`, `<dir>/llm/<empreinte>.json`, cle : messages exacts du
+plan) : deux rejeux partent du meme plan, donc des memes requetes. Les
+autres appels LLM (redaction, verification, enrichissement) ne sont jamais
+rejoues : ce sont eux qu'une comparaison sur rejeu mesure.
+
+## Comparer deux configurations
+
+1. Un run en `record` (configuration A ou B, peu importe).
+2. N rejeux par configuration, en `replay`, chacun dans son repertoire de
+   sortie citecheck.
+3. Evaluer chaque rejeu (`citations.py evaluer`), puis
+   `citations.py ecart --a <evaluations A> --b <evaluations B>` : ecart
+   apparie par tache, IC95 par bootstrap sur les taches, et bruit entre
+   repetitions d'une meme configuration. Un ecart du meme ordre que le bruit
+   ne prouve rien.
 
 ## Diagnostics du rejeu
 
 Quand le rejeu est actif, la reponse de `/research/deep` porte
 `diagnostics.replay` : `{mode, served, missed, recorded}` (somme de la
-recherche et de l'extraction). Un run avec `missed` > 0 n'est pas un rejeu
+recherche, de l'extraction et du plan). Un run avec `missed` > 0 n'est pas un rejeu
 fidele : le pipeline avale les erreurs de collecte, ce compteur est le seul
 signal visible dans la reponse.
 

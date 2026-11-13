@@ -54,6 +54,19 @@ async def test_texte_des_balises_time_conserve() -> None:
     assert "juillet 2022" in res.content
 
 
+async def test_page_anti_robot_n_est_pas_un_contenu() -> None:
+    # Cas reel du 12/11/2026 : page "Client Challenge" de 226 caracteres.
+    html = (
+        "<html><head><title>Client Challenge</title></head><body><article><p>"
+        "Client Challenge. JavaScript is disabled in your browser. Please enable JavaScript "
+        "to proceed. A required part of this site couldn't load. This may be due to a browser "
+        "extension, network issues, or browser settings.</p></article></body></html>"
+    )
+    res = await _run(FakePage(status=200, html=html))
+    assert not res.success
+    assert "anti-robot" in res.error
+
+
 async def test_redirection_interne_bloquee() -> None:
     page = FakePage(status=200, html=HTML, requests=["http://interne.test/admin"])
     res = await _run(page, make_resolver({"interne.test": "10.0.0.1"}))

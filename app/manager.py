@@ -22,6 +22,7 @@ from app.utils import url_safety
 from app.utils.url_safety import UnsafeURLError
 from app.utils.content_detector import ContentDetector
 from app.utils.prompts import PromptTemplates
+from app.utils.block_page import DomainRefusals, domain_refusals, is_refusal_error
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +58,7 @@ class ExtractorManager:
         cache_ttl_seconds: int | None = None,
         enable_caching: bool | None = None,
         cache_max_entries: int = DEFAULT_CACHE_MAX_ENTRIES,
+        refusals: DomainRefusals | None = None,
     ):
         """
         Initialise le manager avec les extractors disponibles.
@@ -84,6 +86,10 @@ class ExtractorManager:
         self._clock = time.monotonic
         self._cache_ttl = cache_ttl_seconds if cache_ttl_seconds is not None else settings.cache_ttl_seconds
         self._cache_enabled = enable_caching if enable_caching is not None else settings.enable_caching
+        # Domaines qui refusent l'extraction (HTTP 401/403/429, page anti-robot) :
+        # non sollicites pendant un delai (app/utils/block_page.py). Memoire
+        # partagee par le processus : un orchestrateur est cree par requete.
+        self._refusals: DomainRefusals = refusals if refusals is not None else domain_refusals
 
     @staticmethod
     def _make_cache_key(
@@ -166,6 +172,13 @@ class ExtractorManager:
         cached_result = self._cache_get(cache_key)
         if cached_result is not None:
             return cached_result
+
+        if self._refusals.is_refusing(url):
+            logger.info(f"Domaine qui refuse l'extraction, page non tentee : {url}")
+            return WebResult.from_error(
+                url=url,
+                error_message="Domaine qui refuse l'extraction (refus répétés récents), page non tentée",
+            )
 
         # Detection automatique du type si "general"
         if extraction_type == "general":
@@ -279,6 +292,10 @@ class ExtractorManager:
             f"content_length={len(result.content) if result.content else 0}"
         )
 
+        if result.success:
+            self._refusals.record_success(url)
+        elif is_refusal_error(result.error):
+            self._refusals.record_refusal(url)
         self._cache_put(cache_key, result)
         return result
 

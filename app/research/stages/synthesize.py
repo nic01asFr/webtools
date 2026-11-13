@@ -9,6 +9,12 @@ from app.research.stages.services import StageServices
 from app.research.stages.crossref import cross_reference_data
 from app.research.stages.queries import build_search_query
 from app.research.stages.select import semantic_chunk_selection
+from app.research.stages.synthesis_prompt import (
+    SourceLabels,
+    build_prompt_v3,
+    established_facts,
+    ids_to_markers,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -94,6 +100,211 @@ async def synthesize_single_section(
         context=context,
     )
 
+    labels: SourceLabels | None = None
+    if cfg.synthesis_v3:
+        labels = SourceLabels.from_passages(selected_data)
+        prompt = build_prompt_v3(
+            query=query,
+            section_name=section_name,
+            language=context.search_language or "all",
+            depth=depth,
+            objectives=[str(o) for o in objectives],
+            key_questions=[str(q) for q in key_questions],
+            labels=labels,
+            facts=established_facts(
+                context.final_content["sections"],
+                section_name,
+                cfg.synthesis_facts_chars,
+                cfg.synthesis_facts_per_section_chars,
+            ),
+        )
+    else:
+        prompt = _legacy_prompt(
+            context, section_name, query, depth, objectives, key_questions, selected_data
+        )
+
+    # Diagnostic : une synthese qui rend 13-17 mots au lieu de ~400 vient
+    # soit d'un prompt sans donnees exploitables, soit d'un refus du
+    # modele. Journaliser la taille reelle du prompt et le volume de
+    # donnees transmis permet de trancher sans relancer un run complet.
+    # Pas de re-limitation ici : semantic_chunk_selection a deja applique
+    # max_chars ET max_chunks_target. Un plafond supplementaire annulerait
+    # silencieusement le budget accorde — c'est exactement le defaut
+    # corrige plus haut (max_chunks_target=4 plafonnait a 4 000 chars
+    # quel que soit max_chars).
+    _payload_chars = sum(len(str(d.get("content", ""))) for d in selected_data)
+
+    # REFUS DE REDIGER SANS SOURCE.
+    #
+    # Sans donnees, le LLM redigeait quand meme depuis ses connaissances
+    # internes : des rapports de 1 200 a 1 500 mots sortaient avec ZERO
+    # citation et zero entree de bibliographie. C'est exactement
+    # l'hallucination que tout le pipeline (corroboration, scoring,
+    # citations [SOURCE:]) existe pour empecher - un rapport non source
+    # est pire qu'une section absente, parce qu'il est indiscernable d'un
+    # rapport documente pour qui le lit.
+    #
+    # L'ajustement d'ambition (objectif reduit a 150 mots) attenuait le
+    # symptome sans traiter la cause. On refuse desormais franchement, et
+    # la section est marquee pour que l'echec remonte au lieu d'etre
+    # invisible.
+    if not selected_data or _payload_chars < cfg.synthesis_min_payload_chars:
+        logger.warning(
+            f"       ⛔ Section '{section_name}' non rédigée : "
+            f"{len(selected_data)} source(s), {_payload_chars} chars de données — "
+            f"rédiger sans matière produirait du contenu non sourcé"
+        )
+        return (
+            "[SECTION_SANS_SOURCE] Aucune donnée exploitable n'a pu être collectée "
+            "pour cette section."
+        )
+
+    logger.info(
+        f"       📝 Prompt synthèse '{section_name}': {len(prompt)} chars, "
+        f"{len(selected_data)} source(s), {_payload_chars} chars de données, "
+        f"objectif {words_target} mots (max_tokens={int(words_target * cfg.synthesis_tokens_per_word)})"
+    )
+
+    # Reessai avec attente progressive : la synthese est le seul endroit du
+    # pipeline ou un echec LLM est irrattrapable (sans texte, pas de
+    # section). Les "Connection error" observes sur SSPCloud sont
+    # intermittents et souvent resolus au 2e essai ; sans reessai, une
+    # coupure de quelques secondes vidait TOUT le rapport - 5 sections
+    # perdues d'un coup, pour un rapport rendu avec success=true.
+    last_error = None
+    max_attempts = cfg.synthesis_max_attempts
+    for attempt in range(max_attempts):
+        try:
+            response = await svc.llm_client.generate(
+                [{"role": "user", "content": prompt}],
+                # 4.5 jetons/mot et non 2.5.
+                #
+                # Le ratio 2.5 coupait les sections en pleine phrase :
+                # 30% des rapports du run v9 se terminaient sur un mot
+                # tronque, contre 0% sur la reference. Mesure directe :
+                # des sections de 576, 635, 913 et 1003 mots pour un
+                # budget de 1000 a 1375 jetons.
+                #
+                # Deux causes cumulees : le francais consomme plus de
+                # jetons par mot que l'anglais (accents, elisions), et
+                # depuis que le budget de sources est passe de 3 000 a
+                # 16 000 caracteres le modele a bien plus de matiere,
+                # donc redige plus long que words_target.
+                # words_target reste un OBJECTIF indicatif ; max_tokens
+                # doit etre un plafond de securite, pas une contrainte
+                # qui mutile la derniere phrase.
+                max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
+                temperature=cfg.synthesis_temperature,
+            )
+            if svc.llm_client.last_truncated:
+                context.diagnostics.note(
+                    "selection.synthese_tronquee",
+                    section=section_name,
+                    max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
+                )
+            if response and response.strip():
+                # Controle de fidelite numerique : signale les chiffres
+                # ecrits qui n'apparaissent dans aucune source de la
+                # section. Diagnostic FACT : les citations invalides ne
+                # viennent pas d'hallucination mais de derive a la
+                # reformulation (28,7% en 2020 ecrit pour 28,9% en 2021).
+                # On journalise sans corriger : un chiffre peut etre
+                # legitimement calcule sans figurer tel quel.
+                try:
+                    from app.utils.numeric_fidelity import check_numeric_fidelity
+
+                    _src_text = " ".join(str(d.get("content", "")) for d in selected_data)
+                    _fid = check_numeric_fidelity(response, _src_text)
+                    if _fid.get("unmatched_count"):
+                        logger.warning(
+                            f"       🔢 '{section_name}': {_fid['unmatched_count']}/"
+                            f"{_fid['numbers_written']} chiffre(s) absent(s) des sources "
+                            f"(fidélité {_fid['fidelity_rate']}) — {_fid['unmatched'][:5]}"
+                        )
+                        context.diagnostics.note(
+                            "selection.chiffres_absents",
+                            section=section_name,
+                            nombre=_fid["unmatched_count"],
+                            ecrits=_fid["numbers_written"],
+                        )
+                except Exception as e:
+                    logger.debug(f"Contrôle de fidélité non appliqué : {e}")
+                    context.diagnostics.note(
+                        "selection.controle_fidelite_indisponible",
+                        section=section_name,
+                        erreur=str(e),
+                    )
+
+                # Un refus du modele (passages hors sujet) n'est pas du
+                # contenu : la section suit le chemin des sections sans
+                # source, retiree du rapport et signalee (app/research/refusal.py).
+                from app.research.refusal import is_refusal
+
+                if is_refusal(response):
+                    logger.warning(
+                        f"       ⛔ Section '{section_name}' : le modele refuse de rediger "
+                        f"sur les passages retenus — traitee comme sans source"
+                    )
+                    context.diagnostics.note("selection.refus_du_modele", section=section_name)
+                    return (
+                        "[SECTION_SANS_SOURCE] Les passages retenus ne traitent pas de "
+                        "cette section (refus du modele)."
+                    )
+
+                if cfg.deep_verify_sections:
+                    response = await verify_section(
+                        svc, context, section_name, prompt, response, selected_data,
+                        max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
+                        temperature=cfg.synthesis_temperature,
+                        labels=labels,
+                    )
+                if labels is not None:
+                    response, unknown = ids_to_markers(response, labels)
+                    if unknown:
+                        context.diagnostics.note(
+                            "citations.etiquette_inconnue", section=section_name, etiquettes=unknown
+                        )
+
+                word_count = len(response.split())
+                if word_count < 50 and words_target >= 150:
+                    logger.warning(
+                        f"       ⚠️  Réponse anormalement courte ({word_count} mots "
+                        f"pour {words_target} demandés) — brut: {response.strip()[:300]!r}"
+                    )
+                logger.info(f"       → {word_count} mots générés")
+                return response.strip()
+            last_error = "reponse vide"
+        except Exception as e:
+            last_error = e
+
+        if attempt < max_attempts - 1:
+            delay = cfg.synthesis_retry_backoff_base**attempt  # 1s, 2s par defaut
+            logger.warning(
+                f"       ⏳ Synthèse '{section_name}' échouée "
+                f"({last_error}) — nouvel essai dans {delay}s"
+            )
+            await svc.sleep(delay)
+
+    # Echec definitif : marqueur reconnaissable en aval (permet de
+    # compter les sections perdues et de ne pas rendre un rapport vide
+    # avec success=true, cf. final_assembly).
+    logger.error(
+        f"       ❌ Synthèse '{section_name}' abandonnée après {max_attempts} essais: {last_error}"
+    )
+    return f"[SYNTHESE_ECHOUEE] Section '{section_name}' non générée ({last_error})."
+
+
+def _legacy_prompt(
+    context: ExecutionContext,
+    section_name: str,
+    query: str,
+    depth: str,
+    objectives: List,
+    key_questions: List,
+    selected_data: List[Dict],
+) -> str:
+    """Prompt de redaction precedent (drapeau synthesis_v3 faux)."""
+    cfg = context.config
     # Charge utile du bloc DONNEES DISPONIBLES. Par defaut les passages
     # complets (cross_references, metadata, compteurs compris) ; en mode
     # minimal, seulement ce que la redaction cite.
@@ -236,169 +447,7 @@ elle-même — pas en note ni en aparté.
 
 Rédige uniquement le contenu (pas de titre de section, pas de métadonnées).
 """
-
-    # Diagnostic : une synthese qui rend 13-17 mots au lieu de ~400 vient
-    # soit d'un prompt sans donnees exploitables, soit d'un refus du
-    # modele. Journaliser la taille reelle du prompt et le volume de
-    # donnees transmis permet de trancher sans relancer un run complet.
-    # Pas de re-limitation ici : semantic_chunk_selection a deja applique
-    # max_chars ET max_chunks_target. Un plafond supplementaire annulerait
-    # silencieusement le budget accorde — c'est exactement le defaut
-    # corrige plus haut (max_chunks_target=4 plafonnait a 4 000 chars
-    # quel que soit max_chars).
-    _payload_chars = sum(len(str(d.get("content", ""))) for d in selected_data)
-
-    # REFUS DE REDIGER SANS SOURCE.
-    #
-    # Sans donnees, le LLM redigeait quand meme depuis ses connaissances
-    # internes : des rapports de 1 200 a 1 500 mots sortaient avec ZERO
-    # citation et zero entree de bibliographie. C'est exactement
-    # l'hallucination que tout le pipeline (corroboration, scoring,
-    # citations [SOURCE:]) existe pour empecher - un rapport non source
-    # est pire qu'une section absente, parce qu'il est indiscernable d'un
-    # rapport documente pour qui le lit.
-    #
-    # L'ajustement d'ambition (objectif reduit a 150 mots) attenuait le
-    # symptome sans traiter la cause. On refuse desormais franchement, et
-    # la section est marquee pour que l'echec remonte au lieu d'etre
-    # invisible.
-    if not selected_data or _payload_chars < cfg.synthesis_min_payload_chars:
-        logger.warning(
-            f"       ⛔ Section '{section_name}' non rédigée : "
-            f"{len(selected_data)} source(s), {_payload_chars} chars de données — "
-            f"rédiger sans matière produirait du contenu non sourcé"
-        )
-        return (
-            "[SECTION_SANS_SOURCE] Aucune donnée exploitable n'a pu être collectée "
-            "pour cette section."
-        )
-
-    logger.info(
-        f"       📝 Prompt synthèse '{section_name}': {len(prompt)} chars, "
-        f"{len(selected_data)} source(s), {_payload_chars} chars de données, "
-        f"objectif {words_target} mots (max_tokens={int(words_target * cfg.synthesis_tokens_per_word)})"
-    )
-
-    # Reessai avec attente progressive : la synthese est le seul endroit du
-    # pipeline ou un echec LLM est irrattrapable (sans texte, pas de
-    # section). Les "Connection error" observes sur SSPCloud sont
-    # intermittents et souvent resolus au 2e essai ; sans reessai, une
-    # coupure de quelques secondes vidait TOUT le rapport - 5 sections
-    # perdues d'un coup, pour un rapport rendu avec success=true.
-    last_error = None
-    max_attempts = cfg.synthesis_max_attempts
-    for attempt in range(max_attempts):
-        try:
-            response = await svc.llm_client.generate(
-                [{"role": "user", "content": prompt}],
-                # 4.5 jetons/mot et non 2.5.
-                #
-                # Le ratio 2.5 coupait les sections en pleine phrase :
-                # 30% des rapports du run v9 se terminaient sur un mot
-                # tronque, contre 0% sur la reference. Mesure directe :
-                # des sections de 576, 635, 913 et 1003 mots pour un
-                # budget de 1000 a 1375 jetons.
-                #
-                # Deux causes cumulees : le francais consomme plus de
-                # jetons par mot que l'anglais (accents, elisions), et
-                # depuis que le budget de sources est passe de 3 000 a
-                # 16 000 caracteres le modele a bien plus de matiere,
-                # donc redige plus long que words_target.
-                # words_target reste un OBJECTIF indicatif ; max_tokens
-                # doit etre un plafond de securite, pas une contrainte
-                # qui mutile la derniere phrase.
-                max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
-                temperature=cfg.synthesis_temperature,
-            )
-            if svc.llm_client.last_truncated:
-                context.diagnostics.note(
-                    "selection.synthese_tronquee",
-                    section=section_name,
-                    max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
-                )
-            if response and response.strip():
-                # Controle de fidelite numerique : signale les chiffres
-                # ecrits qui n'apparaissent dans aucune source de la
-                # section. Diagnostic FACT : les citations invalides ne
-                # viennent pas d'hallucination mais de derive a la
-                # reformulation (28,7% en 2020 ecrit pour 28,9% en 2021).
-                # On journalise sans corriger : un chiffre peut etre
-                # legitimement calcule sans figurer tel quel.
-                try:
-                    from app.utils.numeric_fidelity import check_numeric_fidelity
-
-                    _src_text = " ".join(str(d.get("content", "")) for d in selected_data)
-                    _fid = check_numeric_fidelity(response, _src_text)
-                    if _fid.get("unmatched_count"):
-                        logger.warning(
-                            f"       🔢 '{section_name}': {_fid['unmatched_count']}/"
-                            f"{_fid['numbers_written']} chiffre(s) absent(s) des sources "
-                            f"(fidélité {_fid['fidelity_rate']}) — {_fid['unmatched'][:5]}"
-                        )
-                        context.diagnostics.note(
-                            "selection.chiffres_absents",
-                            section=section_name,
-                            nombre=_fid["unmatched_count"],
-                            ecrits=_fid["numbers_written"],
-                        )
-                except Exception as e:
-                    logger.debug(f"Contrôle de fidélité non appliqué : {e}")
-                    context.diagnostics.note(
-                        "selection.controle_fidelite_indisponible",
-                        section=section_name,
-                        erreur=str(e),
-                    )
-
-                # Un refus du modele (passages hors sujet) n'est pas du
-                # contenu : la section suit le chemin des sections sans
-                # source, retiree du rapport et signalee (app/research/refusal.py).
-                from app.research.refusal import is_refusal
-
-                if is_refusal(response):
-                    logger.warning(
-                        f"       ⛔ Section '{section_name}' : le modele refuse de rediger "
-                        f"sur les passages retenus — traitee comme sans source"
-                    )
-                    context.diagnostics.note("selection.refus_du_modele", section=section_name)
-                    return (
-                        "[SECTION_SANS_SOURCE] Les passages retenus ne traitent pas de "
-                        "cette section (refus du modele)."
-                    )
-
-                if cfg.deep_verify_sections:
-                    response = await verify_section(
-                        svc, context, section_name, prompt, response, selected_data,
-                        max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
-                        temperature=cfg.synthesis_temperature,
-                    )
-
-                word_count = len(response.split())
-                if word_count < 50 and words_target >= 150:
-                    logger.warning(
-                        f"       ⚠️  Réponse anormalement courte ({word_count} mots "
-                        f"pour {words_target} demandés) — brut: {response.strip()[:300]!r}"
-                    )
-                logger.info(f"       → {word_count} mots générés")
-                return response.strip()
-            last_error = "reponse vide"
-        except Exception as e:
-            last_error = e
-
-        if attempt < max_attempts - 1:
-            delay = cfg.synthesis_retry_backoff_base**attempt  # 1s, 2s par defaut
-            logger.warning(
-                f"       ⏳ Synthèse '{section_name}' échouée "
-                f"({last_error}) — nouvel essai dans {delay}s"
-            )
-            await svc.sleep(delay)
-
-    # Echec definitif : marqueur reconnaissable en aval (permet de
-    # compter les sections perdues et de ne pas rendre un rapport vide
-    # avec success=true, cf. final_assembly).
-    logger.error(
-        f"       ❌ Synthèse '{section_name}' abandonnée après {max_attempts} essais: {last_error}"
-    )
-    return f"[SYNTHESE_ECHOUEE] Section '{section_name}' non générée ({last_error})."
+    return prompt
 
 
 async def verify_section(
@@ -410,26 +459,43 @@ async def verify_section(
     selected_data: List[Dict],
     max_tokens: int,
     temperature: float,
+    labels: SourceLabels | None = None,
 ) -> str:
     """Verifie chaque phrase de la section contre les passages transmis au
     modele ; reecrit une fois la section, critique jointe, si une phrase est
     partielle, contredite ou non soutenue (C89, drapeau deep_verify_sections).
 
+    labels (redaction v3) : sources etiquetees [S1], [S2]... ; une phrase
+    soutenue sans etiquette recoit celle que le verificateur designe.
+
     Une verification ou une reecriture en echec, vide ou refusee garde la
     section telle quelle : la verification ne doit jamais faire perdre une
     section.
     """
-    from app.research.answer_check import FAULTY, check_answer, correction_request
+    from app.research.answer_check import (
+        FAULTY,
+        add_missing_citations,
+        check_answer,
+        correction_request,
+    )
     from app.research.refusal import is_refusal
 
-    by_url: Dict[str, List[str]] = {}
-    for d in selected_data:
-        url = str(d.get("source") or "")
-        if url:
-            by_url.setdefault(url, []).append(str(d.get("content") or ""))
-    sources = [(url, "\n[...]\n".join(parts)) for url, parts in by_url.items()]
+    if labels is not None:
+        sources = labels.for_verification()
+        label_style, citation_format = "id", "[S1], [S2]..."
+    else:
+        by_url: Dict[str, List[str]] = {}
+        for d in selected_data:
+            url = str(d.get("source") or "")
+            if url:
+                by_url.setdefault(url, []).append(str(d.get("content") or ""))
+        sources = [(url, "\n[...]\n".join(parts)) for url, parts in by_url.items()]
+        label_style, citation_format = "url", "[SOURCE:url]"
     try:
-        verdicts = await check_answer(svc.llm_client, response, sources, label_style="url")
+        verdicts = await check_answer(
+            svc.llm_client, response, sources, label_style=label_style,
+            model=context.config.verification_model,
+        )
     except Exception as e:
         logger.warning(f"       Vérification de '{section_name}' impossible : {e}")
         context.diagnostics.note(
@@ -440,14 +506,23 @@ async def verify_section(
     context.diagnostics.note(
         "selection.verification", section=section_name, phrases=len(verdicts), fautives=len(faulty)
     )
+
+    def with_citations(text: str) -> str:
+        if labels is None:
+            return text
+        completed, added = add_missing_citations(text, verdicts, labels.known)
+        if added:
+            context.diagnostics.note("citations.ajoutees", section=section_name, phrases=added)
+        return completed
+
     if not faulty:
-        return response
+        return with_citations(response)
     try:
         corrected = await svc.llm_client.generate(
             [
                 {"role": "user", "content": prompt},
                 {"role": "assistant", "content": response},
-                {"role": "user", "content": correction_request(faulty, "[SOURCE:url]")},
+                {"role": "user", "content": correction_request(faulty, citation_format)},
             ],
             max_tokens=max_tokens,
             temperature=temperature,
@@ -457,13 +532,14 @@ async def verify_section(
         context.diagnostics.note(
             "selection.reecriture_impossible", section=section_name, erreur=type(e).__name__
         )
-        return response
+        return with_citations(response)
     if not corrected or not corrected.strip() or is_refusal(corrected):
         context.diagnostics.note("selection.reecriture_rejetee", section=section_name)
-        return response
+        return with_citations(response)
     logger.info(f"       ✔ Section '{section_name}' réécrite : {len(faulty)} phrase(s) fautive(s)")
     context.diagnostics.note("selection.section_reecrite", section=section_name, fautives=len(faulty))
-    return corrected.strip()
+    # Les phrases gardees telles quelles recoivent l'etiquette designee.
+    return with_citations(corrected.strip())
 
 
 async def write_sections(

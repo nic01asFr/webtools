@@ -306,3 +306,50 @@ async def test_echec_pdf_explicite_rendu_tel_quel_sans_autres_paliers() -> None:
     assert not result.success
     assert result.error == "telechargement PDF impossible"
     assert rss.calls == 0 and direct.calls == 0
+
+
+
+# --- domaines qui refusent l'extraction -----------------------------------
+
+
+def refused(url: str, status: int = 403) -> WebResult:
+    return WebResult.from_error(url=url, error_message=f"Erreur HTTP {status} lors de l'accès à l'URL")
+
+
+async def test_domaine_qui_refuse_n_est_plus_sollicite() -> None:
+    direct = FakeTier(refused("https://bloque.org/a"))
+    manager = make_manager(direct=direct)
+    opts = ExtractionOptions(use_agent=False)
+    for page in ("a", "b"):
+        assert not (await manager.extract(f"https://www.bloque.org/{page}", options=opts)).success
+    assert direct.calls == 2
+    third = await manager.extract("https://bloque.org/c", options=opts)
+    assert not third.success and "refuse l'extraction" in third.error
+    assert direct.calls == 2  # page non tentee
+    direct.result = ok("https://autre.org/a")
+    assert (await manager.extract("https://autre.org/a", options=opts)).success
+
+
+async def test_page_absente_n_est_pas_un_refus() -> None:
+    direct = FakeTier(refused("https://site.org/a", status=404))
+    manager = make_manager(direct=direct)
+    opts = ExtractionOptions(use_agent=False)
+    for page in ("a", "b", "c"):
+        await manager.extract(f"https://site.org/{page}", options=opts)
+    assert direct.calls == 3
+
+
+def test_refus_oublies_apres_le_delai_et_rehabilites_par_un_succes() -> None:
+    from app.utils.block_page import DomainRefusals
+
+    now = [0.0]
+    memory = DomainRefusals(threshold=2, cooldown_s=100.0, clock=lambda: now[0])
+    memory.record_refusal("https://x.org/a")
+    memory.record_refusal("https://x.org/b")
+    assert memory.is_refusing("https://x.org/c")
+    now[0] = 150.0
+    assert not memory.is_refusing("https://x.org/c")
+    memory.record_refusal("https://x.org/a")
+    memory.record_refusal("https://x.org/b")
+    memory.record_success("https://x.org/d")
+    assert not memory.is_refusing("https://x.org/c")

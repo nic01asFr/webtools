@@ -6,6 +6,8 @@
   etalonner mesure l'exactitude du juge sur des cas au verdict connu
   auditer   tire un echantillon a relire a la main, puis calcule l'accord
   comparer  met deux evaluations cote a cote
+  ecart     ecart apparie par tache entre deux series de repetitions
+            (runs rejoues sur la meme collecte : WEBTOOLS_REPLAY_MODE)
 
 Environnement :
   WEBTOOLS_API, WEBTOOLS_API_KEY        service evalue (generer)
@@ -33,7 +35,14 @@ import httpx
 
 from citecheck.juge import Judge, Judgement, embedder_for
 from citecheck.llm import Endpoint, LLMError
-from citecheck.mesures import JUDGED, PROBLEMS, answer_correct, ratio_ci, summarize
+from citecheck.mesures import (
+    JUDGED,
+    PROBLEMS,
+    answer_correct,
+    paired_difference,
+    ratio_ci,
+    summarize,
+)
 from citecheck.pages import BrowserFetcher, PageStore, default_client
 from citecheck.texte import fold
 from citecheck.triplets import parse_answer, pipeline_texts
@@ -695,6 +704,51 @@ def cmd_compare(args: argparse.Namespace) -> int:
     return 0
 
 
+def series_counts(evaluation: Path, mode: str) -> dict[str, dict[str, list[int]]]:
+    """Comptes par tache d'une evaluation : affirmations soutenues et phrases citees."""
+    tasks = json.loads((evaluation / "resume.json").read_text(encoding="utf-8"))["taches"]
+    keep = {t for t, v in tasks.items() if v.get("mode") == mode}
+    claims: dict[str, list[int]] = {t: [0, 0] for t in keep}
+    for c in read_jsonl(evaluation / "affirmations.jsonl"):
+        if c["task_id"] in keep and c["status"] in JUDGED:
+            claims[c["task_id"]][1] += 1
+            claims[c["task_id"]][0] += c["status"] == "soutenue"
+    units = {t: [int(tasks[t].get("unites_citees", 0)), int(tasks[t].get("unites", 0))] for t in keep}
+    return {"affirmations_soutenues": claims, "phrases_citees": units}
+
+
+def cmd_series(args: argparse.Namespace) -> int:
+    judges = set()
+    a_counts, b_counts = [], []
+    for target, dirs in ((a_counts, args.a), (b_counts, args.b)):
+        for d in dirs:
+            path = Path(d)
+            judges.add(json.loads((path / "resume.json").read_text(encoding="utf-8")).get("juge"))
+            target.append(series_counts(path, args.mode))
+    if len(judges) > 1:
+        print(f"ATTENTION : juges differents {sorted(map(str, judges))}, comparaison invalide")
+    result = {
+        metric: paired_difference([c[metric] for c in a_counts], [c[metric] for c in b_counts])
+        for metric in ("affirmations_soutenues", "phrases_citees")
+    }
+    for metric, r in result.items():
+        ic = r["ic95"]
+        ic_text = f" [IC95 {100 * ic[0]:+.1f} ; {100 * ic[1]:+.1f}]" if ic else ""
+        mean = r["ecart_moyen"]
+        print()
+        print(f"== {metric} ({args.mode}, repetitions {r['repetitions'][0]} contre {r['repetitions'][1]}) ==")
+        print(f"  ecart moyen B - A : {'-' if mean is None else f'{100 * mean:+.1f} points'}{ic_text}")
+        print(f"  taches en hausse / en baisse : {r['taches_en_hausse']} / {r['taches_en_baisse']} sur {r['taches']}")
+        for side in ("a", "b"):
+            n = r[f"bruit_{side}"]
+            print(f"  bruit entre repetitions {side.upper()} : {'-' if n is None else f'{100 * n:.1f} points'}")
+        for task, v in r["par_tache"].items():
+            print(f"    {task:<24} {100 * v['a']:5.1f} % -> {100 * v['b']:5.1f} %")
+    if args.sortie:
+        write_json(Path(args.sortie), result)
+    return 0
+
+
 def judges_agreement(a: list[dict[str, Any]], b: list[dict[str, Any]]) -> dict[str, Any]:
     """Accord de deux juges sur les memes elements (citations ou affirmations).
 
@@ -791,6 +845,12 @@ def build_parser() -> argparse.ArgumentParser:
     j = sub.add_parser("accord-juges", help="accord de deux juges sur le meme run")
     j.add_argument("a")
     j.add_argument("b")
+
+    s = sub.add_parser("ecart", help="ecart apparie par tache entre deux series de repetitions")
+    s.add_argument("--a", nargs="+", required=True, help="evaluations de la configuration A")
+    s.add_argument("--b", nargs="+", required=True, help="evaluations de la configuration B")
+    s.add_argument("--mode", choices=("quick", "deep"), default="deep")
+    s.add_argument("--sortie", help="fichier JSON du resultat")
     return parser
 
 
@@ -808,6 +868,8 @@ def main(argv: list[str] | None = None, env: Mapping[str, str] | None = None) ->
             return cmd_audit(args)
         if args.commande == "accord-juges":
             return cmd_judges(args)
+        if args.commande == "ecart":
+            return cmd_series(args)
         return cmd_compare(args)
     except ConfigError as exc:
         print(f"erreur : {exc}", file=sys.stderr)

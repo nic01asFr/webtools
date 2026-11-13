@@ -13,6 +13,12 @@ Modes :
 Format sur disque : un repertoire par tache, contenant
     search/<empreinte>.json   {"key": {...}, "results": [SearchResult...]}
     pages/<empreinte>.json    {"key": {...}, "result": WebResult}
+    llm/<empreinte>.json      {"key": {...}, "result": {...}}  (plan seulement)
+
+Le plan est rejoue lui aussi (ReplayPlanLLM) : il fixe les requetes de
+recherche, et un plan different ferait manquer la collecte enregistree. Les
+autres appels LLM (redaction, verification) ne sont jamais rejoues : ce sont
+eux qu'une comparaison sur rejeu mesure.
 
 Cles deterministes :
 - recherche : empreinte (sha256) des parametres normalises : requete (espaces
@@ -204,6 +210,49 @@ class ReplayExtractor:
         return WebResult.model_validate(data["result"])
 
 
+# Sorties LLM rejouees : celles qui determinent la collecte.
+REPLAYED_SCHEMAS = frozenset({"research_plan"})
+
+
+class ReplayPlanLLM:
+    """Enveloppe du client LLM : enregistre ou rejoue le plan, delegue le reste.
+
+    Cle : nom du schema et messages exacts. Les messages du plan ne dependent
+    que de la consigne et de l'exploration, elle-meme rejouee.
+    """
+
+    def __init__(self, mode: str, directory: Path, inner: Any) -> None:
+        _check_mode(mode)
+        self.mode = mode
+        self.directory = Path(directory)
+        self.inner = inner
+        self.missed = 0
+        self.served = 0
+        self.recorded = 0
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self.inner, name)
+
+    async def generate_structured(
+        self, messages: list, schema: dict, schema_name: str = "response", **kwargs: Any
+    ) -> dict:
+        if schema_name not in REPLAYED_SCHEMAS:
+            return await self.inner.generate_structured(messages, schema, schema_name, **kwargs)
+        key = {"schema": schema_name, "messages": messages}
+        path = self.directory / "llm" / f"{_fingerprint(key)}.json"
+        if self.mode == MODE_RECORD:
+            result = await self.inner.generate_structured(messages, schema, schema_name, **kwargs)
+            _write(path, {"key": key, "result": result})
+            self.recorded += 1
+            return result
+        if not path.exists():
+            self.missed += 1
+            logger.error("replay : sortie %r inconnue dans %s", schema_name, self.directory)
+            raise ReplayMissError(f"sortie {schema_name!r} inconnue en mode replay ({self.directory})")
+        self.served += 1
+        return json.loads(path.read_text(encoding="utf-8"))["result"]
+
+
 def build_replay_clients(
     mode: str, directory: Path | str, search_client: Any, extractor_manager: Any
 ) -> tuple[ReplaySearch, ReplayExtractor]:
@@ -215,13 +264,18 @@ def build_replay_clients(
     )
 
 
-def replay_summary(search_client: Any, extractor_manager: Any) -> dict[str, Any] | None:
+def replay_summary(
+    search_client: Any, extractor_manager: Any, llm_client: Any = None
+) -> dict[str, Any] | None:
     """Bilan du rejeu pour diagnostics.replay, ou None si le rejeu est inactif.
 
     Un run avec `missed` > 0 n'est pas un rejeu fidele : le pipeline avale les
     erreurs de collecte, ce compteur est le seul signal visible dans la reponse.
     """
-    wrappers = [c for c in (search_client, extractor_manager) if isinstance(c, (ReplaySearch, ReplayExtractor))]
+    wrappers = [
+        c for c in (search_client, extractor_manager, llm_client)
+        if isinstance(c, (ReplaySearch, ReplayExtractor, ReplayPlanLLM))
+    ]
     if not wrappers:
         return None
     return {

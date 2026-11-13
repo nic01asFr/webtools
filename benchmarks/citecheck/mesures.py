@@ -112,6 +112,69 @@ def summarize(records: list[dict[str, Any]]) -> dict[str, Any]:
     return summary
 
 
+def task_rates(runs: list[dict[str, list[int]]]) -> dict[str, dict[str, Any]]:
+    """Par tache, comptes cumules sur les repetitions et taux de chaque run.
+
+    runs : un dictionnaire par run, tache -> [numerateur, denominateur].
+    """
+    out: dict[str, dict[str, Any]] = {}
+    for run in runs:
+        for task, (num, den) in run.items():
+            entry = out.setdefault(task, {"n": 0, "sur": 0, "par_run": []})
+            entry["n"] += num
+            entry["sur"] += den
+            if den:
+                entry["par_run"].append(num / den)
+    for entry in out.values():
+        entry["taux"] = entry["n"] / entry["sur"] if entry["sur"] else None
+    return out
+
+
+def paired_difference(
+    a_runs: list[dict[str, list[int]]],
+    b_runs: list[dict[str, list[int]]],
+    rounds: int = BOOTSTRAP_ROUNDS,
+    seed: int = BOOTSTRAP_SEED,
+) -> dict[str, Any]:
+    """Ecart B - A apparie par tache, sur des series de repetitions.
+
+    Chaque tache compte une fois, avec son taux cumule sur les repetitions :
+    les sujets faciles ou difficiles s'annulent dans la difference. L'IC95
+    est obtenu par bootstrap sur les taches. Le bruit d'une configuration est
+    l'ecart moyen, par tache, entre ses repetitions (max - min) : une
+    difference du meme ordre ne prouve rien.
+    """
+    a, b = task_rates(a_runs), task_rates(b_runs)
+    common = sorted(t for t in a if t in b and a[t]["taux"] is not None and b[t]["taux"] is not None)
+    diffs = [b[t]["taux"] - a[t]["taux"] for t in common]
+    result: dict[str, Any] = {
+        "taches": len(common),
+        "par_tache": {t: {"a": round(a[t]["taux"], 4), "b": round(b[t]["taux"], 4)} for t in common},
+        "ecart_moyen": round(sum(diffs) / len(diffs), 4) if diffs else None,
+        "taches_en_hausse": sum(1 for d in diffs if d > 0),
+        "taches_en_baisse": sum(1 for d in diffs if d < 0),
+        "ic95": None,
+    }
+    if len(diffs) >= 2:
+        rng = random.Random(seed)
+        means = sorted(
+            sum(diffs[rng.randrange(len(diffs))] for _ in diffs) / len(diffs) for _ in range(rounds)
+        )
+        result["ic95"] = [
+            round(means[int(0.025 * (len(means) - 1))], 4),
+            round(means[int(0.975 * (len(means) - 1))], 4),
+        ]
+
+    def noise(rates: dict[str, dict[str, Any]]) -> float | None:
+        spreads = [max(e["par_run"]) - min(e["par_run"]) for e in rates.values() if len(e["par_run"]) >= 2]
+        return round(sum(spreads) / len(spreads), 4) if spreads else None
+
+    result["bruit_a"] = noise(a)
+    result["bruit_b"] = noise(b)
+    result["repetitions"] = [len(a_runs), len(b_runs)]
+    return result
+
+
 def answer_correct(answer: str | None, expected: Iterable[str]) -> bool:
     """Vrai si la reponse contient l'un des motifs attendus (expressions
     regulieres, insensibles a la casse)."""

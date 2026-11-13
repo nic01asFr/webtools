@@ -191,13 +191,13 @@ async def _synthese_prompt(**flags: Any) -> str:
 
 
 async def test_prompt_payload_defaut_garde_tous_les_champs() -> None:
-    prompt = await _synthese_prompt()
+    prompt = await _synthese_prompt(synthesis_v3=False)
     assert "MARQUEUR_XREF" in prompt
     assert "MARQUEUR_META" in prompt
 
 
 async def test_prompt_payload_minimal_garde_quatre_champs() -> None:
-    prompt = await _synthese_prompt(prompt_payload_minimal=True)
+    prompt = await _synthese_prompt(synthesis_v3=False, prompt_payload_minimal=True)
     assert "MARQUEUR_XREF" not in prompt
     assert "MARQUEUR_META" not in prompt
     assert "structured_data" not in prompt

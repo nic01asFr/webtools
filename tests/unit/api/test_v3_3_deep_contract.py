@@ -207,11 +207,14 @@ async def test_timeout_est_le_delai_global(harness: Harness) -> None:
     assert harness.factory_calls[1][1] == 54  # budget par section : 0,6 x timeout
 
 
-async def test_delai_depasse_rend_le_rapport_partiel(harness: Harness) -> None:
+async def test_delai_depasse_rend_le_rapport_partiel(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
     async def stall(*_a: Any, **_k: Any) -> Any:
         await asyncio.sleep(30)
 
-    harness.orch._analyze_intersections = stall  # type: ignore[method-assign]
+    # Blocage apres la redaction des sections : l'assemblage ne finit pas.
+    monkeypatch.setattr(orchestrator_module, "final_assembly", stall)
     harness.real_deadline = 0.5
     body = (await harness.post({"topic": QUERY, "timeout": 60})).json()
 

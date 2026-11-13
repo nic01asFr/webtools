@@ -461,3 +461,44 @@ async def test_juge_muet_arrete_l_evaluation(tmp_path: Path) -> None:
                               concurrence=1, raisonnement=False)
     with pytest.raises(cli.ConfigError, match="juge indisponible"):
         await cli.cmd_calibrate(args, {"CITECHECK_LLM_API_KEY": "k"}, llm_transport=httpx.MockTransport(handler))
+
+
+# --- ecart : series de repetitions -------------------------------------------
+
+
+def _evaluation(root: Path, name: str, rates: dict[str, tuple[int, int]], units: tuple[int, int]) -> Path:
+    """Evaluation minimale : rates = tache -> (soutenues, jugees)."""
+    path = root / name
+    path.mkdir()
+    rows, tasks = [], {}
+    for task, (ok, judged) in rates.items():
+        tasks[task] = {"mode": "deep", "unites_citees": units[0], "unites": units[1]}
+        for i in range(judged):
+            rows.append({"key": f"{task}-{i}", "task_id": task, "mode": "deep",
+                         "status": "soutenue" if i < ok else "non_soutenue"})
+    (path / "affirmations.jsonl").write_text(
+        "".join(json.dumps(r) + "\n" for r in rows), encoding="utf-8"
+    )
+    (path / "resume.json").write_text(json.dumps({"juge": "j", "taches": tasks}), encoding="utf-8")
+    return path
+
+
+def test_ecart_apparie_par_tache_avec_bruit(tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+    a1 = _evaluation(tmp_path, "a1", {"t1": (5, 10), "t2": (2, 10)}, (5, 10))
+    a2 = _evaluation(tmp_path, "a2", {"t1": (7, 10), "t2": (2, 10)}, (5, 10))
+    b1 = _evaluation(tmp_path, "b1", {"t1": (8, 10), "t2": (6, 10)}, (8, 10))
+    b2 = _evaluation(tmp_path, "b2", {"t1": (8, 10), "t2": (4, 10)}, (8, 10))
+    out = tmp_path / "ecart.json"
+    rc = cli.main(["ecart", "--a", str(a1), str(a2), "--b", str(b1), str(b2), "--sortie", str(out)])
+    assert rc == 0
+    result = json.loads(out.read_text(encoding="utf-8"))
+    claims = result["affirmations_soutenues"]
+    # t1 : 60 % -> 80 % ; t2 : 20 % -> 50 % ; ecart moyen +25 points.
+    assert claims["par_tache"] == {"t1": {"a": 0.6, "b": 0.8}, "t2": {"a": 0.2, "b": 0.5}}
+    assert claims["ecart_moyen"] == 0.25
+    assert claims["taches_en_hausse"] == 2 and claims["taches_en_baisse"] == 0
+    # Bruit : A varie de 20 points sur t1, 0 sur t2 ; B de 0 et 20.
+    assert claims["bruit_a"] == 0.1 and claims["bruit_b"] == 0.1
+    assert claims["repetitions"] == [2, 2]
+    assert result["phrases_citees"]["ecart_moyen"] == 0.3
+    assert "+25.0 points" in capsys.readouterr().out

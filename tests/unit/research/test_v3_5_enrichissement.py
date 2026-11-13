@@ -29,7 +29,8 @@ def make(config: PipelineConfig | None = None) -> tuple[IntelligentOrchestrator,
 
 
 def make_ctx(config: PipelineConfig | None = None) -> ExecutionContext:
-    return ExecutionContext("requete", config=config or PipelineConfig())
+    # Enrichissement coupe par defaut depuis le 13/11/2026 : ces tests le testent.
+    return ExecutionContext("requete", config=config or PipelineConfig(enrichment_enabled=True))
 
 
 def make_report() -> dict[str, Any]:

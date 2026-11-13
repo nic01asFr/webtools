@@ -168,6 +168,16 @@ class DirectExtractor(BaseExtractor):
                         error_message="Contenu extrait insuffisant (< 100 caractères)"
                     )
 
+                # Page de verification anti-robot : pas un contenu.
+                from app.utils.block_page import block_reason
+
+                reason = block_reason(content)
+                if reason:
+                    return WebResult.from_error(
+                        url=url,
+                        error_message=f"Page de vérification anti-robot ({reason}), contenu non lu",
+                    )
+
                 logger.info(f"Extraction directe (trafilatura) réussie: {len(content)} chars")
 
                 metadata = {
