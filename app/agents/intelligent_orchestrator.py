@@ -402,7 +402,7 @@ class IntelligentOrchestrator:
         self,
         query: str,
         context: Optional[Dict[str, Any]] = None,
-        deadline_seconds: float = 600.0,
+        deadline_seconds: float = 1200.0,
     ) -> Dict[str, Any]:
         """Execute la recherche avec un delai global (C48).
 

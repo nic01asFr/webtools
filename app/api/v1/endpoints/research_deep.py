@@ -96,8 +96,10 @@ class DeepResearchRequest(_StrictModel):
     context: Optional[DeepResearchContext] = Field(default=None, description="Contexte de recherche")
     sources: Optional[SourcesConstraints] = Field(default=None, description="Contraintes sur les sources")
     output_format: Optional[OutputFormat] = Field(default=None, description="Format de sortie")
+    # 1 200 s par defaut depuis le 13/11/2026 : avec la verification des
+    # sections, des recherches approfondies mesurees depassent 1 000 s.
     timeout: int = Field(
-        default=600, ge=60, le=1200,
+        default=1200, ge=60, le=1200,
         description="Delai global en secondes : passe ce delai, la reponse porte les sections deja redigees avec degraded=true",
     )
     max_sources_per_section: Optional[int] = Field(

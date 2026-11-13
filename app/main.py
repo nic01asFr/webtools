@@ -130,7 +130,7 @@ et en échec : `success`, `degraded`, `timed_out`, `error`, `result`
 sources sont conservées même en échec.
 
 Paramètres :
-- `timeout` (60-1200 s, défaut 600) → délai global ; passé ce délai, la réponse
+- `timeout` (60-1200 s, défaut 1200) → délai global ; passé ce délai, la réponse
   porte les sections déjà rédigées avec `degraded: true`
 - `max_sources_per_section` (1-20) → plafond de sources par section ; absent :
   selon la profondeur de la section

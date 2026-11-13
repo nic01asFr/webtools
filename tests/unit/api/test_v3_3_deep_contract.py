@@ -203,7 +203,7 @@ async def test_max_sources_per_section(monkeypatch: pytest.MonkeyPatch) -> None:
 async def test_timeout_est_le_delai_global(harness: Harness) -> None:
     await harness.post({"topic": QUERY})
     await harness.post({"topic": QUERY, "timeout": 90})
-    assert harness.deadlines == [600.0, 90.0]
+    assert harness.deadlines == [1200.0, 90.0]
     assert harness.factory_calls[1][1] == 54  # budget par section : 0,6 x timeout
 
 

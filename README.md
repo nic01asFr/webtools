@@ -99,7 +99,7 @@ Rapport structuré. Champs de la requête :
 | `topic` (5 à 4000 caractères, obligatoire) | Sujet |
 | `objectives` | Liste d'objectifs transmise au modèle qui planifie |
 | `context.language` | Langue préférée, transmise au modèle qui planifie (la langue de recherche et de rédaction est détectée sur `topic`) |
-| `timeout` (60 à 1200 s, défaut 600) | Délai global. Passé ce délai, la réponse porte les sections déjà rédigées, avec `degraded: true` |
+| `timeout` (60 à 1200 s, défaut 1200) | Délai global. Passé ce délai, la réponse porte les sections déjà rédigées, avec `degraded: true` |
 | `max_sources_per_section` (1 à 20) | Plafond de sources par section. Absent : 3, 5 ou 8 selon la profondeur de la section |
 | `output_format.sections` (ou `output_sections`) | Sections imposées : le rapport contient exactement ces titres, dans cet ordre |
 | `output_format.include_section_data` | Joint à chaque section les passages extraits (`data`) |
