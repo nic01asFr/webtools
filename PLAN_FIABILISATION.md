@@ -1056,6 +1056,47 @@ Au 12 novembre 2026, version 3.0.0.
     de R4 ont dépassé 1 000 s (dont une partielle à 1 200 s). Délai par
     défaut de l'API porté de 600 à 1 200 s, validé par l'utilisateur
     (commit `6570c88`).
+- **Relecture du pipeline de bout en bout (13 novembre 2026)** : consignes,
+  contexte et liens entre étapes, confrontés aux mesures citecheck. Commit
+  `dbf399b`.
+  - C93, corrigé (rédaction, `synthesis_v3`) :
+    - le prompt faisait recopier des URL complètes ;
+    - il passait les passages en JSON, avec des « Confirmé indépendamment
+      par X (similarité 0,81) » qui présentaient une proximité de sujet comme
+      une confirmation ;
+    - il demandait « 6 à 10 paragraphes » puis « la longueur n'est jamais un
+      objectif » ;
+    - son tableau d'exemple ne portait aucune citation ;
+    - il imposait les questions du plan, fixées avant toute lecture.
+    Désormais : étiquettes [S1] converties par le code, passages en texte,
+    consignes cohérentes, questions sans preuve omises, faits déjà établis
+    des sections précédentes transmis à la suivante, citation posée par le
+    code quand le vérificateur désigne la source d'une phrase.
+  - C94, corrigé (liens entre étapes) :
+    - l'enrichissement, actif par défaut dans le code mais coupé dans toutes
+      les mesures, réécrivait les sections vérifiées (« AJOUTER des
+      chiffres », « PLUS détaillé que l'original ») sans contrôle ;
+    - l'analyse de cohérence était un appel LLM dont rien ne lisait le
+      résultat.
+    Contrat commun `app/research/guard.py` : une section réécrite n'est
+    gardée que si elle passe la vérification. Enrichissement coupé par
+    défaut ; analyse de cohérence sautée quand elle ne sert pas.
+  - C95, corrigé (extraction) :
+    - une page de vérification anti-robot passait le seuil de 100
+      caractères de l'extraction directe ;
+    - un domaine qui refuse (401, 403, 429) était resollicité à chaque page.
+    Page rejetée ; domaine non sollicité pendant 30 minutes après deux
+    refus (mémoire du processus, disponibilité seulement).
+  - Harnais : le plan est rejoué avec la collecte (`ReplayPlanLLM`) ;
+    `citations.py ecart` compare deux séries de répétitions, sujet par
+    sujet, avec le bruit entre répétitions.
+  - Non traité, et pourquoi :
+    - registre de notes extraites par un LLM avant la rédaction : un appel
+      par page, sur un pipeline qui prend déjà jusqu'à 1 000 s. Les passages
+      étiquetés, la vérification phrase par phrase et les faits établis en
+      tiennent lieu ;
+    - reclassement des passages par question de section (C88) : à mesurer
+      d'abord ; le refus du modèle retire aujourd'hui la section concernée.
 - **Où commencer** : construire l'image
   (`WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build`), lancer les
   trois services, vérifier le harnais sur une tâche (`benchmarks/INSTALL.md`,

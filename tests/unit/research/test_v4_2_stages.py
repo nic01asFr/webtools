@@ -51,6 +51,16 @@ SECTION_CONFIG = {
 }
 
 
+@pytest.fixture(autouse=True)
+def _sans_filtre_de_pertinence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Ces tests portent sur la mecanique de collecte, avec des titres
+    factices : le filtre de pertinence (C96) a ses propres tests."""
+    import app.research.stages.relevance as relevance
+
+    monkeypatch.setattr(relevance, "keep_relevant", lambda _q, results: (list(results or []), 0))
+
+
+
 async def _no_sleep(_delay: float) -> None:
     return None
 

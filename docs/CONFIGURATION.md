@@ -41,7 +41,7 @@ périmé ou si un champ manque.
 
 <!-- DEBUT-GENERE : ne pas modifier a la main, voir docs/generer_configuration.py -->
 
-### Drapeaux à mesurer (type B) : 26 champs
+### Drapeaux à mesurer (type B) : 27 champs
 
 | Nom | Type | Défaut | Variable d'environnement | Effet | Campagne | Valeur essayée |
 |---|---|---|---|---|---|---|
@@ -67,6 +67,7 @@ périmé ou si un champ manque.
 | `selection_fallback_enabled` | bool | `true` | `WEBTOOLS_PIPELINE_SELECTION_FALLBACK_ENABLED` | vrai : sans passage au-dessus du seuil, retenir quand meme les meilleurs | citecheck (benchmarks/CITATIONS.md) | `false` |
 | `deep_verify_sections` | bool | `true` | `WEBTOOLS_PIPELINE_DEEP_VERIFY_SECTIONS` | recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89) | citecheck (benchmarks/CITATIONS.md) | `false` |
 | `quick_verify_answer` | bool | `false` | `WEBTOOLS_PIPELINE_QUICK_VERIFY_ANSWER` | /research/quick: chaque phrase verifiee contre ses sources, reecriture unique si fautive (C89) | citecheck (benchmarks/CITATIONS.md) | `true` |
+| `search_relevance_gate` | bool | `true` | `WEBTOOLS_PIPELINE_SEARCH_RELEVANCE_GATE` | vrai : resultat sans terme commun avec la requete ecarte (deux pour arXiv) | citecheck (benchmarks/CITATIONS.md) | `false` |
 | `synthesis_v3` | bool | `true` | `WEBTOOLS_PIPELINE_SYNTHESIS_V3` | faux : prompt de redaction precedent (URL recopiees, passages en JSON) | citecheck sur rejeu (benchmarks/CITATIONS.md) | `false` |
 | `plan_prompt_v2` | bool | `false` | `WEBTOOLS_PIPELINE_PLAN_PROMPT_V2` | prompt de plan sans ancien JSON ni exemples, contexte reduit (C33) | hors campagne | `true` |
 | `targeted_search_skip_structured` | bool | `false` | `WEBTOOLS_PIPELINE_TARGETED_SEARCH_SKIP_STRUCTURED` | recherche ciblee sans appel LLM d'extraction structuree (C36, C79) | hors campagne | `true` |
@@ -240,7 +241,7 @@ périmé ou si un champ manque.
 | `enrichment_regenerate_v2_max_tokens` | int | `6000` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_V2_MAX_TOKENS` | jetons maximaux de la regeneration de section v2 |
 | `enrichment_regenerate_temperature` | float | `0.1` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_TEMPERATURE` | temperature de la regeneration de section (v1 et v2) |
 
-Total : 142 champs, soit tous ceux de `PipelineConfig`.
+Total : 143 champs, soit tous ceux de `PipelineConfig`.
 
 <!-- FIN-GENERE -->
 

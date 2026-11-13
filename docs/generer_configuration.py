@@ -47,6 +47,7 @@ CAMPAGNES: dict[str, tuple[str, str]] = {
     "single_llm_pass_enabled": ("M2", "false"),
     "extraction_use_agent": ("M5", "false"),
     "search_zero_result_fallback": ("M5", "false"),
+    "search_relevance_gate": ("citecheck (benchmarks/CITATIONS.md)", "false"),
     "quick_verify_answer": ("citecheck (benchmarks/CITATIONS.md)", "true"),
     "deep_verify_sections": ("citecheck (benchmarks/CITATIONS.md)", "false"),
     "selection_fallback_enabled": ("citecheck (benchmarks/CITATIONS.md)", "false"),

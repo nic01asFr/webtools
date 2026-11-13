@@ -141,6 +141,9 @@ class PipelineConfig:
     # pour un reglement europeen, requetes de 10 a 14 mots-cles) et 22
     # collectes de section sur 49 n'extrayaient rien.
     search_zero_result_fallback: bool = True  # vrai : requete vide -> cascade complete, puis requete raccourcie
+    # Collecte enregistree du 13/11/2026 : 43 resultats arXiv sur 66 et 17
+    # resultats bing sur 22 sans rapport avec la requete (C96).
+    search_relevance_gate: bool = True  # vrai : resultat sans terme commun avec la requete ecarte (deux pour arXiv)
 
     # --- Lot V4-1 : budgets et seuils ---
     # Valeurs reprises a l'identique de l'orchestrateur : aucun changement de

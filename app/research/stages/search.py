@@ -174,13 +174,29 @@ async def section_research_phase(
     language = context.search_language if context.config.search_language_from_query else "all"
     axis = section_config.get("source_axis")
 
+    async def _gated(q: str, pool: int, engines_param: Optional[str]) -> List[Any]:
+        """Recherche, resultats sans rapport avec la requete ecartes (C96).
+        Une liste videe par le filtre declenche les replis ci-dessous."""
+        found = await svc.search_client.search(
+            query=q, max_results=pool, language=language, engines=engines_param
+        )
+        if not context.config.search_relevance_gate:
+            return list(found or [])
+        from app.research.stages.relevance import keep_relevant
+
+        kept, dropped = keep_relevant(q, found)
+        if dropped:
+            context.diagnostics.note(
+                "collecte.resultats_hors_sujet", section=section_name, query=q,
+                ecartes=dropped, gardes=len(kept),
+            )
+        return kept
+
     async def _search_one(q: str) -> List[Any]:
         engines = await cascade_engines(svc, q, axis=axis, ctx=context)
         engines_param = ",".join(engines) if engines else None
         pool = search_pool_size(svc, max_sources, context)
-        found = await svc.search_client.search(
-            query=q, max_results=pool, language=language, engines=engines_param
-        )
+        found = await _gated(q, pool, engines_param)
 
         # Repli si un operateur de recherche n'a rien donne.
         #
@@ -199,9 +215,7 @@ async def section_research_phase(
                 context.diagnostics.note(
                     "collecte.repli_sans_operateur", section=section_name, query=q
                 )
-                found = await svc.search_client.search(
-                    query=_plain, max_results=pool, language=language, engines=engines_param
-                )
+                found = await _gated(_plain, pool, engines_param)
 
         # Repli si la requete ne rend toujours rien : d'abord la cascade
         # complete (tous les axes), puis la requete raccourcie a ses premiers
@@ -215,9 +229,7 @@ async def section_research_phase(
                 context.diagnostics.note(
                     "collecte.repli_cascade_complete", section=section_name, query=q, axe=axis
                 )
-                found = await svc.search_client.search(
-                    query=q, max_results=pool, language=language, engines=wide_param
-                )
+                found = await _gated(q, pool, wide_param)
             if not found:
                 short = shorten_query(q, context.config.search_fallback_query_words)
                 if short and short != q:
@@ -225,9 +237,7 @@ async def section_research_phase(
                     context.diagnostics.note(
                         "collecte.repli_requete_courte", section=section_name, query=q, courte=short
                     )
-                    found = await svc.search_client.search(
-                        query=short, max_results=pool, language=language, engines=wide_param
-                    )
+                    found = await _gated(short, pool, wide_param)
         return list(found or [])
 
     try:
