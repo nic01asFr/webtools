@@ -214,7 +214,33 @@ Réglages retenus d'après ces chiffres :
 | `deep_verify_sections` | `true` (depuis `d3a33da`) | R1 contre R2 ci-dessus |
 | `quick_verify_answer` | `false` | aucun gain, une réponse juste dégradée |
 | `quick_uses_chunk_selection` | `false` | aucun gain mesurable (R2 contre R3) |
-| `selection_fallback_enabled` | `true`, en mesure (R4) | 25 % soutenues après repli, contre 51 % |
+| `selection_fallback_enabled` | `true` | R4 ci-dessous : le couper retire du contenu sans gain |
+
+### Repli de sélection coupé (run R4 `repli0-d3a33da`, 13 novembre 2026)
+
+Service au commit `d3a33da` (vérification des sections active, balises
+`<time>` conservées), `selection_fallback_enabled=false`.
+
+| | R2 (repli actif) | R4 (repli coupé) |
+|---|---|---|
+| Affirmations soutenues, deep | 69,2 % (352/509), IC95 64–76 | 67,8 % (251/370), IC95 60–77 |
+| Affirmations contredites, deep | 1,6 % | 2,7 % |
+| Sections sans passage au-dessus du seuil | 14 (rédigées sur repli) | 26 (retirées) |
+| Affirmations soutenues, quick | 80,0 % (20/25) | 80,8 % (21/26) |
+| Citations contredites, quick | 12,5 % | 0 % |
+| Réponses exactes, quick | 14/16 | 16/16 |
+
+Couper le repli retire un quart des affirmations (370 contre 509) sans
+améliorer leur fiabilité : le repli reste actif. L'écart mesuré sur la
+référence (25 % contre 51 %, C91) ne se retrouve pas une fois les sections
+vérifiées. En recherche rapide, R4 répond juste aux 16 questions, dont `q06`
+grâce au correctif des balises `<time>`.
+
+`d06` a atteint le délai global de 1 200 s et rendu un rapport partiel ;
+`d07` a pris 1 052 s contre 492 s dans R2. Le proxy LLM était plus lent ce
+jour-là, mais la vérification ajoute des appels : sous le délai par défaut
+de l'API (600 s), une recherche approfondie a plus de chances d'être
+partielle. Le serveur MCP demande 1 200 s.
 
 ### Défauts de l'instrument trouvés et corrigés pendant la mesure
 

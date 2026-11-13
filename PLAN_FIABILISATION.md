@@ -1048,8 +1048,13 @@ Au 12 novembre 2026, version 3.0.0.
     `<time>`, où Wikipédia met ses dates (« Son lancement a lieu le au
     centre spatial de Kourou »). Balises retirées avant trafilatura, texte
     gardé (commit `2c1803b`).
-  - C91 en mesure : R4 (`repli0-d3a33da`) coupe le repli de sélection sur
-    les nouveaux défauts.
+  - C91, mesuré, sans suite : R4 (`repli0-d3a33da`) coupe le repli de
+    sélection sur les nouveaux défauts. Affirmations soutenues 67,8 % contre
+    69,2 % (R2), 26 sections retirées, un quart d'affirmations en moins : le
+    repli reste actif (`selection_fallback_enabled` vrai).
+  - Durée : avec la vérification des sections, deux recherches approfondies
+    de R4 ont dépassé 1 000 s (dont une partielle à 1 200 s). Le délai par
+    défaut de l'API (600 s) est à revoir avant le redéploiement.
 - **Où commencer** : construire l'image
   (`WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build`), lancer les
   trois services, vérifier le harnais sur une tâche (`benchmarks/INSTALL.md`,
