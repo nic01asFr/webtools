@@ -105,7 +105,10 @@ class PipelineConfig:
     # Mesure citecheck du 12/11/2026 : 25 % d'affirmations soutenues dans les
     # sections redigees apres ce repli, contre 51 % apres une selection normale.
     selection_fallback_enabled: bool = True  # vrai : sans passage au-dessus du seuil, retenir quand meme les meilleurs
-    deep_verify_sections: bool = False  # recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89)
+    # Vrai par defaut depuis le 13/11/2026 (mesure citecheck, R1 contre R2) :
+    # affirmations soutenues 58,9 % -> 69,2 %, en hausse sur 7 sujets sur 8,
+    # pour 25 % de temps en plus.
+    deep_verify_sections: bool = True  # recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89)
     quick_verify_answer: bool = False  # /research/quick: chaque phrase verifiee contre ses sources, reecriture unique si fautive (C89)
 
     # --- Lot V3-3 : contrat de l'API de recherche approfondie ---

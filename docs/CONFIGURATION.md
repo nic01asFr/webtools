@@ -65,7 +65,7 @@ périmé ou si un champ manque.
 | `extraction_use_agent` | bool | `true` | `WEBTOOLS_PIPELINE_EXTRACTION_USE_AGENT` | faux : extraction directe seulement (pas d'agent navigateur) | M5 | `false` |
 | `search_zero_result_fallback` | bool | `true` | `WEBTOOLS_PIPELINE_SEARCH_ZERO_RESULT_FALLBACK` | vrai : requete vide -> cascade complete, puis requete raccourcie | M5 | `false` |
 | `selection_fallback_enabled` | bool | `true` | `WEBTOOLS_PIPELINE_SELECTION_FALLBACK_ENABLED` | vrai : sans passage au-dessus du seuil, retenir quand meme les meilleurs | citecheck (benchmarks/CITATIONS.md) | `false` |
-| `deep_verify_sections` | bool | `false` | `WEBTOOLS_PIPELINE_DEEP_VERIFY_SECTIONS` | recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89) | citecheck (benchmarks/CITATIONS.md) | `true` |
+| `deep_verify_sections` | bool | `true` | `WEBTOOLS_PIPELINE_DEEP_VERIFY_SECTIONS` | recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89) | citecheck (benchmarks/CITATIONS.md) | `false` |
 | `quick_verify_answer` | bool | `false` | `WEBTOOLS_PIPELINE_QUICK_VERIFY_ANSWER` | /research/quick: chaque phrase verifiee contre ses sources, reecriture unique si fautive (C89) | citecheck (benchmarks/CITATIONS.md) | `true` |
 | `plan_prompt_v2` | bool | `false` | `WEBTOOLS_PIPELINE_PLAN_PROMPT_V2` | prompt de plan sans ancien JSON ni exemples, contexte reduit (C33) | hors campagne | `true` |
 | `targeted_search_skip_structured` | bool | `false` | `WEBTOOLS_PIPELINE_TARGETED_SEARCH_SKIP_STRUCTURED` | recherche ciblee sans appel LLM d'extraction structuree (C36, C79) | hors campagne | `true` |

@@ -111,6 +111,9 @@ def build_orchestrator(
         "coherence_analysis",
         {"improvements": [], "redundancies": [], "coherence_score": 90},
     )
+    # Verification de chaque section (deep_verify_sections, actif par defaut) :
+    # aucune phrase fautive, la section est gardee telle quelle.
+    llm.on_structured("verification", {"phrases": []})
     llm.on_text(
         r"Analyse la qualit",
         json.dumps({"overall_score": 90, "sections_analysis": [], "gaps_to_fill": []}),
