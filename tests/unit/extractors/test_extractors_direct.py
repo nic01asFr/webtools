@@ -37,6 +37,23 @@ async def test_page_503_est_un_echec() -> None:
     assert "503" in res.error
 
 
+async def test_texte_des_balises_time_conserve() -> None:
+    # Cas reel du 13/11/2026 (Wikipedia, telescope James Webb) : trafilatura
+    # jetait la date balisee en <time>.
+    html = (
+        "<html><head><title>T</title></head><body><article><p>"
+        + ("Un texte assez long pour passer le seuil. " * 20)
+        + "</p><p>Son lancement a lieu le <time class=\"nowrap\" datetime=\"2021-12-25\">"
+        "25 décembre 2021</time> au centre spatial de Kourou en Guyane française, "
+        "et la première image est publiée en <time datetime=\"2022-07\">juillet 2022</time>.</p>"
+        + "<p>" + ("Une autre phrase de contenu. " * 10) + "</p></article></body></html>"
+    )
+    res = await _run(FakePage(status=200, html=html))
+    assert res.success
+    assert "Son lancement a lieu le 25 décembre 2021 au centre spatial" in res.content
+    assert "juillet 2022" in res.content
+
+
 async def test_redirection_interne_bloquee() -> None:
     page = FakePage(status=200, html=HTML, requests=["http://interne.test/admin"])
     res = await _run(page, make_resolver({"interne.test": "10.0.0.1"}))

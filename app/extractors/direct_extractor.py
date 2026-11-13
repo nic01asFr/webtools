@@ -21,6 +21,25 @@ logger = logging.getLogger(__name__)
 # asynchrone qui rend une page Playwright (ou un double de test).
 PageFactory = Callable[..., Any]
 
+# Balises en ligne dont trafilatura 2.3 jette le texte. Mesure citecheck du
+# 13/11/2026 : Wikipedia balise ses dates en <time>, et "Son lancement a lieu
+# le 25 décembre 2021" devenait "Son lancement a lieu le au centre spatial",
+# d'ou une reponse fausse ("les sources ne donnent pas la date").
+_DROPPED_INLINE_TAGS = ("time", "output")
+
+
+def unwrap_dropped_inline(page_html: str) -> str:
+    """Retire les balises que trafilatura supprime, en gardant leur texte."""
+    import lxml.etree
+    import lxml.html
+
+    try:
+        tree = lxml.html.fromstring(page_html)
+    except (lxml.etree.ParserError, ValueError):
+        return page_html
+    lxml.etree.strip_tags(tree, *_DROPPED_INLINE_TAGS)
+    return lxml.html.tostring(tree, encoding="unicode")
+
 
 @asynccontextmanager
 async def _playwright_page(headless: bool = True) -> AsyncIterator[Any]:
@@ -136,7 +155,7 @@ class DirectExtractor(BaseExtractor):
                 # LLM en aval, sans rien perdre du contenu utile.
                 import trafilatura
                 content = trafilatura.extract(
-                    page_html, url=url, with_metadata=False,
+                    unwrap_dropped_inline(page_html), url=url, with_metadata=False,
                     include_comments=False, include_tables=True
                 )
                 traf_meta = trafilatura.extract_metadata(page_html)
