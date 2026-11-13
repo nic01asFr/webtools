@@ -156,6 +156,66 @@ Contrôles :
   sections rédigées sur des passages sous le seuil, contre 51 % (105/206)
   après une sélection normale.
 
+### Effet des correctifs (runs R1 à R3, 12 et 13 novembre 2026)
+
+Même corpus, même juge (`qwen3-8-27b`), un run par configuration.
+
+| Run | Service | Changement mesuré |
+|---|---|---|
+| référence | `dbbffef` | — |
+| R1 `apres-5aa320d` | `5aa320d` | repli de recherche sur zéro résultat, refus mieux détectés |
+| R2 `verif-d2ec2b4` | `d2ec2b4` | R1 + vérification des sections (deep) et de la réponse (quick) |
+| R3 `selverif-d2ec2b4` | `d2ec2b4` | R2 + sélection des passages en recherche rapide (quick seul) |
+
+Recherche approfondie, affirmations soutenues :
+
+| Sujet | Référence | R1 | R2 |
+|---|---|---|---|
+| d01 néonicotinoïdes | 43 % (13/30) | 54 % (46/85) | 69 % (50/72) |
+| d02 microplastiques | 48 % (20/42) | 52 % (48/93) | 40 % (27/68) |
+| d03 ZFE | 66 % (31/47) | 88 % (73/83) | 90 % (35/39) |
+| d04 pérovskites | 8 % (3/37) | 53 % (61/116) | 60 % (55/92) |
+| d05 trait de côte | 41 % (11/27) | 35 % (23/66) | 73 % (57/78) |
+| d06 MACF | 27 % (17/62) | 55 % (57/103) | 62 % (28/45) |
+| d07 hydrogène | 42 % (16/38) | 64 % (50/78) | 73 % (40/55) |
+| d08 antibiorésistance | 25 % (25/101) | 44 % (36/82) | 55 % (60/109) |
+| **Ensemble** | **43,0 %** (IC95 31–53) | **58,9 %** (IC95 52–68) | **69,2 %** (IC95 64–76) |
+| Contredites | 4,4 % | 2,1 % | 1,6 % |
+| Source inaccessible | 17,6 % | 5,2 % | 8,6 % |
+| Durée totale des 8 sujets | 4 104 s | 3 711 s | 4 622 s |
+
+- **R1** : plus aucune section sans source (22 collectes vides sur 55, puis
+  0 sur 52), deux fois plus d'affirmations citées (669 contre 316).
+- **R2** : hausse sur 7 sujets sur 8 (moyenne +9,6 points) ; 33 sections
+  réécrites sur 46 vérifiées, 2 réécritures rejetées ; 25 % de temps en
+  plus. Rapports plus courts (887 phrases contre 1 262), part de phrases
+  citées un peu plus haute (64 % contre 61 %).
+- Un seul run par configuration : l'IC95 rend compte de la variété des
+  sujets, pas de la variation d'un run à l'autre (les moteurs ne rendent pas
+  deux fois les mêmes sources). La hausse sur 7 sujets sur 8 est le meilleur
+  indice que l'effet de R2 n'est pas du bruit.
+
+Recherche rapide : aucun effet mesurable, à 25 affirmations par run.
+Affirmations soutenues 84,6 % (référence), 84,0 % (R1), 80,0 % (R2),
+86,4 % (R3) ; réponses exactes 16, 15, 14 et 14 sur 16. La vérification
+de la réponse a fait plus de mal que de bien : sur `q01`, elle a réécrit
+une réponse juste en « les sources ne précisent pas l'année », la date
+étant au-delà des 2 000 caractères transmis par source (C90).
+
+Défaut du service trouvé par ces runs : trafilatura jette le texte des
+balises `<time>`, où Wikipédia met ses dates. La page du télescope James
+Webb devenait « Son lancement a lieu le au centre spatial de Kourou », et
+`q06` échouait dans R1, R2 et R3. Corrigé au commit `2c1803b`.
+
+Réglages retenus d'après ces chiffres :
+
+| Drapeau | Défaut | Motif |
+|---|---|---|
+| `deep_verify_sections` | `true` (depuis `d3a33da`) | R1 contre R2 ci-dessus |
+| `quick_verify_answer` | `false` | aucun gain, une réponse juste dégradée |
+| `quick_uses_chunk_selection` | `false` | aucun gain mesurable (R2 contre R3) |
+| `selection_fallback_enabled` | `true`, en mesure (R4) | 25 % soutenues après repli, contre 51 % |
+
 ### Défauts de l'instrument trouvés et corrigés pendant la mesure
 
 Chacun faussait le résultat et a son test :

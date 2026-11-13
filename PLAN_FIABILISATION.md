@@ -1036,6 +1036,20 @@ Au 12 novembre 2026, version 3.0.0.
     Drapeau `selection_fallback_enabled`.
   - Repli de recherche (C86) mesuré sur R1 : collectes de section vides
     22/55 → 0/52, refus du modèle 12 → 3, citations par corpus 434 → 744.
+  - Runs R1 à R3 évalués (13 novembre 2026, détail dans
+    `benchmarks/CITATIONS.md`). Recherche approfondie, affirmations
+    soutenues : 43,0 % (référence) → 58,9 % (R1, repli de recherche) →
+    69,2 % (R2, vérification des sections), hausse de R1 à R2 sur 7 sujets
+    sur 8 pour 25 % de temps en plus. `deep_verify_sections` vrai par défaut
+    (commit `d3a33da`). Recherche rapide : aucun effet mesurable de la
+    vérification ni de la sélection des passages (R3) ; `quick_verify_answer`
+    et `quick_uses_chunk_selection` restent faux.
+  - C92, corrigé (extraction) : trafilatura 2.3 jette le texte des balises
+    `<time>`, où Wikipédia met ses dates (« Son lancement a lieu le au
+    centre spatial de Kourou »). Balises retirées avant trafilatura, texte
+    gardé (commit `2c1803b`).
+  - C91 en mesure : R4 (`repli0-d3a33da`) coupe le repli de sélection sur
+    les nouveaux défauts.
 - **Où commencer** : construire l'image
   (`WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build`), lancer les
   trois services, vérifier le harnais sur une tâche (`benchmarks/INSTALL.md`,
