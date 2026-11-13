@@ -1053,8 +1053,9 @@ Au 12 novembre 2026, version 3.0.0.
     69,2 % (R2), 26 sections retirées, un quart d'affirmations en moins : le
     repli reste actif (`selection_fallback_enabled` vrai).
   - Durée : avec la vérification des sections, deux recherches approfondies
-    de R4 ont dépassé 1 000 s (dont une partielle à 1 200 s). Le délai par
-    défaut de l'API (600 s) est à revoir avant le redéploiement.
+    de R4 ont dépassé 1 000 s (dont une partielle à 1 200 s). Délai par
+    défaut de l'API porté de 600 à 1 200 s, validé par l'utilisateur
+    (commit `6570c88`).
 - **Où commencer** : construire l'image
   (`WEBTOOLS_COMMIT=$(git rev-parse HEAD) docker compose build`), lancer les
   trois services, vérifier le harnais sur une tâche (`benchmarks/INSTALL.md`,
