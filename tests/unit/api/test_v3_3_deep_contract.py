@@ -429,6 +429,12 @@ def test_message_distingue_incident_et_sujet_pauvre() -> None:
     assert message is not None and "2 section(s) sans source exploitable apres un incident" in message
     assert "rien remonte" not in message
 
+    # Section planifiee non redigee hors delai : annoncee comme telle.
+    missing = _degradation_error([], [], ["C"], False, 600)
+    assert missing == "1 section(s) planifiee(s) non redigee(s)"
+    timed = _degradation_error([], [], ["C"], True, 600)
+    assert timed is not None and "planifiee" not in timed
+
     # Sans diagnostics : constat sur le sujet, comme avant.
     plain = _degradation_error([], ["A"], [], False, 600)
     assert plain is not None and "la collecte n'a rien remonte sur ce sujet" in plain

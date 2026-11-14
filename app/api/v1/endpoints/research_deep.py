@@ -216,6 +216,10 @@ def _degradation_error(
             f"delai global de {deadline} s depasse : rapport partiel, "
             f"{len(missing)} section(s) non redigee(s)"
         )
+    if missing and not timed_out and not pipeline_error:
+        # Section planifiee sans cible de collecte : jamais redigee, elle
+        # passait pour reussie.
+        parts.append(f"{len(missing)} section(s) planifiee(s) non redigee(s)")
     if failed:
         parts.append(f"{len(failed)} section(s) non generee(s) : echec repete de l'appel LLM de synthese")
     if unsourced:
