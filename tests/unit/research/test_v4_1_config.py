@@ -156,6 +156,7 @@ EXPECTED_DEFAULTS: dict[str, Any] = {
     "enrichment_regenerate_max_tokens": 2000,
     "enrichment_regenerate_v2_max_tokens": 6000,
     "enrichment_regenerate_temperature": 0.1,
+    "deadline_cancel_grace_seconds": 15.0,
 }
 
 

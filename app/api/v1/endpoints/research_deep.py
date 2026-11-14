@@ -154,6 +154,7 @@ def _degradation_error(
     plan_fallback_reason: Optional[str] = None,
     required_failed: Optional[List[Dict[str, str]]] = None,
     sections_imposed: bool = False,
+    pipeline_error: Optional[str] = None,
 ) -> Optional[str]:
     """Message de l'erreur d'un rapport degrade, une cause par message.
 
@@ -163,6 +164,11 @@ def _degradation_error(
     chercher une panne la ou il n'y en a pas.
     """
     parts: List[str] = []
+    if pipeline_error:
+        parts.append(
+            f"pipeline interrompu par une erreur ({pipeline_error}) : rapport partiel, "
+            f"{len(missing)} section(s) non redigee(s)"
+        )
     if timed_out:
         parts.append(
             f"delai global de {deadline} s depasse : rapport partiel, "
@@ -315,6 +321,8 @@ async def research_deep(request: DeepResearchRequest):
     answer: Optional[Dict[str, Any]] = None
     timed_out = False
     error: Optional[str] = None
+    # Erreur d'un pipeline interrompu qui rend tout de meme un rapport partiel.
+    pipeline_error: Optional[str] = None
 
     try:
         config = PipelineConfig.from_env()
@@ -372,6 +380,8 @@ async def research_deep(request: DeepResearchRequest):
                 "timed_out": timed_out,
                 "steps_executed": exec_ctx.get("steps_executed", 0),
             })
+            if not result.get("success") and isinstance(answer, dict):
+                pipeline_error = error
             if not result.get("success") or not isinstance(answer, dict):
                 step.status = StepStatus.FAILED
                 step.error = error or "reponse de l'orchestrateur inexploitable"
@@ -406,13 +416,14 @@ async def research_deep(request: DeepResearchRequest):
         f for f in (answer.get("required_sources_failed") or []) if isinstance(f, dict)
     ]
     required_uncited = list(answer.get("required_sources_uncited") or [])
-    degraded = bool(answer.get("degraded")) or timed_out
+    degraded = bool(answer.get("degraded")) or timed_out or bool(pipeline_error)
     if degraded:
         formatter_kwargs["error"] = _degradation_error(
             failed, unsourced, missing, timed_out, request.timeout,
             plan_fallback_reason=answer.get("plan_fallback_reason"),
             required_failed=required_failed,
             sections_imposed=bool(sections),
+            pipeline_error=pipeline_error,
         )
         logger.error(
             f"Rapport DEGRADE : {len(failed)} echec(s) LLM, {len(unsourced)} section(s) sans source, "

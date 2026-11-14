@@ -241,6 +241,78 @@ async def test_delai_depasse_avant_toute_section(harness: Harness) -> None:
     assert body["result"]["sections"] == []
 
 
+async def test_nettoyage_bloque_n_empeche_pas_le_rapport_partiel(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    release = asyncio.Event()
+
+    async def stall_then_block_cleanup(*_a: Any, **_k: Any) -> Any:
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            # Nettoyage qui ne rend pas la main (fermeture de navigateur bloquee).
+            await release.wait()
+            raise
+
+    monkeypatch.setattr(orchestrator_module, "final_assembly", stall_then_block_cleanup)
+    monkeypatch.setenv("WEBTOOLS_PIPELINE_DEADLINE_CANCEL_GRACE_SECONDS", "0.2")
+    harness.real_deadline = 0.5
+    try:
+        body = (await asyncio.wait_for(harness.post({"topic": QUERY, "timeout": 60}), 5)).json()
+    finally:
+        release.set()
+        await asyncio.sleep(0.05)
+
+    assert body["timed_out"] is True and body["degraded"] is True
+    assert [s["title"] for s in body["result"]["sections"]] == ["Overview", "Costs", "Outlook"]
+    counts = body["diagnostics"]["events"]["counts"]
+    assert counts["api.annulation_non_terminee"] == 1
+    assert counts["api.deadline_exceeded"] == 1
+
+
+async def test_exception_apres_redaction_rend_le_rapport_partiel(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def broken(*_a: Any, **_k: Any) -> Any:
+        raise RuntimeError("assemblage casse")
+
+    monkeypatch.setattr(orchestrator_module, "final_assembly", broken)
+    body = (await harness.post({"topic": QUERY})).json()
+
+    assert set(body) == RESPONSE_KEYS
+    assert body["success"] is False and body["degraded"] is True
+    assert body["timed_out"] is False
+    assert "assemblage casse" in body["error"]
+    assert [s["title"] for s in body["result"]["sections"]] == ["Overview", "Costs", "Outlook"]
+    assert body["result"]["bibliography"]
+    assert "[SOURCE:" not in str(body["result"])
+    counts = body["diagnostics"]["events"]["counts"]
+    assert counts["api.orchestrator_exception"] == 1
+    assert counts["api.rapport_partiel_apres_exception"] == 1
+    assert body["execution"]["workflow"][0]["status"] == "failed"
+
+
+async def test_echeance_posee_sur_le_contexte(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.research.context import ExecutionContext
+
+    assert ExecutionContext("q").deadline_at is None
+    seen: list[tuple[float | None, float]] = []
+    real_collect = orchestrator_module.collect_section_data
+
+    async def spy(svc: Any, ctx: Any, *args: Any, **kwargs: Any) -> Any:
+        seen.append((ctx.deadline_at, asyncio.get_running_loop().time()))
+        return await real_collect(svc, ctx, *args, **kwargs)
+
+    monkeypatch.setattr(orchestrator_module, "collect_section_data", spy)
+    await harness.post({"topic": QUERY, "timeout": 90})
+
+    deadline_at, now = seen[0]
+    assert deadline_at is not None
+    assert now < deadline_at <= now + 90
+
+
 async def test_objectives_language_et_sections_atteignent_le_plan(harness: Harness) -> None:
     await harness.post({
         "topic": QUERY,

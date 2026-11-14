@@ -79,7 +79,7 @@ périmé ou si un champ manque.
 |---|---|---|---|---|
 | `max_sources_per_section` | int \| None | `None` | `WEBTOOLS_PIPELINE_MAX_SOURCES_PER_SECTION` | Plafond de sources par section, pour la recherche et pour l'extraction (C20). None : plafond selon la profondeur de la section (3, 5 ou 8) et 5 pages extraites au plus. |
 
-### Budgets et seuils : 115 champs
+### Budgets et seuils : 116 champs
 
 #### Étape exploration
 
@@ -240,8 +240,9 @@ périmé ou si un champ manque.
 | `enrichment_regenerate_max_tokens` | int | `2000` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_MAX_TOKENS` | jetons maximaux de la regeneration de section v1 |
 | `enrichment_regenerate_v2_max_tokens` | int | `6000` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_V2_MAX_TOKENS` | jetons maximaux de la regeneration de section v2 |
 | `enrichment_regenerate_temperature` | float | `0.1` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_TEMPERATURE` | temperature de la regeneration de section (v1 et v2) |
+| `deadline_cancel_grace_seconds` | float | `15.0` | `WEBTOOLS_PIPELINE_DEADLINE_CANCEL_GRACE_SECONDS` | attente maximale du nettoyage du pipeline annule avant le rapport partiel |
 
-Total : 143 champs, soit tous ceux de `PipelineConfig`.
+Total : 144 champs, soit tous ceux de `PipelineConfig`.
 
 <!-- FIN-GENERE -->
 
