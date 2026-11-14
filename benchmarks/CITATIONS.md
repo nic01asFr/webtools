@@ -216,6 +216,8 @@ Réglages retenus d'après ces chiffres :
 | `quick_uses_chunk_selection` | `false` | aucun gain mesurable (R2 contre R3) |
 | `selection_fallback_enabled` | `true` | R4 ci-dessous : le couper retire du contenu sans gain |
 | `synthesis_v3` | `true` (depuis `dbf399b`) | R5 ci-dessous : +14 points à collecte identique |
+| `search_relevance_gate` | `true` | R6 ci-dessous : +1,2 point, sources hors sujet retirées |
+| `deep_verify_rewrite` | `false` | R6 ci-dessous : la revérification coûte 2,8 points |
 
 ### Repli de sélection coupé (run R4 `repli0-d3a33da`, 13 novembre 2026)
 
@@ -277,6 +279,37 @@ temps de chercher. La comparaison v2 contre v3 reste appariée (les quatre
 rejeux ont les mêmes manques), mais `d08` y est rédigé sur une collecte
 partielle. Défaut corrigé (C97) : le budget court à partir de l'obtention de
 la place, et un dépassement est noté (`collecte.budget_section_depasse`).
+
+### Filtre de pertinence et correctifs de l'audit (run R6, 14 novembre 2026)
+
+Collecte de R5 copiée, complétée en mode `fill` par le premier run de chaque
+série (requêtes et pages nouvelles seulement), puis rejouée à l'identique
+(aucun manque sur les rejeux). Écarts appariés, 2 répétitions contre 2 :
+
+| Comparaison, deep | Affirmations soutenues [IC95] | Phrases citées [IC95] | Sujets en hausse |
+|---|---|---|---|
+| Filtre de pertinence (C96) actif contre coupé, `0f89d9f` | +1,2 point [−0,2 ; +2,5] | −3,2 points [−5,7 ; −1,0] | 6 sur 8 |
+| Audit C98 (`044cff6`) contre `0f89d9f`, revérification active | −1,6 point [−6,2 ; +3,1] | −2,6 points [−6,4 ; +0,5] | 3 sur 8 |
+| Revérification de la réécriture active contre coupée, `044cff6` | −2,8 points [−5,4 ; +0,2] | −0,7 point [−3,1 ; +1,9] | 1 sur 8 |
+
+Taux d'affirmations soutenues par run : 82,2 et 85,2 % (`0f89d9f`, filtre
+actif) ; 82,9 et 82,1 % (audit, revérification active) ; 86,0 et 85,3 %
+(audit, revérification coupée). Le bruit entre répétitions est de 3 à 9
+points par sujet.
+
+- Le filtre écarte 19 groupes de résultats hors sujet par run (magasins
+  Lidl, composants électroniques) ; l'effet sur les affirmations soutenues
+  est faible et positif, il retire un peu de phrases citées. Gardé actif :
+  il retire des sources sans rapport, que rien d'autre n'écarte.
+- La revérification de la réécriture rejette 2 à 5 réécritures par run et
+  fait baisser le score sur 7 sujets sur 8 : deux appels du vérificateur ne
+  se comparent pas de façon fiable, et garder l'original garde ses phrases
+  fautives. Coupée par défaut.
+- Les correctifs de l'audit ne changent pas le score sur rejeu, ce qui était
+  attendu : une collecte rejouée est instantanée (les correctifs de délai ne
+  jouent pas) et aucune sortie coupée ne s'est produite dans ces runs. Ils
+  rendent visibles 44 échecs d'extraction par run qui ne laissaient aucune
+  trace, et 10 compléments de collecte. Leur effet se mesure en direct.
 
 ### Défauts de l'instrument trouvés et corrigés pendant la mesure
 

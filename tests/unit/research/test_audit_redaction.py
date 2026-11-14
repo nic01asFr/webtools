@@ -128,7 +128,7 @@ def _rewrite_llm(second: Any) -> FakeLLM:
 
 async def test_reecriture_gardee_et_citee_avec_ses_propres_verdicts() -> None:
     llm = _rewrite_llm(_verdict((1, "soutenue", ["S1"]), (2, "soutenue", ["S1"])))
-    ctx = _ctx()
+    ctx = _ctx(deep_verify_rewrite=True)
     out = await synthesize_single_section(_orch(llm).services(), QUERY, SECTION, SECTION_CONFIG, [_item(URL_A)], ctx)
     # La phrase nouvelle recoit l'etiquette que la reverification designe.
     assert out == (
@@ -142,7 +142,7 @@ async def test_reecriture_gardee_et_citee_avec_ses_propres_verdicts() -> None:
 
 async def test_reecriture_rejetee_si_pas_moins_de_phrases_fautives() -> None:
     llm = _rewrite_llm(_verdict((1, "soutenue", ["S1"]), (2, "contredite", [])))
-    ctx = _ctx()
+    ctx = _ctx(deep_verify_rewrite=True)
     out = await synthesize_single_section(_orch(llm).services(), QUERY, SECTION, SECTION_CONFIG, [_item(URL_A)], ctx)
     assert out == (
         f"Solar kits are cheaper than diesel [SOURCE:{URL_A}]. "
@@ -156,15 +156,16 @@ async def test_reecriture_rejetee_si_pas_moins_de_phrases_fautives() -> None:
 
 async def test_reverification_en_echec_garde_la_reecriture() -> None:
     llm = _rewrite_llm(FakeLLMError("verificateur indisponible"))
-    ctx = _ctx()
+    ctx = _ctx(deep_verify_rewrite=True)
     out = await synthesize_single_section(_orch(llm).services(), QUERY, SECTION, SECTION_CONFIG, [_item(URL_A)], ctx)
     assert "gained access in 2021" in out
     assert len(_events(ctx, "selection.reverification_impossible")) == 1
 
 
-async def test_sans_drapeau_reecriture_non_reverifiee() -> None:
+async def test_par_defaut_reecriture_non_reverifiee() -> None:
+    # Defaut mesure (run R6) : la reverification coutait 2,8 points.
     llm = _rewrite_llm(_verdict((1, "soutenue", ["S1"]), (2, "contredite", [])))
-    ctx = _ctx(deep_verify_rewrite=False)
+    ctx = _ctx()
     out = await synthesize_single_section(_orch(llm).services(), QUERY, SECTION, SECTION_CONFIG, [_item(URL_A)], ctx)
     assert "gained access in 2021." in out
     assert len(llm.calls_for(schema_name="verification")) == 1

@@ -1146,7 +1146,13 @@ Au 12 novembre 2026, version 3.0.0.
     conservés au découpage (en-tête répété) ; 500 événements de diagnostic
     et compteur des événements perdus ; faits établis pris dans les
     sections les plus proches.
-  - Mesure en cours sur la collecte de R5 complétée (`enchainer-audit.sh`).
+  - Mesuré (run R6, `benchmarks/CITATIONS.md`) : score inchangé sur rejeu,
+    comme attendu (collecte instantanée, aucune sortie coupée dans ces
+    runs) ; 44 échecs d'extraction par run désormais visibles. La
+    revérification de la réécriture coûte 2,8 points [IC95 −5,4 ; +0,2],
+    baisse sur 7 sujets sur 8 : `deep_verify_rewrite` faux par défaut. Le
+    filtre de pertinence C96 donne +1,2 point [−0,2 ; +2,5] : gardé actif.
+    Reste à mesurer en direct : les correctifs de délai et de troncature.
   - Gardé tel quel, mesuré : la recherche rapide lit les 2 000 premiers
     caractères de chaque source (R3 : la sélection de passages n'apporte
     rien, 16 réponses exactes sur 16 dans R4 et R5).

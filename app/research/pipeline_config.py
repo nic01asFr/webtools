@@ -118,7 +118,7 @@ class PipelineConfig:
     deep_verify_sections: bool = True  # recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89)
     # Une reecriture peut introduire de nouvelles phrases non soutenues : elle
     # est reverifiee et gardee seulement si elle a moins de phrases fautives.
-    deep_verify_rewrite: bool = True  # recherche approfondie : la reecriture d'une section fautive est reverifiee, gardee si elle a moins de phrases fautives, citations completees avec ses propres verdicts
+    deep_verify_rewrite: bool = False  # recherche approfondie : la reecriture d'une section fautive est reverifiee, gardee si elle a moins de phrases fautives, citations completees avec ses propres verdicts
     quick_verify_answer: bool = False  # /research/quick: chaque phrase verifiee contre ses sources, reecriture unique si fautive (C89)
     # Redaction v3 (C93, 13/11/2026) : sources etiquetees [S1], [S2]... au lieu
     # d'URL a recopier, passages en texte et non en JSON, consignes sans

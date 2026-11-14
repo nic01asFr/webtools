@@ -37,7 +37,7 @@ EXPECTED_DEFAULTS: dict[str, Any] = {
     "quick_uses_chunk_selection": False,
     "quick_verify_answer": False,
     "deep_verify_sections": True,
-    "deep_verify_rewrite": True,
+    "deep_verify_rewrite": False,
     "selection_fallback_enabled": True,
     "synthesis_v3": True,
     "search_relevance_gate": True,
