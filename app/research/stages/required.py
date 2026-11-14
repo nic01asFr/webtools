@@ -12,6 +12,7 @@ import re
 from typing import Any
 
 from app.api.models import ExtractionOptions
+from app.research.citations import url_key
 from app.research.context import ExecutionContext
 from app.research.stages.queries import filter_by_constraints
 from app.research.stages.services import StageServices
@@ -79,7 +80,10 @@ async def extract_required_sources(
                 result = await svc.extractor_manager.extract(
                     url=url, llm_client=svc.llm_client, options=options
                 )
-                ctx.extraction_cache[url] = result
+                # Seuls les succes sont gardes : une section qui retrouve
+                # cette URL retente une extraction en echec transitoire.
+                if result.success:
+                    ctx.extraction_cache[url] = result
             if result.success and result.content:
                 items = document_to_chunk_items(
                     source=url,
@@ -159,10 +163,15 @@ def apply_required_sources(report: dict[str, Any], ctx: ExecutionContext) -> Non
     texts = [str(s.get("content") or "") for s in (report.get("sections") or [])]
     texts.append(str(report.get("summary") or ""))
     used_numbers = {int(n) for t in texts for n in re.findall(r"\[(\d+)\]", t)}
-    numbers = {
-        b.get("url"): b.get("id") for b in (report.get("bibliography") or []) if isinstance(b, dict)
-    }
-    uncited = [u for u in ctx.required_extracted if numbers.get(u) not in used_numbers]
+    # Comparaison par url_key, comme la deduplication de la bibliographie :
+    # ".../page/" requise est citee quand ".../page" l'est.
+    numbers: dict[str, set] = {}
+    for b in report.get("bibliography") or []:
+        if isinstance(b, dict) and b.get("url"):
+            numbers.setdefault(url_key(str(b["url"])), set()).add(b.get("id"))
+    uncited = [
+        u for u in ctx.required_extracted if not numbers.get(url_key(u), set()) & used_numbers
+    ]
     if uncited:
         report["required_sources_uncited"] = uncited
         ctx.diagnostics.note("sources.requise_non_citee", urls=uncited)

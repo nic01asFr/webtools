@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Any, Dict, List
 
 from app.research.diagnostics import Diagnostics
+from app.research.embedding_cache import EmbeddingCache
 from app.research.pipeline_config import PipelineConfig
 
 logger = logging.getLogger(__name__)
@@ -73,7 +74,9 @@ class ExecutionContext:
         # de corroboration) et la selection semantique de chunks - un meme
         # contenu ne fait jamais l'objet de deux appels d'embedding distincts,
         # peu importe l'ordre d'appel des deux fonctions qui en ont besoin.
-        self.embedding_cache: Dict[str, list] = {}
+        # Il memorise aussi l'echec du service : pas de second essai complet
+        # dans la meme requete (voir app/research/embedding_cache.py).
+        self.embedding_cache: EmbeddingCache = EmbeddingCache(diagnostics=self.diagnostics)
 
         # Historique de tous les chunks extraits, tous sujets confondus, pour
         # pouvoir chercher des corroborations cross-sections (pas seulement
