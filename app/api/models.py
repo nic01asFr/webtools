@@ -412,7 +412,7 @@ class QuickResearchSource(BaseModel):
 class QuickResearchDiscardedSource(BaseModel):
     """Une source tentee puis ecartee, avec la raison."""
     url: str
-    reason: str = Field(description="extraction_echouee | contenu_vide")
+    reason: str = Field(description="extraction_echouee | contenu_vide | hors_sujet")
 
 
 class QuickResearchResponse(BaseModel):

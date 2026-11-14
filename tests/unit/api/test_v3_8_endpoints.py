@@ -145,11 +145,61 @@ def _prompt_envoye(client: TestClient, monkeypatch: pytest.MonkeyPatch) -> str:
     return llm.calls_for(kind="generate")[0].prompt
 
 
-def test_quick_drapeau_selection_desactive_tronque_a_2000(
+def test_quick_par_defaut_debut_et_passage_pertinent(
     client: TestClient, monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # Les 2 000 premiers caracteres seuls perdaient la reponse placee plus
+    # loin (q13 du 14/11/2026) : le passage pertinent est transmis, avec le
+    # debut de la page.
     monkeypatch.delenv("WEBTOOLS_PIPELINE_QUICK_USES_CHUNK_SELECTION", raising=False)
-    assert "MARQUEUR-PASSAGE" not in _prompt_envoye(client, monkeypatch)
+    prompt = _prompt_envoye(client, monkeypatch)
+    assert "MARQUEUR-PASSAGE" in prompt
+    assert "Texte de remplissage" in prompt.split("MARQUEUR-PASSAGE")[0]
+
+
+def test_quick_source_courte_transmise_entiere() -> None:
+    assert research_quick.source_text("question", "court texte.") == "court texte."
+
+
+def test_quick_valeur_au_dela_de_2000_caracteres_gardee() -> None:
+    # Cas reel : page du Shift Project, valeur au caractere 4 381.
+    intro = "Synthese vulgarisee du sixieme rapport du GIEC publiee en 2023. " * 40
+    autre = "Les politiques publiques evoluent selon les pays et les secteurs. " * 30
+    cle = (
+        "La temperature de surface globale de 2011-2020 depassait de 1,1°C "
+        "celle de 1850-1900 selon le sixieme rapport du GIEC."
+    )
+    page = "\n\n".join([intro, autre, cle, autre])
+    assert page.index("1,1°C") > 2000
+    question = (
+        "Selon le sixieme rapport d'evaluation du GIEC, de combien la temperature de "
+        "surface globale de 2011-2020 depassait-elle celle de 1850-1900 ?"
+    )
+    text = research_quick.source_text(question, page)
+    assert "1,1°C" in text
+    assert len(text) <= research_quick.QUICK_SOURCE_CHARS + 50
+    assert text.startswith("Synthese vulgarisee")
+
+
+def test_quick_resultats_hors_sujet_ecartes(
+    client: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    body_q = {"query": "Altitude du mont Blanc mesuree en 2021", "max_sources": 3}
+    llm = FakeLLM().on_text("Question", "Reponse [1].")
+    results = [
+        make_result(URL_A, "Le mont Blanc mesure 4 805 m", "altitude mesuree"),
+        make_result(URL_B, "Vacances a la plage : sejours", "location"),
+    ]
+
+    async def fake_get_llm() -> FakeLLM:
+        return llm
+
+    monkeypatch.setattr(research_quick, "searxng_client", FakeSearch(default=results))
+    monkeypatch.setattr(research_quick, "manager", FakeExtractorManager({URL_A: "a", URL_B: "b"}))
+    monkeypatch.setattr(research_quick, "get_llm_client", fake_get_llm)
+    body = client.post("/api/v1/research/quick", json=body_q).json()
+    assert [s["url"] for s in body["sources"]] == [URL_A]
+    assert body["discarded"] == [{"url": URL_B, "reason": "hors_sujet"}]
 
 
 def test_quick_drapeau_selection_active_garde_le_passage_pertinent(

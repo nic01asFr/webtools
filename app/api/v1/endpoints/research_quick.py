@@ -28,8 +28,18 @@ router = APIRouter()
 
 manager = ExtractorManager()
 
-# Caracteres gardes par source quand la selection de passages est inactive.
+# Budget par source quand la selection globale de passages est inactive
+# (defaut). Les 2 000 premiers caracteres seuls faisaient repondre « les
+# sources ne permettent pas de repondre » : run du 14/11/2026, q13, la valeur
+# demandee (1,1 degre) etait au caractere 4 381 de la page du Shift Project.
+# Chaque source donne desormais son debut (date, contexte) puis ses passages
+# les plus proches de la question, dans l'ordre du document.
 SOURCE_HEAD_CHARS = 2000
+QUICK_HEAD_CHARS = 1000
+QUICK_SOURCE_CHARS = 4000
+# Resultats demandes au moteur, en multiple du nombre de sources : le filtre
+# de pertinence en ecarte une partie avant extraction.
+QUICK_SEARCH_POOL_FACTOR = 2
 _WORD_RE = re.compile(r"\w{3,}", re.UNICODE)
 
 # Messages renvoyes au client : un par categorie, le detail va dans les journaux.
@@ -81,6 +91,48 @@ def select_passages(query: str, documents: list[dict], budget_chars: int) -> lis
         "\n[...]\n".join(text for _i, text in sorted(kept.get(i, [])))
         for i in range(len(documents))
     ]
+
+
+def source_text(query: str, content: str, head_chars: int = QUICK_HEAD_CHARS,
+                budget_chars: int = QUICK_SOURCE_CHARS) -> str:
+    """Debut de la source puis ses passages les plus pertinents pour la question.
+
+    Une source qui tient dans le budget est rendue entiere. Sinon : le debut
+    (coupe a une fin de phrase ou de ligne), puis les passages du reste du
+    document classes par recouvrement lexical avec la question, remis dans
+    l'ordre du document et separes par "[...]". Aucun passage n'est coupe.
+    """
+    from app.utils.chunking import split_into_chunks
+
+    content = (content or "").strip()
+    if len(content) <= budget_chars:
+        return content
+    head = content[:head_chars]
+    cut = max(head.rfind(". "), head.rfind("\n"))
+    if cut > head_chars // 2:
+        head = head[: cut + 1]
+    rest = content[len(head):]
+    query_tokens = _tokens(query)
+    chunks = split_into_chunks(rest, chunk_chars=1000)
+    ranked = sorted(
+        range(len(chunks)),
+        key=lambda i: (-len(query_tokens & _tokens(chunks[i])), i),
+    )
+    used = len(head)
+    kept: list[int] = []
+    for i in ranked:
+        if used + len(chunks[i]) + 7 > budget_chars:
+            continue
+        kept.append(i)
+        used += len(chunks[i]) + 7
+    parts = [head.rstrip()] + [chunks[i] for i in sorted(kept)]
+    return "\n[...]\n".join(parts)
+
+
+def _quick_relevance_gate() -> bool:
+    from app.research.pipeline_config import PipelineConfig
+
+    return PipelineConfig.from_env().search_relevance_gate
 
 
 def _quick_uses_chunk_selection() -> bool:
@@ -146,7 +198,8 @@ async def research_quick(request: QuickResearchRequest) -> QuickResearchResponse
     try:
         try:
             search_results = await searxng_client.search(
-                query=request.query, max_results=request.max_sources
+                query=request.query,
+                max_results=request.max_sources * QUICK_SEARCH_POOL_FACTOR,
             )
         except Exception:
             logger.exception("Recherche rapide : echec SearXNG pour '%s'", request.query)
@@ -159,9 +212,29 @@ async def research_quick(request: QuickResearchRequest) -> QuickResearchResponse
 
         llm_client = await get_llm_client()
 
+        discarded: list[QuickResearchDiscardedSource] = []
+        # Meme filtre que la recherche approfondie (C96) : le 14/11/2026, un
+        # site de vacances et la page d'accueil de Carrefour occupaient des
+        # places de source. Une liste entierement filtree est gardee telle
+        # quelle : mieux vaut des sources douteuses, signalees, que rien.
+        if _quick_relevance_gate():
+            from app.research.stages.relevance import keep_relevant
+
+            kept_results, dropped = keep_relevant(request.query, search_results)
+            if dropped and kept_results:
+                kept_urls = {r.url for r in kept_results}
+                for r in search_results[: request.max_sources]:
+                    if r.url not in kept_urls:
+                        discarded.append(QuickResearchDiscardedSource(url=r.url, reason="hors_sujet"))
+                search_results = kept_results
+            elif dropped:
+                logger.warning(
+                    "Recherche rapide : tous les resultats semblent hors sujet pour '%s', gardes",
+                    request.query,
+                )
+
         attempted = search_results[: request.max_sources]
         extracted: list[dict] = []
-        discarded: list[QuickResearchDiscardedSource] = []
         for r in attempted:
             try:
                 result = await manager.extract(
@@ -194,7 +267,7 @@ async def research_quick(request: QuickResearchRequest) -> QuickResearchResponse
                 request.query, extracted, budget_chars=SOURCE_HEAD_CHARS * len(extracted)
             )
         else:
-            texts = [e["content"][:SOURCE_HEAD_CHARS] for e in extracted]
+            texts = [source_text(request.query, e["content"]) for e in extracted]
 
         context = "\n\n".join(
             f"[Source {i+1}: {e['title']}]\n{text}" for i, (e, text) in enumerate(zip(extracted, texts))
