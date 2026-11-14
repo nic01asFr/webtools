@@ -1,30 +1,61 @@
 """Etape 2.1 : recherches ciblees par section et recherche de complement."""
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 from app.api.models import ExtractionOptions
 from app.research.context import ExecutionContext
 from app.research.stages.services import StageServices
 from app.research.stages.queries import (
     SEARCH_OPERATORS,
-    build_search_query,
     cascade_engines,
     filter_by_constraints,
     search_pool_size,
     section_search_queries,
+    targeted_search_query,
 )
 
 logger = logging.getLogger(__name__)
 
 
 async def targeted_search(
-    svc: StageServices, query: str, section_title: str, missing: List[str], ctx: ExecutionContext
-) -> Dict[str, Any]:
-    """Recherche ciblée pour combler les manques d'une section."""
+    svc: StageServices,
+    query: str,
+    section_title: str,
+    missing: List[str],
+    ctx: ExecutionContext,
+    known_urls: Optional[Iterable[str]] = None,
+) -> Optional[Dict[str, Any]]:
+    """Recherche ciblée pour combler les manques d'une section.
 
-    # Construire une requête spécifique pour les manques
-    search_query = build_search_query(
+    Rend None si rien n'a ete trouve ou si la recherche a echoue (cause
+    notee) ; voir targeted_search_with_cause pour la cause.
+    """
+    result, _cause = await targeted_search_with_cause(
+        svc, query, section_title, missing, ctx, known_urls=known_urls
+    )
+    return result
+
+
+async def targeted_search_with_cause(
+    svc: StageServices,
+    query: str,
+    section_title: str,
+    missing: List[str],
+    ctx: ExecutionContext,
+    known_urls: Optional[Iterable[str]] = None,
+) -> Tuple[Optional[Dict[str, Any]], Optional[str]]:
+    """Recherche ciblée, et cause de l'echec ((None, cause) ou (resultat, None)).
+
+    `known_urls` : sources deja presentes dans la section, ecartees des
+    resultats (sans cela, elles etaient reextraites et leurs passages
+    doubles dans la section).
+    """
+    from app.research.citations import url_key
+
+    # Requete construite sur les manques (questions de la section) : la
+    # requete de section ignorait key_questions.
+    search_query = targeted_search_query(
         svc, query=query, section_name=section_title, key_questions=missing
     )
 
@@ -48,8 +79,19 @@ async def targeted_search(
             _kept = {d["url"] for d in filter_by_constraints(_as_dicts, ctx)}
             results = [r for r in results if r.url in _kept]
 
+        known = {url_key(u) for u in (known_urls or []) if u}
+        if results and known:
+            results = [r for r in results if url_key(r.url) not in known]
+
         if not results:
-            return None
+            cause = "aucun resultat nouveau" if known else "aucun resultat"
+            ctx.diagnostics.note(
+                "collecte.recherche_ciblee_vide",
+                section=section_title,
+                query=search_query,
+                cause=cause,
+            )
+            return None, cause
 
         # Extraire les 2 premiers résultats les plus pertinents
         urls_to_extract = [r.url for r in results[: cfg.targeted_search_max_urls]]
@@ -100,6 +142,13 @@ async def targeted_search(
                     # Ajouter aux sources découvertes (avec déduplication)
                     if url not in ctx.discovered_sources:
                         ctx.discovered_sources.append(url)
+                else:
+                    ctx.diagnostics.note(
+                        "collecte.extraction_url_echec",
+                        section=section_title,
+                        url=url,
+                        error=extract_result.error or "contenu vide",
+                    )
             except Exception as e:
                 logger.warning(f"    ⚠️ Échec extraction {url}: {e}")
                 ctx.diagnostics.note(
@@ -107,12 +156,13 @@ async def targeted_search(
                 )
                 continue
 
-        return {"query": search_query, "sources": extracted_data, "missing": missing}
+        cause = None if extracted_data else "aucune page extraite"
+        return {"query": search_query, "sources": extracted_data, "missing": missing}, cause
 
     except Exception as e:
         logger.error(f"Erreur recherche ciblée: {e}")
         ctx.diagnostics.note("collecte.recherche_ciblee_echec", error=str(e))
-        return None
+        return None, f"recherche en echec : {e}"
 
 
 def shorten_query(query: str, words: int) -> str:

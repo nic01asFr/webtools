@@ -1,7 +1,7 @@
 """Etape 2.2 : extraction du contenu des sources d'une section."""
 
 import logging
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from app.api.models import ExtractionOptions
 from app.research.context import ExecutionContext
@@ -12,12 +12,18 @@ logger = logging.getLogger(__name__)
 
 
 async def section_extraction_phase(
-    svc: StageServices, section_name: str, section_data: Dict, context: ExecutionContext
+    svc: StageServices,
+    section_name: str,
+    section_data: Dict,
+    context: ExecutionContext,
+    out: Optional[List[Dict]] = None,
 ) -> List[Dict]:
     """
     PHASE 2.2: Extraction du contenu des sources découvertes.
 
-    Retourne liste de contenus extraits et nettoyés.
+    Retourne liste de contenus extraits et nettoyés. Avec `out`, les passages
+    y sont ajoutes page par page (et `out` est rendue) : l'appelant garde les
+    pages deja extraites si la phase est annulee (budget de section depasse).
     """
     logger.info(f"       📥 Extraction sources pour '{section_name}'")
 
@@ -47,7 +53,7 @@ async def section_extraction_phase(
         # Extraire chaque URL séquentiellement, en reutilisant le cache
         # partage si cette URL a deja ete extraite pour une autre section
         # (frequent : un meme article pertinent pour plusieurs sections).
-        extracted_data = []
+        extracted_data = out if out is not None else []
         # Plafond d'URL extraites : la valeur demandee par la requete
         # (V3-3) prime ; sinon, avec le drapeau, il suit la profondeur deja
         # appliquee a la recherche (3, 5 ou 8) ; sinon 5 (evite le timeout).
@@ -57,7 +63,12 @@ async def section_extraction_phase(
             url_cap = len(urls)
         else:
             url_cap = cfg.extraction_url_cap_default
-        for url in urls[:url_cap]:
+        # Le plafond compte les pages REUSSIES : un echec laisse sa place a
+        # l'URL suivante de la recherche, au lieu de la priver d'extraction.
+        extracted_pages = 0
+        for url in urls:
+            if extracted_pages >= url_cap:
+                break
             try:
                 if url in context.extraction_cache:
                     result = context.extraction_cache[url]
@@ -66,9 +77,13 @@ async def section_extraction_phase(
                     result = await extractor_manager.extract(
                         url=url, llm_client=svc.llm_client, options=options
                     )
-                    context.extraction_cache[url] = result
+                    # Seuls les succes sont gardes : un echec transitoire ne
+                    # doit pas etre fige pour le reste de la requete.
+                    if result.success:
+                        context.extraction_cache[url] = result
 
                 if result.success and result.content:
+                    extracted_pages += 1
                     # DECOUPAGE au lieu de TRONCATURE.
                     #
                     # Auparavant : result.content[:3000]. Un article de
@@ -111,6 +126,12 @@ async def section_extraction_phase(
                         True,
                     )
                 else:
+                    context.diagnostics.note(
+                        "collecte.extraction_url_echec",
+                        section=section_name,
+                        url=url,
+                        error=result.error or "contenu vide",
+                    )
                     context.add_step(
                         "webextractor", f"extract_content_for_{section_name}", url, None, False
                     )

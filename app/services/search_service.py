@@ -148,6 +148,11 @@ class SearXNGClient:
         if not names:
             return
 
+        # Le creneau est RESERVE sous le verrou (horodatage futur), le sommeil
+        # a lieu hors du verrou : dormir sous le verrou faisait attendre une
+        # recherche arxiv derriere les 8 s d'espacement google d'une autre
+        # section. L'espacement reste garanti : la recherche suivante sur le
+        # meme moteur part de l'horodatage reserve, pas de l'instant present.
         async with cls._engine_lock:
             now = time.monotonic()
             wait = 0.0
@@ -156,12 +161,12 @@ class SearXNGClient:
                 elapsed = now - cls._engine_last_at.get(name, 0.0)
                 if elapsed < interval:
                     wait = max(wait, interval - elapsed)
-            if wait > 0:
-                logger.debug(f"Espacement moteur : attente {wait:.1f}s ({names})")
-                await asyncio.sleep(wait)
-            done = time.monotonic()
+            slot = now + wait
             for name in names:
-                cls._engine_last_at[name] = done
+                cls._engine_last_at[name] = slot
+        if wait > 0:
+            logger.debug(f"Espacement moteur : attente {wait:.1f}s ({names})")
+            await asyncio.sleep(wait)
 
     def __init__(self, base_url: str = "http://searxng:8080"):
         """

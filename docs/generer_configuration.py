@@ -69,7 +69,7 @@ CAMPAGNES: dict[str, tuple[str, str]] = {
     "max_chunks_per_source": ("M5", "valeur a fixer"),
     "chunking_v2": ("M5", "true"),
     "plan_prompt_v2": (HORS_CAMPAGNE, "true"),
-    "targeted_search_skip_structured": (HORS_CAMPAGNE, "true"),
+    "targeted_search_skip_structured": (HORS_CAMPAGNE, "false"),
     "quick_uses_chunk_selection": (HORS_CAMPAGNE, "true"),
 }
 

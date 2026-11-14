@@ -229,6 +229,23 @@ STOPWORDS = {
 }
 
 
+def _salient(text: str, limit: int) -> List[str]:
+    """Mots significatifs de `text` (ni mots vides ni mots de 2 lettres), sans
+    doublon, dans l'ordre, `limit` au plus."""
+    import re
+
+    words = re.findall(r"[\w'-]+", text.lower())
+    out, seen = [], set()
+    for w in words:
+        if len(w) <= 2 or w in STOPWORDS or w in seen:
+            continue
+        seen.add(w)
+        out.append(w)
+        if len(out) >= limit:
+            break
+    return out
+
+
 def build_search_query(
     svc: StageServices,
     query: str,
@@ -256,8 +273,6 @@ def build_search_query(
     Le plafond est le point essentiel : au-dela d'une dizaine de mots,
     un moteur generaliste renvoie du bruit ou rien.
     """
-    import re
-
     cfg = svc.config
     if max_words is None:
         max_words = cfg.search_query_max_words
@@ -267,23 +282,11 @@ def build_search_query(
         if terms:
             return " ".join(terms.split()[:max_words])
 
-    def salient(text: str, limit: int) -> List[str]:
-        words = re.findall(r"[\w'-]+", text.lower())
-        out, seen = [], set()
-        for w in words:
-            if len(w) <= 2 or w in STOPWORDS or w in seen:
-                continue
-            seen.add(w)
-            out.append(w)
-            if len(out) >= limit:
-                break
-        return out
-
     # Le nom de section porte l'angle specifique : prioritaire sur la
     # consigne generale, qui est commune a toutes les sections.
-    section_words = salient(section_name, cfg.search_query_section_words)
+    section_words = _salient(section_name, cfg.search_query_section_words)
     budget = max_words - len(section_words)
-    query_words = salient(query, max(cfg.search_query_min_query_words, budget))
+    query_words = _salient(query, max(cfg.search_query_min_query_words, budget))
 
     combined = query_words + [w for w in section_words if w not in query_words]
     result = " ".join(combined[:max_words]).strip()
@@ -333,3 +336,36 @@ def section_search_queries(
             search_terms=terms,
         )
     ]
+
+
+def targeted_search_query(
+    svc: StageServices,
+    query: str,
+    section_name: str,
+    key_questions: List[str] | None = None,
+    max_words: int | None = None,
+) -> str:
+    """Requete de la recherche ciblee (complement d'une section, enrichissement).
+
+    Chemin distinct de build_search_query, qui ignore key_questions et sert
+    aussi de requete de score a la selection : la recherche ciblee comble les
+    manques d'une section, ce sont donc ses questions qui portent la requete.
+    Quelques mots de la consigne (le sujet) et du nom de section ancrent les
+    mots des questions ; meme plafond de mots que les autres requetes.
+    """
+    cfg = svc.config
+    if max_words is None:
+        max_words = cfg.search_query_max_words
+    questions = " ".join(str(q) for q in (key_questions or []) if q)
+    if not _salient(questions, 1):
+        return build_search_query(svc, query=query, section_name=section_name, max_words=max_words)
+
+    combined: List[str] = []
+    for word in (
+        _salient(query, cfg.search_query_min_query_words)
+        + _salient(section_name, cfg.search_query_section_words)
+        + _salient(questions, max_words)
+    ):
+        if word not in combined:
+            combined.append(word)
+    return " ".join(combined[:max_words])

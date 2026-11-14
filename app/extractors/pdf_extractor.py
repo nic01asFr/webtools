@@ -10,6 +10,7 @@ correcte, et de loin la moins chere.
 
 import asyncio
 import logging
+import time
 from io import BytesIO
 from typing import Any
 from urllib.parse import urlparse
@@ -30,6 +31,12 @@ MAX_PDF_BYTES = 40 * 1024 * 1024
 # Un PDF de plusieurs centaines de pages produirait un texte ingerable en
 # aval (prompts LLM). On plafonne au nombre de pages reellement utile.
 MAX_PAGES = 120
+
+# Marge entre la fin de l'analyse et l'echeance de l'appelant (budget
+# d'extraction du gestionnaire) : l'analyse rend son texte partiel AVANT que
+# l'appelant n'abandonne, sinon tout est jete et le thread continue seul.
+PARSE_MARGIN_RATIO = 0.1
+PARSE_MARGIN_MIN_SECONDS = 0.5
 
 
 def looks_like_pdf(url: str, content_type: str | None = None) -> bool:
@@ -55,6 +62,7 @@ class PdfExtractor:
         transport: httpx.AsyncBaseTransport | None = None,
         resolver: Resolver | None = None,
         max_bytes: int = MAX_PDF_BYTES,
+        budget_s: float | None = None,
     ) -> WebResult | None:
         """
         Retourne None si l'URL n'est pas un PDF (l'appelant passe alors au
@@ -64,7 +72,14 @@ class PdfExtractor:
         l'echec.
 
         `transport` et `resolver` sont injectables pour tester sans reseau.
+        `budget_s` : temps accorde par l'appelant (telechargement compris) ;
+        l'analyse s'arrete entre deux pages avant son terme et rend le texte
+        partiel, marque tronque.
         """
+        parse_deadline: float | None = None
+        if budget_s is not None:
+            margin = max(PARSE_MARGIN_MIN_SECONDS, budget_s * PARSE_MARGIN_RATIO)
+            parse_deadline = time.monotonic() + budget_s - margin
         async with httpx.AsyncClient(
             follow_redirects=True,
             timeout=timeout,
@@ -73,7 +88,7 @@ class PdfExtractor:
             event_hooks=safe_request_hooks(resolver),
         ) as client:
             try:
-                return await self._download_and_parse(client, url, max_bytes)
+                return await self._download_and_parse(client, url, max_bytes, parse_deadline)
             except UnsafeURLError as e:
                 logger.warning(f"Telechargement PDF refuse pour {url}: {e}")
                 return WebResult.from_error(url=url, error_message=str(e))
@@ -81,7 +96,11 @@ class PdfExtractor:
                 return WebResult.from_error(url=url, error_message=f"URL mal formee: {e}")
 
     async def _download_and_parse(
-        self, client: httpx.AsyncClient, url: str, max_bytes: int
+        self,
+        client: httpx.AsyncClient,
+        url: str,
+        max_bytes: int,
+        parse_deadline: float | None = None,
     ) -> WebResult | None:
         # HEAD d'abord : evite de telecharger des dizaines de Mo pour
         # decouvrir que ce n'est pas un PDF. Certains serveurs refusent HEAD :
@@ -155,8 +174,22 @@ class PdfExtractor:
             return None
 
         # Parsing : CPU pur, hors de la boucle d'evenements.
-        text, method, total_pages, used_pages = await asyncio.to_thread(self._parse, data)
+        text, method, total_pages, used_pages = await asyncio.to_thread(
+            self._parse, data, parse_deadline
+        )
+        # Arret par l'echeance : moins de pages lues que le plafond n'en permet.
+        interrupted = used_pages < min(total_pages, MAX_PAGES)
+        if interrupted:
+            logger.warning(
+                f"Analyse PDF interrompue par le budget d'extraction : "
+                f"{used_pages} pages lues sur {total_pages} : {url}"
+            )
 
+        if interrupted and not text.strip():
+            return WebResult.from_error(
+                url=url,
+                error_message="Analyse du PDF interrompue par le budget d'extraction avant toute page lue",
+            )
         if not text or len(text.strip()) < 50:
             return WebResult.from_error(
                 url=url,
@@ -174,7 +207,10 @@ class PdfExtractor:
             "pages_extracted": used_pages,
             "truncated": total_pages > used_pages,
         }
-        if total_pages > used_pages:
+        if interrupted:
+            metadata["truncated_reason"] = "budget"
+        elif total_pages > used_pages:
+            metadata["truncated_reason"] = "max_pages"
             logger.warning(f"PDF tronque a {used_pages} pages sur {total_pages}: {url}")
 
         return WebResult(
@@ -190,8 +226,16 @@ class PdfExtractor:
         text, method, _, _ = self._parse(data)
         return text, method
 
-    def _parse(self, data: bytes) -> tuple[str, str, int, int]:
-        """Retourne (texte, methode, pages du document, pages lues)."""
+    def _parse(self, data: bytes, deadline: float | None = None) -> tuple[str, str, int, int]:
+        """Retourne (texte, methode, pages du document, pages lues).
+
+        `deadline` (horloge time.monotonic) : la lecture s'arrete entre deux
+        pages une fois l'echeance passee ; pages lues < plafond le signale.
+        """
+
+        def expired() -> bool:
+            return deadline is not None and time.monotonic() >= deadline
+
         # pdfplumber d'abord (meilleure restitution de la mise en page,
         # notamment les tableaux), pypdf en repli (plus tolerant aux PDF
         # malformes).
@@ -201,10 +245,13 @@ class PdfExtractor:
             with pdfplumber.open(BytesIO(data)) as pdf:
                 total = len(pdf.pages)
                 for page in pdf.pages[:MAX_PAGES]:
+                    if expired():
+                        break
                     parts.append(page.extract_text() or "")
             text = "\n\n".join(p for p in parts if p.strip())
-            if text.strip():
-                return text, "pdfplumber", total, min(total, MAX_PAGES)
+            # Echeance atteinte : pas de second passage par pypdf.
+            if text.strip() or expired():
+                return text, "pdfplumber", total, len(parts)
         except Exception as e:
             logger.warning(f"pdfplumber a echoue, repli sur pypdf: {e}")
 
@@ -212,8 +259,12 @@ class PdfExtractor:
             from pypdf import PdfReader
             reader = PdfReader(BytesIO(data))
             total = len(reader.pages)
-            parts = [(p.extract_text() or "") for p in reader.pages[:MAX_PAGES]]
-            return "\n\n".join(p for p in parts if p.strip()), "pypdf", total, min(total, MAX_PAGES)
+            parts = []
+            for page in reader.pages[:MAX_PAGES]:
+                if expired():
+                    break
+                parts.append(page.extract_text() or "")
+            return "\n\n".join(p for p in parts if p.strip()), "pypdf", total, len(parts)
         except Exception as e:
             logger.error(f"pypdf a echoue aussi: {e}")
             return "", "none", 0, 0

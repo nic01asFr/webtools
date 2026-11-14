@@ -97,7 +97,10 @@ class PipelineConfig:
     search_language_from_query: bool = False  # passe la langue detectee aux moteurs (C32)
     extraction_cap_follows_depth: bool = False  # extrait autant d'URL que la profondeur (3/5/8) au lieu de 5 (C35)
     exploration_uses_plan_query: bool = False  # exploration : requete reduite et moteurs de la cascade (C31)
-    targeted_search_skip_structured: bool = False  # recherche ciblee sans appel LLM d'extraction structuree (C36, C79)
+    # Vrai par defaut depuis le 14/11/2026 : l'appel LLM (3 000 jetons de
+    # sortie, jusqu'a 300 s au debit du proxy) ne servait qu'a un bonus de
+    # score, et un JSON coupe y echouait sans trace.
+    targeted_search_skip_structured: bool = True  # recherche ciblee sans appel LLM d'extraction structuree (C36, C79)
     chunking_v2: bool = False  # transmis a document_to_chunk_items (C73)
     # Vrai par defaut depuis le 12/11/2026 : constate deux fois en production,
     # le flux RSS d'un site etait rendu comme contenu d'un article (C56).
@@ -199,6 +202,7 @@ class PipelineConfig:
     complement_min_threshold: int = 1  # seuil minimal de sources avant le complement pre-redaction
     section_budget_min_seconds: int = 60  # budget de temps minimal par section (recherche et extraction)
     section_budget_timeout_ratio: float = 0.8  # part du delai de l'orchestrateur accordee a une section
+    collection_writing_reserve_ratio: float = 0.5  # avec une echeance globale : part du temps restant au debut de la collecte gardee pour la redaction
     targeted_search_pool_size: int = 5  # resultats demandes par une recherche ciblee
     targeted_search_max_urls: int = 2  # pages extraites par recherche ciblee
     targeted_extract_timeout: int = 30  # delai d'extraction d'une page de recherche ciblee, en secondes
@@ -315,4 +319,9 @@ class PipelineConfig:
         if self.summary_mode not in ("extract", "none"):
             raise ValueError(
                 f"summary_mode invalide : {self.summary_mode!r} (attendu 'extract' ou 'none')"
+            )
+        if not 0.0 <= self.collection_writing_reserve_ratio < 1.0:
+            raise ValueError(
+                "collection_writing_reserve_ratio invalide : "
+                f"{self.collection_writing_reserve_ratio!r} (attendu dans [0, 1[)"
             )

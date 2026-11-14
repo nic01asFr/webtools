@@ -101,3 +101,89 @@ async def test_le_palier_direct_recoit_le_temps_restant_et_non_le_timeout() -> N
     await build(direct).extract(URL, "p", FakeLLM(), {"timeout": 10})
     assert direct.options["timeout"] <= 10
     assert direct.options["timeout"] > 9
+
+
+# --- refus du site : pas d'agent, refus memorise ------------------------------
+
+
+class RefusingDirect:
+    """Palier direct qui se fait refuser (HTTP ou page anti-robot)."""
+
+    def __init__(self, error: str):
+        self.error = error
+        self.calls = 0
+
+    async def extract(self, url, prompt, llm_client=None, options=None) -> WebResult:
+        self.calls += 1
+        return WebResult.from_error(url=url, error_message=self.error)
+
+
+class RecordingAgent:
+    created = 0
+
+    def __init__(self, **kwargs: Any):
+        RecordingAgent.created += 1
+
+    async def run(self, max_steps: int = 8) -> None:
+        await asyncio.sleep(30)
+
+
+REFUSALS = [
+    "Erreur HTTP 403 lors de l'accès à l'URL",
+    "Erreur HTTP 429 lors de l'accès à l'URL",
+    "Page de vérification anti-robot (just a moment...), contenu non lu",
+]
+
+
+@pytest.mark.parametrize("error", REFUSALS)
+async def test_refus_du_site_rend_l_erreur_directe_sans_agent(
+    error: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    RecordingAgent.created = 0
+    monkeypatch.setattr(module, "Agent", RecordingAgent)
+    extractor = AgentExtractor()
+    extractor.direct_extractor = RefusingDirect(error)  # type: ignore[assignment]
+    result = await extractor.extract(URL, "p", FakeLLM(), {"timeout": 5})
+    assert not result.success
+    assert result.error == error
+    assert RecordingAgent.created == 0
+
+
+async def test_page_absente_garde_l_escalade_vers_l_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    RecordingAgent.created = 0
+    monkeypatch.setattr(module, "Agent", RecordingAgent)
+    extractor = AgentExtractor()
+    extractor.direct_extractor = RefusingDirect("Erreur HTTP 404 lors de l'accès à l'URL")  # type: ignore[assignment]
+    await extractor.extract(URL, "p", FakeLLM(), {"timeout": 0.2})
+    assert RecordingAgent.created == 1
+
+
+async def test_refus_vu_par_l_agent_est_memorise_par_le_gestionnaire(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.api.models import ExtractionOptions
+    from app.manager import ExtractorManager
+    from app.utils.block_page import DomainRefusals
+
+    async def _ok(url: str, resolver=None) -> None:
+        return None
+
+    async def _none(*_args: Any, **_kwargs: Any) -> None:
+        return None
+
+    monkeypatch.setattr("app.utils.url_safety.assert_safe_url_async", _ok, raising=False)
+    monkeypatch.setattr(module, "Agent", RecordingAgent)
+    RecordingAgent.created = 0
+    manager = ExtractorManager(enable_caching=False, refusals=DomainRefusals())
+    manager.pdf_extractor.try_extract = _none  # type: ignore[method-assign]
+    manager.rss_extractor.try_extract = _none  # type: ignore[method-assign]
+    direct = RefusingDirect(REFUSALS[0])
+    manager.agent_extractor.direct_extractor = direct  # type: ignore[assignment]
+    opts = ExtractionOptions(use_agent=True, timeout=5)
+    for page in ("a", "b"):
+        result = await manager.extract(f"https://bloque.org/{page}", llm_client=FakeLLM(), options=opts)
+        assert result.error == REFUSALS[0]
+    third = await manager.extract("https://bloque.org/c", llm_client=FakeLLM(), options=opts)
+    assert "refuse l'extraction" in third.error
+    assert direct.calls == 2
+    assert RecordingAgent.created == 0

@@ -71,7 +71,7 @@ périmé ou si un champ manque.
 | `deep_verify_rewrite` | bool | `true` | `WEBTOOLS_PIPELINE_DEEP_VERIFY_REWRITE` | recherche approfondie : la reecriture d'une section fautive est reverifiee, gardee si elle a moins de phrases fautives, citations completees avec ses propres verdicts | citecheck sur rejeu (benchmarks/CITATIONS.md) | `false` |
 | `synthesis_v3` | bool | `true` | `WEBTOOLS_PIPELINE_SYNTHESIS_V3` | faux : prompt de redaction precedent (URL recopiees, passages en JSON) | citecheck sur rejeu (benchmarks/CITATIONS.md) | `false` |
 | `plan_prompt_v2` | bool | `false` | `WEBTOOLS_PIPELINE_PLAN_PROMPT_V2` | prompt de plan sans ancien JSON ni exemples, contexte reduit (C33) | hors campagne | `true` |
-| `targeted_search_skip_structured` | bool | `false` | `WEBTOOLS_PIPELINE_TARGETED_SEARCH_SKIP_STRUCTURED` | recherche ciblee sans appel LLM d'extraction structuree (C36, C79) | hors campagne | `true` |
+| `targeted_search_skip_structured` | bool | `true` | `WEBTOOLS_PIPELINE_TARGETED_SEARCH_SKIP_STRUCTURED` | recherche ciblee sans appel LLM d'extraction structuree (C36, C79) | hors campagne | `false` |
 | `quick_uses_chunk_selection` | bool | `false` | `WEBTOOLS_PIPELINE_QUICK_USES_CHUNK_SELECTION` | /research/quick: passages choisis par pertinence au lieu de 2000 car. de tete (C63) | hors campagne | `true` |
 
 ### Paramètre aussi porté par la requête : 1 champ
@@ -80,7 +80,7 @@ périmé ou si un champ manque.
 |---|---|---|---|---|
 | `max_sources_per_section` | int \| None | `None` | `WEBTOOLS_PIPELINE_MAX_SOURCES_PER_SECTION` | Plafond de sources par section, pour la recherche et pour l'extraction (C20). None : plafond selon la profondeur de la section (3, 5 ou 8) et 5 pages extraites au plus. |
 
-### Budgets et seuils : 116 champs
+### Budgets et seuils : 117 champs
 
 #### Étape exploration
 
@@ -138,6 +138,7 @@ périmé ou si un champ manque.
 | `complement_min_threshold` | int | `1` | `WEBTOOLS_PIPELINE_COMPLEMENT_MIN_THRESHOLD` | seuil minimal de sources avant le complement pre-redaction |
 | `section_budget_min_seconds` | int | `60` | `WEBTOOLS_PIPELINE_SECTION_BUDGET_MIN_SECONDS` | budget de temps minimal par section (recherche et extraction) |
 | `section_budget_timeout_ratio` | float | `0.8` | `WEBTOOLS_PIPELINE_SECTION_BUDGET_TIMEOUT_RATIO` | part du delai de l'orchestrateur accordee a une section |
+| `collection_writing_reserve_ratio` | float | `0.5` | `WEBTOOLS_PIPELINE_COLLECTION_WRITING_RESERVE_RATIO` | avec une echeance globale : part du temps restant au debut de la collecte gardee pour la redaction |
 | `targeted_search_pool_size` | int | `5` | `WEBTOOLS_PIPELINE_TARGETED_SEARCH_POOL_SIZE` | resultats demandes par une recherche ciblee |
 | `targeted_search_max_urls` | int | `2` | `WEBTOOLS_PIPELINE_TARGETED_SEARCH_MAX_URLS` | pages extraites par recherche ciblee |
 | `targeted_extract_timeout` | int | `30` | `WEBTOOLS_PIPELINE_TARGETED_EXTRACT_TIMEOUT` | delai d'extraction d'une page de recherche ciblee, en secondes |
@@ -243,7 +244,7 @@ périmé ou si un champ manque.
 | `enrichment_regenerate_v2_max_tokens` | int | `6000` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_V2_MAX_TOKENS` | jetons maximaux de la regeneration de section v2 |
 | `enrichment_regenerate_temperature` | float | `0.1` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_TEMPERATURE` | temperature de la regeneration de section (v1 et v2) |
 
-Total : 145 champs, soit tous ceux de `PipelineConfig`.
+Total : 146 champs, soit tous ceux de `PipelineConfig`.
 
 <!-- FIN-GENERE -->
 

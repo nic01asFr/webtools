@@ -2,15 +2,32 @@
 
 import asyncio
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
+from app.research.citations import url_key
 from app.research.context import ExecutionContext
 from app.research.stages.services import StageServices
 from app.research.stages.extract import section_extraction_phase
 from app.research.stages.required import add_required_chunks
-from app.research.stages.search import section_research_phase, targeted_search
+from app.research.stages.search import section_research_phase, targeted_search_with_cause
 
 logger = logging.getLogger(__name__)
+
+
+def distinct_sources(items: List[Dict]) -> Dict[str, str]:
+    """Sources distinctes des passages {url_key: url}.
+
+    Une page longue donne plusieurs passages (morceaux de 2 000 caracteres) :
+    compter les passages faisait passer une seule page pour plusieurs sources.
+    """
+    found: Dict[str, str] = {}
+    for item in items:
+        if not isinstance(item, dict):
+            continue
+        url = item.get("url") or item.get("source")
+        if url:
+            found.setdefault(url_key(str(url)), str(url))
+    return found
 
 
 async def collect_section_data(
@@ -41,7 +58,7 @@ async def collect_section_data(
 
     extraction_semaphore = asyncio.Semaphore(_settings.max_concurrent_extractions)
 
-    async def _research_and_extract(section_name: str, section_config: Dict):
+    async def _research_and_extract(section_name: str, section_config: Dict, pages: List[Dict]):
         logger.info(f"  📝 Section (recherche+extraction): {section_name}")
         section_data = await section_research_phase(
             svc,
@@ -52,7 +69,7 @@ async def collect_section_data(
             context=ctx,
         )
         extracted_data = await section_extraction_phase(
-            svc, section_name=section_name, section_data=section_data, context=ctx
+            svc, section_name=section_name, section_data=section_data, context=ctx, out=pages
         )
         logger.info(f"     ✓ {section_name}: {len(extracted_data)} contenus extraits")
         return section_name, extracted_data
@@ -73,13 +90,31 @@ async def collect_section_data(
     # prompt passaient sans un echec.
     #
     # Borner chaque section separement evite l'annulation collective :
-    # une section trop lente devient une section sans donnees (reprise
-    # par le complement pre-redaction ci-dessous), les autres aboutissent
+    # une section trop lente garde les pages deja extraites (completee par
+    # le complement pre-redaction ci-dessous), les autres aboutissent
     # normalement. Coherent avec return_exceptions=True.
     section_budget = max(
         ctx.config.section_budget_min_seconds,
         int(svc.timeout * ctx.config.section_budget_timeout_ratio),
     )
+
+    # Echeance globale (posee par l'orchestrateur, absente sinon) : le
+    # budget fixe par section ignorait le temps restant. Une collecte de
+    # ceil(sections / places) x budget, plus un complement sans borne,
+    # depassait l'echeance avant toute redaction (rapport partiel vide). La
+    # collecte s'arrete donc au plus tard a une part du temps restant, le
+    # reste est garde pour la redaction.
+    loop = asyncio.get_running_loop()
+    deadline_at = getattr(ctx, "deadline_at", None)
+    collect_deadline: Optional[float] = None
+    if deadline_at is not None:
+        left_at_start = max(deadline_at - loop.time(), 0.0)
+        collect_deadline = loop.time() + left_at_start * (
+            1.0 - ctx.config.collection_writing_reserve_ratio
+        )
+
+    def _collect_left() -> Optional[float]:
+        return None if collect_deadline is None else collect_deadline - loop.time()
 
     # Le budget court a partir de l'obtention d'une place du semaphore, pas
     # de la mise en file : avec 5 sections et 3 places, les deux dernieres
@@ -87,19 +122,40 @@ async def collect_section_data(
     # 13/11/2026, deux sections sans source).
     async def _research_and_extract_bounded(name: str, cfg: Dict):
         async with extraction_semaphore:
-            try:
-                return await asyncio.wait_for(
-                    _research_and_extract(name, cfg), timeout=section_budget
-                )
-            except asyncio.TimeoutError:
+            budget: float = section_budget
+            left = _collect_left()
+            if left is not None and left < budget:
+                budget = max(left, 0.0)
                 logger.warning(
-                    f"  ⏱️  Section '{name}' : budget de {section_budget}s dépassé, "
-                    f"poursuite sans ses données"
+                    f"  Section '{name}' : budget reduit a {budget:.0f}s par l'echeance globale"
                 )
                 ctx.diagnostics.note(
-                    "collecte.budget_section_depasse", section=name, budget_s=section_budget
+                    "collecte.budget_reduit_echeance",
+                    section=name,
+                    budget_s=round(budget, 1),
+                    budget_initial_s=section_budget,
                 )
-                return (name, [])
+            # Liste possedee ici, alimentee page par page : a l'expiration,
+            # les pages deja extraites ne sont pas perdues avec la coroutine.
+            pages: List[Dict] = []
+            try:
+                return await asyncio.wait_for(
+                    _research_and_extract(name, cfg, pages), timeout=budget
+                )
+            except asyncio.TimeoutError:
+                kept = list(pages)
+                logger.warning(
+                    f"  Section '{name}' : budget de {budget:.0f}s depasse, "
+                    f"poursuite avec {len(kept)} passage(s) deja extrait(s)"
+                )
+                ctx.diagnostics.note(
+                    "collecte.budget_section_depasse",
+                    section=name,
+                    budget_s=round(budget, 1),
+                    passages_gardes=len(kept),
+                    sources_gardees=len(distinct_sources(kept)),
+                )
+                return (name, kept)
             except Exception as error:
                 ctx.diagnostics.note("collecte.section_echec", section=name, error=str(error))
                 raise
@@ -146,7 +202,8 @@ async def collect_section_data(
     }
 
     for section_name, section_config in section_targets.items():
-        n_sources = len(extracted_by_section.get(section_name, []))
+        known = distinct_sources(extracted_by_section.get(section_name, []))
+        n_sources = len(known)
         depth = section_config.get("depth", "moderate")
         threshold = max(
             ctx.config.complement_min_threshold,
@@ -157,17 +214,56 @@ async def collect_section_data(
             logger.info(
                 f"  🔎 Complément pré-rédaction pour '{section_name}': {n_sources}/{threshold} sources"
             )
+            left = _collect_left()
+            if left is not None and left <= 0:
+                logger.warning(f"  Complement de '{section_name}' saute : echeance globale")
+                ctx.diagnostics.note(
+                    "collecte.complement_saute_echeance",
+                    section=section_name,
+                    sources=n_sources,
+                    seuil=threshold,
+                )
+                continue
             key_questions = section_config.get("key_questions", [])
-            extra = await targeted_search(
-                svc, query=query, section_title=section_name, missing=key_questions, ctx=ctx
+            search = targeted_search_with_cause(
+                svc,
+                query=query,
+                section_title=section_name,
+                missing=key_questions,
+                ctx=ctx,
+                known_urls=list(known.values()),
             )
+            try:
+                if left is None:
+                    extra, cause = await search
+                else:
+                    extra, cause = await asyncio.wait_for(search, timeout=left)
+            except asyncio.TimeoutError:
+                logger.warning(f"  Complement de '{section_name}' interrompu : echeance globale")
+                ctx.diagnostics.note(
+                    "collecte.complement_saute_echeance",
+                    section=section_name,
+                    sources=n_sources,
+                    seuil=threshold,
+                    interrompu=True,
+                )
+                extra, cause = None, "echeance globale atteinte"
             if extra and extra.get("sources"):
                 extracted_by_section[section_name] = (
                     extracted_by_section.get(section_name, []) + extra["sources"]
                 )
                 logger.info(
-                    f"     ✓ +{len(extra['sources'])} source(s), total: {len(extracted_by_section[section_name])}"
+                    f"     +{len(extra['sources'])} passage(s), total: {len(extracted_by_section[section_name])}"
                 )
+            details: Dict[str, Any] = {
+                "section": section_name,
+                "sources_avant": n_sources,
+                "sources_apres": len(distinct_sources(extracted_by_section[section_name])),
+                "seuil": threshold,
+            }
+            if cause:
+                details["cause"] = cause
+            ctx.diagnostics.note("collecte.complement", **details)
 
     # Sources requises (V4-4) : candidates pour toutes les sections, apres le
     # complement pour ne pas fausser le decompte de sources de chaque section.
