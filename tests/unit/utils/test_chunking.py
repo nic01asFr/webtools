@@ -41,10 +41,14 @@ def test_chevauchement_entre_chunks() -> None:
     assert chunks[1][:40] in chunks[0]
 
 
-def test_texte_sans_ponctuation_coupe_net_par_defaut() -> None:
-    chunks = split_into_chunks("mot " * 1500)
+def test_texte_sans_ponctuation_coupe_sur_espace_par_defaut() -> None:
+    nombres = " ".join(str(100000 + i) for i in range(1200))
+    chunks = split_into_chunks(nombres)
     assert len(chunks) >= 3
-    assert len(chunks[0]) in (1999, 2000)
+    valides = set(nombres.split())
+    for c in chunks:
+        assert len(c) <= 2000
+        assert set(c.split()) <= valides  # aucun nombre tranche
 
 
 def test_document_de_100000_caracteres() -> None:
@@ -67,12 +71,25 @@ def test_resultat_jamais_vide_si_tout_est_court() -> None:
     assert split_into_chunks(texte, chunk_chars=100)
 
 
-# --- C73 : comportement par defaut conserve (type B), puis mode v2 ---------
+# --- Fragments courts : rattaches dans les deux modes, jamais jetes ---------
 
 
-def test_defaut_supprime_le_chapo_court() -> None:
-    chunks = split_into_chunks(_chapo_puis_long_paragraphe())
-    assert not any("28,9 % en 2021" in c for c in chunks)
+def test_defaut_conserve_le_chapo_court() -> None:
+    texte = "Publie le 3 mars 2025 : le chomage atteint 7,3 % au T3.\n\n" + _phrases(60)
+    chunks = split_into_chunks(texte)
+    assert any("7,3 % au T3" in c for c in chunks)
+    assert all(len(c) >= MIN_CHUNK_CHARS for c in chunks)
+
+
+def test_defaut_dernier_fragment_court_rattache_au_precedent() -> None:
+    # Derniere phrase longue : aucun debut de phrase dans la zone de
+    # chevauchement, la note finale forme donc seule le dernier fragment.
+    paragraphe = _phrases(31) + " " + ("mot " * 150).strip() + "."
+    assert 1950 < len(paragraphe) < 2000
+    texte = paragraphe + "\n\nConclusion : 12 345 cas."
+    chunks = split_into_chunks(texte)
+    assert "12 345 cas" in chunks[-1]
+    assert all(len(c) >= MIN_CHUNK_CHARS for c in chunks)
 
 
 def test_v2_conserve_le_chapo_court() -> None:
@@ -125,5 +142,65 @@ def test_document_to_chunk_items_v2() -> None:
     contenu = _chapo_puis_long_paragraphe()
     defaut = document_to_chunk_items("s", "t", contenu)
     v2 = document_to_chunk_items("s", "t", contenu, v2=True)
-    assert not any("28,9 % en 2021" in i["content"] for i in defaut)
+    assert any("28,9 % en 2021" in i["content"] for i in defaut)
     assert any("28,9 % en 2021" in i["content"] for i in v2)
+
+
+# --- Blocs multi-lignes et tableaux -----------------------------------------
+
+ENTETE = "| Region | Taux de chomage T3 | Evolution annuelle |\n|---|---:|---:|"
+
+
+def _tableau_markdown(rangees: int) -> str:
+    lignes = [
+        f"| Region numero {i} | {7 + i / 100:.2f} % | +{i / 10:.1f} pt |" for i in range(rangees)
+    ]
+    return ENTETE + "\n" + "\n".join(lignes)
+
+
+def test_tableau_markdown_coupe_aux_rangees_avec_en_tete_repete() -> None:
+    tableau = _tableau_markdown(200)
+    assert len(tableau) > 3 * 2000
+    chunks = split_into_chunks(tableau)
+    assert len(chunks) >= 3
+    vues = []
+    for c in chunks:
+        assert c.startswith(ENTETE), c[:80]
+        for ligne in c.split("\n")[2:]:
+            # Chaque ligne est une rangee entiere : rien n'est tranche.
+            assert ligne.startswith("| Region numero ") and ligne.endswith(" pt |"), ligne
+            vues.append(ligne)
+    assert set(vues) == set(tableau.split("\n")[2:])
+
+
+def test_tableau_entoure_de_texte_en_tete_seulement_sur_les_rangees() -> None:
+    texte = "Tableau 1 : chomage par region\n" + _tableau_markdown(120) + "\nSource : INSEE"
+    chunks = split_into_chunks(texte)
+    assert len(chunks) >= 2
+    assert chunks[0].startswith("Tableau 1 : chomage par region\n" + ENTETE)
+    for c in chunks[1:]:
+        assert c.startswith(ENTETE), c[:80]
+    assert "Source : INSEE" in chunks[-1]
+
+
+def test_bloc_multi_lignes_sans_point_coupe_aux_lignes() -> None:
+    lignes = [f"Commune {i} ; population 12 345 ; superficie 67,8 km2" for i in range(120)]
+    chunks = split_into_chunks("\n".join(lignes))
+    assert len(chunks) >= 2
+    for c in chunks:
+        assert len(c) <= 2000
+        for ligne in c.split("\n"):
+            assert ligne in lignes, ligne
+
+
+def test_ligne_unique_trop_longue_coupee_sur_une_espace() -> None:
+    nombres = " ".join(str(100000 + i) for i in range(600))
+    entete = "| Annee | Valeurs |\n|---|---|"
+    chunks = split_into_chunks(entete + "\n| 2025 | " + nombres + " |")
+    assert len(chunks) >= 2
+    valides = set(nombres.split()) | {"|", "Annee", "Valeurs", "|---|---|", "2025"}
+    for c in chunks:
+        assert c.startswith(entete)
+        assert set(c.split()) <= valides
+
+

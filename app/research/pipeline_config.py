@@ -290,6 +290,9 @@ class PipelineConfig:
     enrichment_regenerate_v2_max_tokens: int = 6000  # jetons maximaux de la regeneration de section v2
     enrichment_regenerate_temperature: float = 0.1  # temperature de la regeneration de section (v1 et v2)
 
+    # Delai global
+    deadline_cancel_grace_seconds: float = 15.0  # attente maximale du nettoyage du pipeline annule avant le rapport partiel
+
     @classmethod
     def from_env(cls, environ: Mapping[str, str] | None = None) -> "PipelineConfig":
         """Construit la configuration depuis l'environnement.

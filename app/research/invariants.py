@@ -42,6 +42,12 @@ META_SECTION_PATTERNS = (
     "démarche",
 )
 
+# Mots ou expressions entiers, comme stages.plan_prompt.is_meta_section :
+# "Demarches administratives" decrit le sujet, pas le travail.
+_META_SECTION_RE = re.compile(
+    r"(?<!\w)(?:" + "|".join(re.escape(p) for p in META_SECTION_PATTERNS) + r")(?!\w)"
+)
+
 _CITATION = re.compile(r"\[(\d+(?:\s*[,;]\s*\d+)*)\]")
 _RESIDUE = re.compile(r"\[\d+\][^\s\[\]]+\]")
 _TRAILING_CITATIONS = re.compile(r"(?:\s*\[\d+(?:\s*[,;]\s*\d+)*\])+\s*$")
@@ -115,8 +121,7 @@ def check_report(report: dict[str, Any]) -> dict[str, Any]:
             add("EMPTY_SECTION", label)
         elif _is_truncated(content):
             add("TRUNCATED_SECTION", f"{label} se termine par {content.rstrip()[-40:]!r}")
-        low = title.lower()
-        if any(p in low for p in META_SECTION_PATTERNS):
+        if _META_SECTION_RE.search(title.lower()):
             add("META_SECTION", label)
 
     return {"ok": not violations, "violations": violations}

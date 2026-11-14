@@ -22,6 +22,7 @@ from tests.contract.test_pipeline_contract import (
     SectionSpec,
     build_orchestrator,
     nominal,
+    sourceless_first_section,
     synthesis_failure,
 )
 
@@ -241,6 +242,78 @@ async def test_delai_depasse_avant_toute_section(harness: Harness) -> None:
     assert body["result"]["sections"] == []
 
 
+async def test_nettoyage_bloque_n_empeche_pas_le_rapport_partiel(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    release = asyncio.Event()
+
+    async def stall_then_block_cleanup(*_a: Any, **_k: Any) -> Any:
+        try:
+            await asyncio.sleep(30)
+        except asyncio.CancelledError:
+            # Nettoyage qui ne rend pas la main (fermeture de navigateur bloquee).
+            await release.wait()
+            raise
+
+    monkeypatch.setattr(orchestrator_module, "final_assembly", stall_then_block_cleanup)
+    monkeypatch.setenv("WEBTOOLS_PIPELINE_DEADLINE_CANCEL_GRACE_SECONDS", "0.2")
+    harness.real_deadline = 0.5
+    try:
+        body = (await asyncio.wait_for(harness.post({"topic": QUERY, "timeout": 60}), 5)).json()
+    finally:
+        release.set()
+        await asyncio.sleep(0.05)
+
+    assert body["timed_out"] is True and body["degraded"] is True
+    assert [s["title"] for s in body["result"]["sections"]] == ["Overview", "Costs", "Outlook"]
+    counts = body["diagnostics"]["events"]["counts"]
+    assert counts["api.annulation_non_terminee"] == 1
+    assert counts["api.deadline_exceeded"] == 1
+
+
+async def test_exception_apres_redaction_rend_le_rapport_partiel(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    async def broken(*_a: Any, **_k: Any) -> Any:
+        raise RuntimeError("assemblage casse")
+
+    monkeypatch.setattr(orchestrator_module, "final_assembly", broken)
+    body = (await harness.post({"topic": QUERY})).json()
+
+    assert set(body) == RESPONSE_KEYS
+    assert body["success"] is False and body["degraded"] is True
+    assert body["timed_out"] is False
+    assert "assemblage casse" in body["error"]
+    assert [s["title"] for s in body["result"]["sections"]] == ["Overview", "Costs", "Outlook"]
+    assert body["result"]["bibliography"]
+    assert "[SOURCE:" not in str(body["result"])
+    counts = body["diagnostics"]["events"]["counts"]
+    assert counts["api.orchestrator_exception"] == 1
+    assert counts["api.rapport_partiel_apres_exception"] == 1
+    assert body["execution"]["workflow"][0]["status"] == "failed"
+
+
+async def test_echeance_posee_sur_le_contexte(
+    harness: Harness, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.research.context import ExecutionContext
+
+    assert ExecutionContext("q").deadline_at is None
+    seen: list[tuple[float | None, float]] = []
+    real_collect = orchestrator_module.collect_section_data
+
+    async def spy(svc: Any, ctx: Any, *args: Any, **kwargs: Any) -> Any:
+        seen.append((ctx.deadline_at, asyncio.get_running_loop().time()))
+        return await real_collect(svc, ctx, *args, **kwargs)
+
+    monkeypatch.setattr(orchestrator_module, "collect_section_data", spy)
+    await harness.post({"topic": QUERY, "timeout": 90})
+
+    deadline_at, now = seen[0]
+    assert deadline_at is not None
+    assert now < deadline_at <= now + 90
+
+
 async def test_objectives_language_et_sections_atteignent_le_plan(harness: Harness) -> None:
     await harness.post({
         "topic": QUERY,
@@ -292,6 +365,79 @@ async def test_sources_domains_whitelist(monkeypatch: pytest.MonkeyPatch) -> Non
     await h.post({"topic": QUERY, "sources": {"domains_whitelist": ["example.org"]}})
     requested = h.extractor.urls_requested()
     assert requested and all("example.org" in u for u in requested)
+
+
+# --- Cause d'une section sans source : incident de collecte ou sujet pauvre ------
+
+
+def _two_sourceless_sections() -> list[SectionSpec]:
+    # Deux sections sur trois sans source : le rapport est degrade (ratio 0,5).
+    specs = sourceless_first_section()
+    specs[1] = SectionSpec("Costs", "solar costs")
+    return specs
+
+
+async def test_section_sans_source_sur_sujet_pauvre(monkeypatch: pytest.MonkeyPatch) -> None:
+    h = Harness(monkeypatch, _two_sourceless_sections())
+    body = (await h.post({"topic": QUERY})).json()
+
+    assert body["degraded"] is True
+    assert body["unsourced_sections"] == ["Overview", "Costs"]
+    assert "la collecte n'a rien remonte sur ce sujet" in body["error"]
+    assert "incident de collecte" not in body["error"]
+
+
+async def test_section_sans_source_apres_panne_de_recherche(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services.search_service import SearchUnavailableError
+
+    h = Harness(monkeypatch, nominal())
+    h.search.add("solar overview", SearchUnavailableError("SearXNG ne repond pas"))
+    h.search.add("solar costs", SearchUnavailableError("SearXNG ne repond pas"))
+    body = (await h.post({"topic": QUERY})).json()
+
+    assert body["degraded"] is True
+    assert body["unsourced_sections"] == ["Overview", "Costs"]
+    assert "incident de collecte" in body["error"] and "a reessayer" in body["error"]
+    assert "collecte.recherche_section_echec" in body["error"]
+    assert "la collecte n'a rien remonte" not in body["error"]
+
+
+def test_message_distingue_incident_et_sujet_pauvre() -> None:
+    from app.api.v1.endpoints.research_deep import _degradation_error
+
+    diagnostics = {
+        "events": {
+            "counts": {"collecte.budget_section_depasse": 1, "collecte.resultats_hors_sujet": 4},
+            "events": [
+                {"event": "collecte.budget_section_depasse", "details": {"section": "A"}},
+            ],
+            "events_dropped": 0,
+        }
+    }
+    message = _degradation_error([], ["A", "B"], [], False, 600, diagnostics=diagnostics)
+    assert message is not None
+    assert "1 section(s) sans source exploitable apres un incident de collecte" in message
+    assert "collecte.budget_section_depasse x1" in message
+    assert "1 section(s) sans source exploitable : la collecte n'a rien remonte" in message
+
+    # Exploration en panne : incident global, toutes les sections lui sont attribuees.
+    diagnostics["events"]["counts"] = {"collecte.exploration_echec": 1}
+    diagnostics["events"]["events"] = []
+    message = _degradation_error([], ["A", "B"], [], False, 600, diagnostics=diagnostics)
+    assert message is not None and "2 section(s) sans source exploitable apres un incident" in message
+    assert "rien remonte" not in message
+
+    # Section planifiee non redigee hors delai : annoncee comme telle.
+    missing = _degradation_error([], [], ["C"], False, 600)
+    assert missing == "1 section(s) planifiee(s) non redigee(s)"
+    timed = _degradation_error([], [], ["C"], True, 600)
+    assert timed is not None and "planifiee" not in timed
+
+    # Sans diagnostics : constat sur le sujet, comme avant.
+    plain = _degradation_error([], ["A"], [], False, 600)
+    assert plain is not None and "la collecte n'a rien remonte sur ce sujet" in plain
 
 
 # --- Schema -----------------------------------------------------------------------

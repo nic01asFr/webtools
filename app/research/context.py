@@ -45,6 +45,10 @@ class ExecutionContext:
         # Configuration effective et journal des degradations de CETTE requete.
         self.config: PipelineConfig = config if config is not None else PipelineConfig.from_env()
         self.diagnostics: Diagnostics = Diagnostics()
+        # Echeance globale de la requete, en temps de la boucle asyncio
+        # (loop.time()). Posee par execute_with_deadline ; None hors delai
+        # global. La collecte la lit pour borner ses budgets.
+        self.deadline_at: float | None = None
         # Langue de recherche et de redaction, decidee par le plan (langue de
         # la consigne). "all" ne restreint rien - c'est le defaut sur, alors
         # que "auto" fait tomber PubMed de 20 a 0 resultats (verifie).

@@ -114,6 +114,15 @@ def test_partiel_titre_resume_et_listes_comme_l_assemblage() -> None:
     assert report["metadata"]["failed_sections_count"] == 1
 
 
+def test_partiel_sources_count_compte_les_sources_distinctes() -> None:
+    orch, ctx = _ctx_partiel(PipelineConfig())
+    ctx.final_content["sections"]["Bonne"]["raw_data"] = [
+        {"source": URL_OLD}, {"source": URL_OLD}, {"source": "https://autre.org/z"}
+    ]
+    report = orch._partial_report(ctx.query, ctx)
+    assert report["sections"][0]["metadata"]["sources_count"] == 2
+
+
 def test_partiel_resume_vide_si_summary_mode_none() -> None:
     orch, ctx = _ctx_partiel(PipelineConfig(summary_mode="none"))
     report = orch._partial_report(ctx.query, ctx)
@@ -209,6 +218,40 @@ def test_source_requise_citee_hors_bibliographie_n_est_pas_utilisee() -> None:
     _register_sources(registry, SourcesConstraints(required=[url]), {}, answer)
     assert registry.required_sources_status() == "partial_failure"
     answer["bibliography"].append({"id": 2, "url": url})
+    answer["sections"][0]["content"] = "Constat etabli [2]."
     registry2 = SourceRegistry()
     _register_sources(registry2, SourcesConstraints(required=[url]), {}, answer)
     assert registry2.required_sources_status() == "all_success"
+
+
+def test_source_en_bibliographie_mais_jamais_citee_n_est_pas_utilisee() -> None:
+    from app.api.v1.endpoints.research_deep import SourcesConstraints, _register_sources
+    from app.core.source_registry import SourceRegistry
+
+    citee, non_citee, requise = "https://a.org/1", "https://b.org/2", "https://req.org/3"
+    # Bibliographie complete (bibliography_cited_only=False) : seule [1] est citee.
+    answer: dict[str, Any] = {
+        "summary": "Resume.",
+        "sections": [{"content": "Fait etabli [1].", "data": [{"source": non_citee}]}],
+        "bibliography": [
+            {"id": 1, "url": citee},
+            {"id": 2, "url": non_citee},
+            {"id": 3, "url": requise},
+        ],
+    }
+    registry = SourceRegistry()
+    counts = _register_sources(
+        registry,
+        SourcesConstraints(required=[requise]),
+        {"sources_discovered": [citee, non_citee]},
+        answer,
+    )
+    status = {w["url"]: w["status"] for w in registry.get_all_sources()["websites"]}
+    assert status == {
+        requise: "discovered_not_used",
+        citee: "success",
+        non_citee: "discovered_not_used",
+    }
+    assert counts["used"] == 1
+    assert registry.required_sources_status() == "partial_failure"
+

@@ -1,6 +1,7 @@
 """Etape 4 : assemblage final du rapport, titre, resume, bibliographie et traces."""
 
 import logging
+import re
 from datetime import datetime
 from typing import Any, Dict, Optional, Sequence
 
@@ -25,6 +26,53 @@ def report_title(query: str, context: ExecutionContext) -> str:
     return title
 
 
+# Abreviations suivies d'un point qui ne terminent pas une phrase : "M. Dupont",
+# "art. 3", "p. 12", "cf. annexe". Comparees en minuscules, sans le point.
+_ABBREVIATIONS = frozenset(
+    {
+        "m", "mm", "mme", "mmes", "mlle", "mlles", "dr", "pr", "me", "mgr", "st", "ste",
+        "art", "al", "cf", "ex", "p", "pp", "n", "no", "vol", "fig", "chap", "env",
+        "etc", "av", "apr", "j.-c", "mr", "mrs", "ms", "prof", "vs", "e.g", "i.e",
+    }
+)
+_SENTENCE_END = re.compile(r"[.!?\u2026]+[\"\u00bb)\]]*\s+")
+
+
+def _split_sentences(text: str) -> list[str]:
+    """Phrases d'un texte, coupees sur de vraies fins de phrase.
+
+    Le decoupage sur ". " coupait "M. Dupont" ou "art. 3" : une fin de phrase
+    exige ici un mot precedent qui n'est ni une abreviation ni une initiale,
+    et une suite qui ne commence pas par une minuscule."""
+    sentences: list[str] = []
+    start = 0
+    for match in _SENTENCE_END.finditer(text):
+        end = match.end()
+        following = text[end:end + 1]
+        if following and following.islower():
+            continue
+        head = text[start:match.start()].rstrip()
+        last_word = head.split()[-1] if head.split() else ""
+        # Elision ("l'art.") : seul le mot apres l'apostrophe compte.
+        last_word = re.split(r"['\u2019]", last_word)[-1].lstrip("(\"\u00ab[").lower()
+        if match.group(0).startswith(".") and (
+            last_word in _ABBREVIATIONS or (len(last_word) == 1 and last_word.isalpha())
+        ):
+            continue
+        sentences.append(text[start:end].strip())
+        start = end
+    rest = text[start:].strip()
+    if rest:
+        sentences.append(rest)
+    return sentences
+
+
+def _summary_source_text(content: str) -> str:
+    """Texte de la section sans ses lignes de titre Markdown (### Sous-titre)."""
+    lines = [line for line in content.splitlines() if not line.lstrip().startswith("#")]
+    return " ".join(" ".join(lines).split())
+
+
 def apply_summary(report: Dict[str, Any], context: ExecutionContext) -> None:
     """Resume du rapport selon summary_mode (commun aux deux assemblages).
 
@@ -37,15 +85,31 @@ def apply_summary(report: Dict[str, Any], context: ExecutionContext) -> None:
     if context.config.summary_mode == "none":
         report["summary"] = ""
     elif secs:
-        first = (secs[0].get("content") or "").strip()
-        sentences = first.split(". ")[: context.config.summary_sentences]
-        summ = (
-            ". ".join(sentences).rstrip(".") + "."
-            if sentences and first
-            else "Rapport de recherche approfondie."
-        )
+        # Les lignes de titre sont sautees : un sous-titre "###" n'est pas une
+        # phrase du resume.
+        first = _summary_source_text((secs[0].get("content") or "").strip())
+        sentences = _split_sentences(first)[: context.config.summary_sentences]
+        summ = " ".join(sentences).strip()
+        if summ and summ[-1] not in ".!?\u2026":
+            summ += "."
+        summ = summ or "Rapport de recherche approfondie."
         summ = _re.sub(r"\s*\[SOURCE:[^\]]*\]?", "", summ).strip()
         report["summary"] = summ or "Rapport de recherche approfondie."
+
+
+def distinct_sources_count(passages: Any) -> int:
+    """Nombre de sources distinctes (URL) parmi les passages d'une section.
+
+    sources_count comptait les passages : trois passages d'une meme page
+    annoncaient trois sources."""
+    from app.research.citations import url_key
+
+    keys = {
+        url_key(str(p["source"]))
+        for p in passages or []
+        if isinstance(p, dict) and p.get("source")
+    }
+    return len(keys)
 
 
 def convert_sources_to_bibliography(
@@ -86,6 +150,9 @@ async def final_assembly(
 
     sections_list = []
     total_words = 0
+    # Sections planifiees mais jamais redigees (sans cible de collecte, ou
+    # absentes du canevas) : assemblees vides, elles passaient pour reussies.
+    missing: list = []
 
     for section_name in plan.get("sections", []):
         if section_name in context.final_content["sections"]:
@@ -93,6 +160,9 @@ async def final_assembly(
             content = section_data.get("content", "")
             word_count = len(content.split())
             total_words += word_count
+            if not (content or "").strip():
+                missing.append(section_name)
+                continue
 
             sections_list.append(
                 {
@@ -101,10 +171,14 @@ async def final_assembly(
                     "data": section_data.get("raw_data", []),
                     "metadata": {
                         "word_count": word_count,
-                        "sources_count": len(section_data.get("raw_data", [])),
+                        "sources_count": distinct_sources_count(section_data.get("raw_data")),
                     },
                 }
             )
+        else:
+            missing.append(section_name)
+    for section_name in missing:
+        context.diagnostics.note("assemblage.section_non_redigee", section=section_name)
 
     # Générer titre et summary
     complexity = plan.get("complexity_analysis", {})
@@ -131,12 +205,6 @@ async def final_assembly(
             "target_length": complexity.get("target_length", "standard"),
         },
     }
-
-    # Conversion sources → bibliographie (journal de la requete transmis :
-    # sans lui les notes citations.* sont perdues)
-    final_report = convert_sources_to_bibliography(
-        svc, final_report, getattr(context, "diagnostics", None)
-    )
 
     # Comptabiliser les sections perdues par echec LLM. Sans cela, un
     # rapport dont TOUTES les sections ont echoue sortait avec
@@ -197,6 +265,21 @@ async def final_assembly(
         # Majorite non sourcee -> le rapport n'est pas un resultat fiable.
         if len(unsourced) > len(sections_list) * context.config.unsourced_degraded_ratio:
             final_report["degraded"] = True
+    if missing:
+        final_report["degraded"] = True
+        final_report["missing_sections"] = missing
+        final_report["metadata"]["missing_sections_count"] = len(missing)
+        logger.warning(
+            f"  {len(missing)} section(s) planifiee(s) non redigee(s): {', '.join(missing[:3])}"
+        )
+
+    # Conversion sources -> bibliographie APRES le retrait des sections
+    # marquees : avant, les passages d'une section retiree entraient dans la
+    # bibliographie alors qu'aucun texte livre ne s'appuyait dessus. Journal
+    # de la requete transmis : sans lui les notes citations.* sont perdues.
+    final_report = convert_sources_to_bibliography(
+        svc, final_report, getattr(context, "diagnostics", None)
+    )
 
     # Summary construit APRES conversion (le contenu porte des [n]) et
     # APRES le retrait des sections marquees : un marqueur interne ne doit

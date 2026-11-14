@@ -147,3 +147,84 @@ async def test_client_sans_sortie_structuree_prompt_v2_embarque_le_schema() -> N
     plan = await create_detailed_plan(_orch(llm, True).services(), QUERY, {}, EXPLORATION)
     assert "schema" in llm.calls[0].prompt
     assert "fallback" not in plan
+
+
+# --- Filtre des sections meta : mots entiers, retrait note -------------------
+
+
+async def test_filtre_meta_sur_mots_entiers_et_retrait_note() -> None:
+    llm = FakeLLM().on_structured(
+        "research_plan",
+        _plan("Démarches administratives pour la vignette Crit'Air", "Notre démarche", "Coûts"),
+    )
+    ctx = ExecutionContext(QUERY)
+    plan = await create_detailed_plan(_orch(llm).services(), QUERY, {}, EXPLORATION, ctx=ctx)
+    assert plan["sections"] == ["Démarches administratives pour la vignette Crit'Air", "Coûts"]
+    assert list(plan["section_targets"]) == plan["sections"]
+    events = [e for e in ctx.diagnostics.to_dict()["events"] if e["event"] == "plan.section_meta_retiree"]
+    assert [e["details"]["titre"] for e in events] == ["Notre démarche"]
+
+
+def test_invariant_meta_section_sur_mots_entiers() -> None:
+    from app.research.invariants import check_report
+
+    def codes(title: str) -> list[str]:
+        report = {"sections": [{"title": title, "content": "Texte complet."}], "bibliography": []}
+        return [v["code"] for v in check_report(report)["violations"]]
+
+    assert "META_SECTION" not in codes("Démarches administratives pour la vignette Crit'Air")
+    assert "META_SECTION" in codes("Notre démarche")
+
+
+# --- Chemin non structure : sections et cibles reconciliees ------------------
+
+
+class _TextOnlyLLM(FakeLLM):
+    supports_structured = False
+
+
+def _text_plan(sections: list[Any], targets: dict[str, Any]) -> str:
+    return json.dumps(
+        {
+            "complexity_analysis": {"overall_score": 3.0},
+            "sections": sections,
+            "section_targets": targets,
+            "narrative_flow": [],
+            "search_strategy": {"search_depth": "standard"},
+        }
+    )
+
+
+async def test_chemin_non_structure_reconcilie_sections_et_cibles() -> None:
+    cible = {"words_target": 300, "depth": "deep", "objectives": ["o"], "key_questions": ["q"]}
+    llm = _TextOnlyLLM().on_text(
+        r"planificateur", _text_plan(["A", "B"], {"A": cible, "C": cible})
+    )
+    ctx = ExecutionContext(QUERY)
+    plan = await create_detailed_plan(_orch(llm).services(), QUERY, {}, EXPLORATION, ctx=ctx)
+    assert "fallback" not in plan
+    # Une seule liste ordonnee : sections, puis la cible orpheline.
+    assert plan["sections"] == ["A", "B", "C"]
+    assert list(plan["section_targets"]) == ["A", "B", "C"]
+    assert plan["section_targets"]["A"]["depth"] == "deep"
+    assert plan["section_targets"]["B"]["depth"] == "moderate"  # cible generique
+    assert plan["section_targets"]["C"] == cible
+    assert ctx.diagnostics.count("plan.cible_manquante") == 1
+    assert ctx.diagnostics.count("plan.cible_sans_section") == 1
+
+
+async def test_chemin_non_structure_accepte_le_format_du_schema() -> None:
+    llm = _TextOnlyLLM().on_text(r"CONSIGNE", json.dumps(_plan("A", "Stratégie de recherche")))
+    ctx = ExecutionContext(QUERY)
+    plan = await create_detailed_plan(_orch(llm, True).services(), QUERY, {}, EXPLORATION, ctx=ctx)
+    assert plan["sections"] == ["A"]
+    assert plan["section_targets"]["A"]["search_terms"] == ["solar access"]
+    assert ctx.diagnostics.count("plan.section_meta_retiree") == 1
+
+
+async def test_chemin_non_structure_toutes_sections_meta_donne_le_repli() -> None:
+    llm = _TextOnlyLLM().on_text(r"planificateur", _text_plan(["Plan de travail"], {}))
+    ctx = ExecutionContext(QUERY)
+    plan = await create_detailed_plan(_orch(llm).services(), QUERY, {}, EXPLORATION, ctx=ctx)
+    assert plan["fallback"] is True
+    assert plan["fallback_reason"] == "sections_filtrees"

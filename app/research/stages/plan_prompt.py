@@ -1,6 +1,7 @@
 """Prompt du plan detaille et filtre des sections qui decrivent le travail plutot que le sujet."""
 
 import logging
+import re
 
 from app.research.pipeline_config import PipelineConfig
 
@@ -32,6 +33,13 @@ META_SECTION_PATTERNS = (
     "démarche",
 )
 
+# Mots ou expressions entiers : une sous-chaine retirait "Demarches
+# administratives pour la vignette Crit'Air" (le mot "demarches" contient
+# "demarche") sans que rien ne le signale.
+_META_SECTION_RE = re.compile(
+    r"(?<!\w)(?:" + "|".join(re.escape(p) for p in META_SECTION_PATTERNS) + r")(?!\w)"
+)
+
 
 def is_meta_section(name: str) -> bool:
     """
@@ -41,8 +49,7 @@ def is_meta_section(name: str) -> bool:
     positif est faible - un titre legitime rejete - alors qu'un faux
     negatif livre des notes de travail dans un rapport publie.
     """
-    low = (name or "").lower()
-    return any(p in low for p in META_SECTION_PATTERNS)
+    return bool(_META_SECTION_RE.search((name or "").lower()))
 
 
 def imposed_sections_block(imposed: list) -> str:

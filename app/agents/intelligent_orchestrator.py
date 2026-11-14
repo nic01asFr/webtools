@@ -30,7 +30,7 @@ from app.research.diagnostics import Diagnostics
 from app.research.pipeline_config import PipelineConfig
 from app.research.stages.services import StageServices
 from app.research.stages.boundaries import check_collected, check_drafts, check_plan, check_report
-from app.research.stages.assemble import add_complete_traces, apply_summary, convert_sources_to_bibliography, final_assembly, report_title, strip_source_markers
+from app.research.stages.assemble import add_complete_traces, apply_summary, convert_sources_to_bibliography, distinct_sources_count, final_assembly, report_title, strip_source_markers
 from app.research.stages.coherence import analyze_intersections, apply_coherence_improvements
 from app.research.stages.collect import collect_section_data
 from app.research.stages.enrich import iterative_enrichment
@@ -40,6 +40,12 @@ from app.research.stages.required import apply_required_sources, extract_require
 from app.research.stages.synthesize import write_sections
 
 logger = logging.getLogger(__name__)
+
+
+def _consume_task_result(task: "asyncio.Future[Any]") -> None:
+    """Lit le resultat d'une tache abandonnee apres l'echeance (rien a en faire)."""
+    if not task.cancelled():
+        task.exception()
 
 
 class IntelligentOrchestrator:
@@ -374,7 +380,10 @@ class IntelligentOrchestrator:
                 "title": name,
                 "content": content,
                 "data": raw,
-                "metadata": {"word_count": len(content.split()), "sources_count": len(raw)},
+                "metadata": {
+                    "word_count": len(content.split()),
+                    "sources_count": distinct_sources_count(raw),
+                },
             })
         report: Dict[str, Any] = {
             "type": "report",
@@ -405,6 +414,15 @@ class IntelligentOrchestrator:
         apply_required_sources(report, ctx)
         return report
 
+    @staticmethod
+    def _has_written_sections(ctx: ExecutionContext) -> bool:
+        """Vrai si au moins une section porte un texte redige (hors marqueurs)."""
+        for data in ctx.final_content["sections"].values():
+            content = (data.get("content") or "").strip()
+            if content and "[SYNTHESE_ECHOUEE]" not in content and "[SECTION_SANS_SOURCE]" not in content:
+                return True
+        return False
+
     async def execute_with_deadline(
         self,
         query: str,
@@ -414,14 +432,18 @@ class IntelligentOrchestrator:
         """Execute la recherche avec un delai global (C48).
 
         Passe le delai, le pipeline est interrompu et la reponse porte les
-        sections deja redigees avec degraded=True. Toute exception du pipeline
-        devient une reponse success=False qui garde les diagnostics : la forme
-        du resultat est la meme dans tous les cas.
+        sections deja redigees avec degraded=True. Une exception du pipeline
+        devient une reponse success=False qui garde les diagnostics, et les
+        sections deja redigees s'il y en a : la forme du resultat est la meme
+        dans tous les cas.
         """
         started = datetime.now()
         # Contexte vivant de cette requete, cree ici pour que le rapport
         # partiel lise ce qui est deja redige quand le delai expire.
         ctx = ExecutionContext(query, config=self.config)
+        # Echeance lue par la collecte pour borner ses budgets (meme horloge
+        # que asyncio.wait ci-dessous).
+        ctx.deadline_at = asyncio.get_running_loop().time() + deadline_seconds
         task = asyncio.ensure_future(self._run_pipeline(query, context, ctx))
         try:
             done, _ = await asyncio.wait({task}, timeout=deadline_seconds)
@@ -433,22 +455,24 @@ class IntelligentOrchestrator:
             try:
                 return task.result()
             except Exception as exc:  # noqa: BLE001 - l'echec est rendu dans la reponse
-                ctx.diagnostics.note(
-                    "api.orchestrator_exception", error=f"{type(exc).__name__}: {exc}"
-                )
+                error = f"{type(exc).__name__}: {exc}"
+                ctx.diagnostics.note("api.orchestrator_exception", error=error)
                 logger.error(f"Pipeline en echec: {exc}", exc_info=True)
-                return {
-                    "success": False,
-                    "query": query,
-                    "answer": None,
-                    "error": f"{type(exc).__name__}: {exc}",
-                    "execution_context": self._execution_summary(ctx),
-                    "diagnostics": self._diagnostics_block(ctx, None),
-                    "processing_time": (datetime.now() - started).total_seconds(),
-                }
+                return self._failure_response(query, ctx, error, started)
 
         task.cancel()
-        await asyncio.gather(task, return_exceptions=True)
+        # Attente bornee du nettoyage : une fermeture de navigateur ou d'agent
+        # bloquee empechait le rapport partiel de partir, sans limite.
+        grace = ctx.config.deadline_cancel_grace_seconds
+        finished, _ = await asyncio.wait({task}, timeout=grace)
+        if task not in finished:
+            ctx.diagnostics.note("api.annulation_non_terminee", grace_seconds=grace)
+            logger.warning(
+                f"Pipeline annule non termine apres {grace}s : rapport partiel sans l'attendre"
+            )
+            # Le resultat de la tache abandonnee est lu a sa fin, pour qu'une
+            # exception tardive ne soit pas journalisee comme jamais lue.
+            task.add_done_callback(_consume_task_result)
         ctx.diagnostics.note("api.deadline_exceeded", deadline_seconds=deadline_seconds)
         logger.warning(f"Delai global de {deadline_seconds}s depasse : rapport partiel")
         report = self._partial_report(query, ctx)
@@ -457,6 +481,41 @@ class IntelligentOrchestrator:
             "query": query,
             "answer": report,
             "timed_out": True,
+            "execution_context": self._execution_summary(ctx),
+            "diagnostics": self._diagnostics_block(ctx, report),
+            "processing_time": (datetime.now() - started).total_seconds(),
+        }
+
+    def _failure_response(
+        self, query: str, ctx: ExecutionContext, error: str, started: datetime
+    ) -> Dict[str, Any]:
+        """Reponse d'un pipeline en echec : rapport partiel si des sections sont redigees.
+
+        Une exception levee apres la redaction (assemblage, enrichissement,
+        bibliographie) perdait toutes les sections ecrites : elles sont rendues
+        comme sur le chemin du delai depasse, l'erreur restant dans la reponse.
+        """
+        report: Optional[Dict[str, Any]] = None
+        if self._has_written_sections(ctx):
+            try:
+                report = self._partial_report(query, ctx)
+                ctx.diagnostics.note(
+                    "api.rapport_partiel_apres_exception",
+                    error=error,
+                    sections=len(report.get("sections") or []),
+                )
+            except Exception as partial_exc:  # noqa: BLE001 - l'echec initial reste rendu
+                ctx.diagnostics.note(
+                    "api.rapport_partiel_echec",
+                    error=f"{type(partial_exc).__name__}: {partial_exc}",
+                )
+                logger.error(f"Rapport partiel impossible apres l'echec : {partial_exc}")
+                report = None
+        return {
+            "success": False,
+            "query": query,
+            "answer": report,
+            "error": error,
             "execution_context": self._execution_summary(ctx),
             "diagnostics": self._diagnostics_block(ctx, report),
             "processing_time": (datetime.now() - started).total_seconds(),

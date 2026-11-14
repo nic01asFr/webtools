@@ -89,9 +89,21 @@ def test_diagnostics_compte_et_borne() -> None:
     data = diag.to_dict()
     assert data["counts"] == {"repli": MAX_EVENTS + 10, "autre": 1}
     assert len(data["events"]) == MAX_EVENTS
+    assert data["events_dropped"] == 11
     assert data["events"][-1]["event"] == "autre"
     assert data["events"][-1]["details"]["url"] == "https://x.org"
     assert isinstance(data["events"][-1]["details"]["obj"], str)
+
+
+def test_diagnostics_garde_les_premieres_alertes_d_un_rapport_long() -> None:
+    diag = Diagnostics()
+    diag.note("plan.sortie_tronquee", error="coupe")
+    for i in range(300):
+        diag.note("collecte.extraction_url_echec", index=i)
+    data = diag.to_dict()
+    assert MAX_EVENTS >= 500
+    assert data["events"][0]["event"] == "plan.sortie_tronquee"
+    assert data["events_dropped"] == 0
 
 
 def test_diagnostics_sans_etat_global() -> None:

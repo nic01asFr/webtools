@@ -2,7 +2,7 @@
 
 import json
 import logging
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 from app.research.context import ExecutionContext
 from app.research.stages.services import StageServices
@@ -20,6 +20,68 @@ from app.research.stages.plan_prompt import (
 from app.research.stages.plan_schema import build_fallback_plan, build_plan_schema
 
 logger = logging.getLogger(__name__)
+
+
+def _default_target(name: str, cfg: Any) -> Dict[str, Any]:
+    """Cible generique d'une section planifiee sans cible (cf. plan de repli)."""
+    return {
+        "words_target": cfg.plan_fallback_analysis_words,
+        "depth": "moderate",
+        "objectives": [f"Traiter la section : {name}"],
+        "key_questions": [],
+    }
+
+
+def reconcile_text_plan(
+    raw: Dict[str, Any],
+    keep: Callable[[str], bool],
+    ctx: Optional["ExecutionContext"],
+    cfg: Any,
+) -> Dict[str, Any]:
+    """Plan interne a partir du JSON d'un client sans sortie structuree.
+
+    Le JSON brut etait rendu tel quel : une section sans cible n'etait ni
+    collectee ni redigee (assemblee vide, rapport en succes), une cible
+    absente de "sections" etait collectee puis jetee a l'assemblage, et des
+    sections au format du schema (objets avec "name") cassaient le canevas.
+    Comme sur le chemin structure, une seule liste ordonnee fait foi :
+    "sections" (chaines ou objets), puis les cibles orphelines dans leur
+    ordre ; chaque section recoit sa cible, generique si elle n'en a pas.
+    """
+
+    def note(event: str, **details: Any) -> None:
+        if ctx is not None:
+            ctx.diagnostics.note(event, **details)
+
+    raw_targets = raw.get("section_targets")
+    targets_in: Dict[str, Any] = raw_targets if isinstance(raw_targets, dict) else {}
+    entries: Dict[str, Dict[str, Any]] = {}
+    for item in raw.get("sections") or []:
+        if isinstance(item, dict):
+            name = str(item.get("name") or "").strip()
+            inline = {k: v for k, v in item.items() if k != "name"}
+        else:
+            name = str(item or "").strip()
+            inline = {}
+        if not name or name in entries:
+            continue
+        listed = targets_in.get(name)
+        target = {**(listed if isinstance(listed, dict) else {}), **inline}
+        if not target:
+            note("plan.cible_manquante", section=name)
+            target = _default_target(name, cfg)
+        entries[name] = target
+    for name, target in targets_in.items():
+        name = str(name).strip()
+        if name and name not in entries:
+            note("plan.cible_sans_section", section=name)
+            entries[name] = dict(target) if isinstance(target, dict) else _default_target(name, cfg)
+
+    kept = {name: target for name, target in entries.items() if keep(name)}
+    plan = dict(raw)
+    plan["sections"] = list(kept)
+    plan["section_targets"] = kept
+    return plan
 
 
 async def create_detailed_plan(
@@ -51,7 +113,13 @@ async def create_detailed_plan(
 
     def _keep(name: str) -> bool:
         # Une section imposee ne passe pas par le filtre des sections meta.
-        return normalize_title(name) in imposed_keys or not is_meta_section(name)
+        if normalize_title(name) in imposed_keys or not is_meta_section(name):
+            return True
+        # Un retrait se declare : un faux positif du filtre ferait sinon
+        # disparaitre une section du sujet sans trace.
+        if ctx is not None:
+            ctx.diagnostics.note("plan.section_meta_retiree", titre=name)
+        return False
 
     def _finish(result: Dict[str, Any]) -> Dict[str, Any]:
         return enforce_imposed_sections(svc, ctx, query, result, imposed)
@@ -261,9 +329,10 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {", ".join(topics_f
             # de strings, section_targets=dict) attendu par tout le reste
             # du pipeline (Phase 2, final_assembly, etc.) - zero
             # changement requis ailleurs dans le fichier.
+            kept = [s for s in structured["sections"] if _keep(s["name"])]
             plan = {
                 "complexity_analysis": structured["complexity_analysis"],
-                "sections": [s["name"] for s in structured["sections"] if _keep(s["name"])],
+                "sections": [s["name"] for s in kept],
                 "section_targets": {
                     s["name"]: {
                         "words_target": s["words_target"],
@@ -277,8 +346,7 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {", ".join(topics_f
                         "search_terms": s.get("search_terms", []),
                         "source_axis": s.get("source_axis"),
                     }
-                    for s in structured["sections"]
-                    if _keep(s["name"])
+                    for s in kept
                 },
                 "narrative_flow": structured["narrative_flow"],
                 "search_strategy": structured["search_strategy"],
@@ -307,12 +375,17 @@ IMPORTANT: Adapte la structure aux sous-thèmes découverts: {", ".join(topics_f
                     elif char == "}":
                         bracket_depth -= 1
                         if bracket_depth == 0:
-                            plan = json.loads(response[start_idx : i + 1])
-                            logger.info(
-                                f"     → Plan créé (parsing manuel): {len(plan.get('sections', []))} sections"
-                            )
-                            return _finish(plan)
-            fallback_reason = "json_introuvable"
+                            raw_plan = json.loads(response[start_idx : i + 1])
+                            plan = reconcile_text_plan(raw_plan, _keep, ctx, cfg)
+                            if plan["sections"]:
+                                logger.info(
+                                    f"     → Plan créé (parsing manuel): {len(plan['sections'])} sections"
+                                )
+                                return _finish(plan)
+                            fallback_reason = "sections_filtrees"
+                            break
+            if not fallback_reason:
+                fallback_reason = "json_introuvable"
 
     except Exception as e:
         from app.core.llm.base import LLMTruncatedError

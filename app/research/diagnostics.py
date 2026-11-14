@@ -9,7 +9,10 @@ global.
 from collections import deque
 from typing import Any
 
-MAX_EVENTS = 50
+# 50 evenements ne couvraient pas un rapport long : les premieres alertes
+# (plan tronque, synthese tronquee d'une section) etaient evincees par les
+# notes de collecte. Les compteurs, eux, restent complets.
+MAX_EVENTS = 500
 _MAX_DETAIL_CHARS = 300
 
 
@@ -32,10 +35,15 @@ class Diagnostics:
     def __init__(self) -> None:
         self._counts: dict[str, int] = {}
         self._events: deque[dict[str, Any]] = deque(maxlen=MAX_EVENTS)
+        # Evenements evinces de la liste bornee : dit au lecteur que la liste
+        # est incomplete au lieu de le laisser croire qu'elle est exhaustive.
+        self._dropped = 0
 
     def note(self, event: str, **details: Any) -> None:
         """Enregistre une occurrence de l'evenement avec ses details."""
         self._counts[event] = self._counts.get(event, 0) + 1
+        if len(self._events) == self._events.maxlen:
+            self._dropped += 1
         self._events.append(
             {"event": event, "details": {k: _jsonable(v) for k, v in details.items()}}
         )
@@ -45,5 +53,10 @@ class Diagnostics:
         return self._counts.get(event, 0)
 
     def to_dict(self) -> dict[str, Any]:
-        """Forme serialisable : {"counts": {...}, "events": [les 50 derniers]}."""
-        return {"counts": dict(self._counts), "events": list(self._events)}
+        """Forme serialisable : {"counts": {...}, "events": [les MAX_EVENTS
+        derniers], "events_dropped": nombre d'evenements evinces}."""
+        return {
+            "counts": dict(self._counts),
+            "events": list(self._events),
+            "events_dropped": self._dropped,
+        }
