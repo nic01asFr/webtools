@@ -38,15 +38,16 @@ from typing import Dict, List
 DEFAULT_CHUNK_CHARS = 2000
 DEFAULT_OVERLAP_RATIO = 0.15
 
-# En deca, un fragment ne porte pas assez de contexte pour etre utile.
+# En deca, un fragment ne porte pas assez de contexte pour etre selectionne
+# seul : il est rattache a son voisin, jamais jete.
 MIN_CHUNK_CHARS = 200
 
 
 def _split_on_whitespace(text: str, chunk_chars: int, overlap: int) -> list[str]:
     """Coupe un texte sans ponctuation sur une espace, avec chevauchement.
 
-    Mode v2 seulement : la coupe nette a chunk_chars tranche un nombre ou un
-    mot en deux et ne laisse aucun contexte commun entre deux morceaux."""
+    La coupe nette a chunk_chars tranche un nombre ou un mot en deux et ne
+    laisse aucun contexte commun entre deux morceaux."""
     pieces: list[str] = []
     start = 0
     while start < len(text):
@@ -86,6 +87,110 @@ def _merge_short_chunks(chunks: list[str]) -> list[str]:
     return out
 
 
+def _split_long_line(line: str, chunk_chars: int, overlap: int) -> list[str]:
+    """Coupe une ligne trop longue en phrases, puis sur une espace.
+
+    Une coupe nette a chunk_chars tranchait un nombre ou un mot en deux.
+    Seul un mot plus long que la taille cible (URL, chaine sans espace) est
+    encore coupe net : il n'a pas d'autre frontiere."""
+    pieces: list[str] = []
+    buf = ""
+    for sent in re.split(r"(?<=[.!?])\s+", line):
+        if len(buf) + len(sent) + 1 <= chunk_chars:
+            buf = f"{buf} {sent}".strip()
+            continue
+        if buf:
+            pieces.append(buf)
+        if len(sent) > chunk_chars:
+            parts = _split_on_whitespace(sent, chunk_chars, overlap)
+            pieces.extend(parts[:-1])
+            sent = parts[-1]
+        buf = sent
+    if buf:
+        pieces.append(buf)
+    return pieces
+
+
+# Ligne separatrice d'un tableau Markdown : |---|:--:|---| (barres de bord
+# facultatives).
+_TABLE_SEPARATOR_RE = re.compile(r"^\s*\|?\s*:?-{3,}:?\s*(\|\s*:?-{3,}:?\s*)*\|?\s*$")
+
+
+def _is_table_separator(line: str) -> bool:
+    return "|" in line and bool(_TABLE_SEPARATOR_RE.match(line))
+
+
+def _split_block_on_lines(block: str, chunk_chars: int, overlap: int) -> list[str]:
+    """Decoupe un bloc multi-lignes aux limites de ligne.
+
+    Un tableau (une ligne par rangee, sans point) formait une seule phrase
+    coupee net, et seul le premier morceau gardait l'en-tete : le redacteur
+    attribuait des valeurs a la mauvaise colonne. Ici chaque morceau finit sur
+    une rangee entiere et, pour un tableau Markdown, repete l'en-tete et sa
+    ligne separatrice.
+    """
+    lines = [line.rstrip() for line in block.split("\n") if line.strip()]
+    pieces: list[str] = []
+    buf: list[str] = []
+    buf_len = 0
+    has_body = False  # le tampon porte autre chose que l'en-tete repete
+    header = ""  # en-tete + separateur du tableau en cours, "" hors tableau
+
+    def flush() -> None:
+        nonlocal buf, buf_len, has_body
+        if buf and has_body:
+            pieces.append("\n".join(buf))
+        buf, buf_len, has_body = [], 0, False
+
+    for i, line in enumerate(lines):
+        next_is_separator = i + 1 < len(lines) and _is_table_separator(lines[i + 1])
+        if _is_table_separator(line) and i > 0 and "|" in lines[i - 1]:
+            candidate = f"{lines[i - 1]}\n{line}"
+            # Un en-tete demesure ne peut pas etre repete sans etouffer les
+            # rangees : il reste alors dans le seul premier morceau.
+            header = candidate if len(candidate) <= chunk_chars // 2 else ""
+            is_row = False
+        elif "|" in line and not next_is_separator:
+            is_row = bool(header)
+        else:
+            # Une ligne sans barre clot le tableau ; une ligne suivie d'un
+            # separateur est l'en-tete d'un nouveau tableau.
+            if "|" not in line or next_is_separator:
+                header = ""
+            is_row = False
+
+        prefix = header if is_row else ""
+        room = max(chunk_chars - (len(prefix) + 1 if prefix else 0), chunk_chars // 2)
+        if len(line) > room:
+            flush()
+            for part in _split_long_line(line, room, overlap):
+                pieces.append(f"{prefix}\n{part}" if prefix else part)
+            continue
+        if buf and buf_len + 1 + len(line) > chunk_chars:
+            flush()
+            if prefix:
+                buf, buf_len = [prefix], len(prefix)
+        buf_len += len(line) + (1 if buf else 0)
+        buf.append(line)
+        has_body = True
+    flush()
+    return pieces
+
+
+def _carry_overlap(tail: str) -> str:
+    """Fin du chunk precedent reprise en tete du suivant, depuis un debut de phrase.
+
+    Rien n'est repris si cette fin contient une rangee de tableau : placee
+    avant l'en-tete repete, elle serait lue sans ses colonnes."""
+    m = re.search(r"[.!?]\s+", tail)
+    if not m:
+        return ""
+    carried = tail[m.end():]
+    if "|" in carried:
+        return ""
+    return carried
+
+
 def split_into_chunks(
     content: str,
     chunk_chars: int = DEFAULT_CHUNK_CHARS,
@@ -94,11 +199,17 @@ def split_into_chunks(
 ) -> List[str]:
     """
     Decoupe un texte en fragments qui se chevauchent, en respectant les
-    frontieres naturelles (paragraphes, puis phrases).
+    frontieres naturelles (paragraphes, lignes, phrases, puis mots).
 
-    v2 (type B, desactive par defaut) : un fragment de moins de
-    MIN_CHUNK_CHARS est rattache a son voisin au lieu d'etre supprime, et un
-    texte sans ponctuation est coupe sur une espace, avec chevauchement.
+    Aucun fragment n'est jete : un fragment de moins de MIN_CHUNK_CHARS est
+    rattache a son voisin (un chapeau date ou une note finale courte portent
+    souvent le chiffre cite). Un bloc multi-lignes (tableau, liste) est coupe
+    aux limites de ligne, l'en-tete d'un tableau Markdown repete dans chaque
+    morceau ; une ligne trop longue est coupee sur une espace.
+
+    v2 : garde pour la compatibilite de la configuration (chunking_v2) ; ses
+    deux effets (rattachement, coupe sur espace) sont desormais ceux du mode
+    par defaut.
     """
     content = (content or "").strip()
     if not content:
@@ -109,7 +220,8 @@ def split_into_chunks(
     overlap = int(chunk_chars * overlap_ratio)
 
     # Unites de base : paragraphes. Un paragraphe trop long est redecoupe
-    # en phrases plutot que coupe arbitrairement.
+    # aux limites de ligne s'il en a, sinon en phrases, plutot que coupe
+    # arbitrairement.
     units: List[str] = []
     for para in re.split(r"\n\s*\n", content):
         para = para.strip()
@@ -117,26 +229,10 @@ def split_into_chunks(
             continue
         if len(para) <= chunk_chars:
             units.append(para)
+        elif "\n" in para:
+            units.extend(_split_block_on_lines(para, chunk_chars, overlap))
         else:
-            buf = ""
-            for sent in re.split(r"(?<=[.!?])\s+", para):
-                if len(buf) + len(sent) + 1 <= chunk_chars:
-                    buf = f"{buf} {sent}".strip()
-                else:
-                    if buf:
-                        units.append(buf)
-                    # Une phrase seule depassant la taille cible est coupee
-                    # net : cas rare (listes, tableaux mal convertis).
-                    if v2 and len(sent) > chunk_chars:
-                        pieces = _split_on_whitespace(sent, chunk_chars, overlap)
-                        units.extend(pieces[:-1])
-                        sent = pieces[-1]
-                    while len(sent) > chunk_chars:
-                        units.append(sent[:chunk_chars])
-                        sent = sent[chunk_chars:]
-                    buf = sent
-            if buf:
-                units.append(buf)
+            units.extend(_split_long_line(para, chunk_chars, overlap))
 
     # Assemblage des unites en chunks, avec chevauchement par report de la
     # fin du chunk precedent.
@@ -151,16 +247,14 @@ def split_into_chunks(
                 tail = current[-overlap:] if overlap else ""
                 # Reprendre au debut d'une phrase pour ne pas commencer un
                 # chunk au milieu d'un mot.
-                m = re.search(r"[.!?]\s+", tail)
-                current = (tail[m.end():] + "\n\n" + u).strip() if m else u
+                carried = _carry_overlap(tail)
+                current = (carried + "\n\n" + u).strip() if carried else u
             else:
                 current = u
     if current:
         chunks.append(current)
 
-    if v2:
-        return _merge_short_chunks(chunks)
-    return [c for c in chunks if len(c) >= MIN_CHUNK_CHARS] or [content[:chunk_chars]]
+    return _merge_short_chunks(chunks)
 
 
 def document_to_chunk_items(
