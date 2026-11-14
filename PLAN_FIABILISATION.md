@@ -1153,9 +1153,17 @@ Au 12 novembre 2026, version 3.0.0.
     baisse sur 7 sujets sur 8 : `deep_verify_rewrite` faux par défaut. Le
     filtre de pertinence C96 donne +1,2 point [−0,2 ; +2,5] : gardé actif.
     Reste à mesurer en direct : les correctifs de délai et de troncature.
-  - Gardé tel quel, mesuré : la recherche rapide lit les 2 000 premiers
-    caractères de chaque source (R3 : la sélection de passages n'apporte
-    rien, 16 réponses exactes sur 16 dans R4 et R5).
+  - Run en direct `direct-8e3c479` : recherche approfondie 84,2 %
+    d'affirmations soutenues (87,6 % le 13/11, dans l'IC95), 378 contre 354
+    affirmations soutenues. Recherche rapide : 14 réponses exactes sur 16.
+    `q13` (GIEC) : « les sources ne permettent pas de répondre », la valeur
+    étant au caractère 4 381 de la page lue, au-delà des 2 000 premiers
+    caractères transmis ; `q03` : la page qui répondait renvoyait 404, et
+    deux résultats sans rapport occupaient des places de source.
+  - C99, corrigé (recherche rapide, commit `05c4ab8`) : chaque source donne
+    son début puis ses passages les plus proches de la question (4 000
+    caractères au plus) ; filtre de pertinence appliqué avant extraction
+    (raison `hors_sujet`). Mesure en direct en cours (`enchainer-quick.sh`).
   - Non traité, et pourquoi :
     - registre de notes extraites par un LLM avant la rédaction : un appel
       par page, sur un pipeline qui prend déjà jusqu'à 1 000 s. Les passages
