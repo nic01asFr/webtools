@@ -30,7 +30,7 @@ from app.research.diagnostics import Diagnostics
 from app.research.pipeline_config import PipelineConfig
 from app.research.stages.services import StageServices
 from app.research.stages.boundaries import check_collected, check_drafts, check_plan, check_report
-from app.research.stages.assemble import add_complete_traces, apply_summary, convert_sources_to_bibliography, final_assembly, report_title, strip_source_markers
+from app.research.stages.assemble import add_complete_traces, apply_summary, convert_sources_to_bibliography, distinct_sources_count, final_assembly, report_title, strip_source_markers
 from app.research.stages.coherence import analyze_intersections, apply_coherence_improvements
 from app.research.stages.collect import collect_section_data
 from app.research.stages.enrich import iterative_enrichment
@@ -380,7 +380,10 @@ class IntelligentOrchestrator:
                 "title": name,
                 "content": content,
                 "data": raw,
-                "metadata": {"word_count": len(content.split()), "sources_count": len(raw)},
+                "metadata": {
+                    "word_count": len(content.split()),
+                    "sources_count": distinct_sources_count(raw),
+                },
             })
         report: Dict[str, Any] = {
             "type": "report",

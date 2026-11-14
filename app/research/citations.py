@@ -24,6 +24,9 @@ CITATION_PATTERN = re.compile(r"(?P<lead>\s?)\[SOURCE:\s*(?P<url>https?://[^\s\]
 
 TEXT_KEYS = ("summary", "introduction", "conclusion")
 
+# Citation numerotee du texte final : [3], [1, 4], [2; 5].
+NUMBERED_CITATION_PATTERN = re.compile(r"\[(\d+(?:\s*[,;]\s*\d+)*)\]")
+
 _TRAILING_PUNCTUATION = ".,;:!?'\""
 
 
@@ -282,3 +285,29 @@ def construire_bibliographie(
 
     report["bibliography"] = bibliography
     return report
+
+
+def cited_bibliography_urls(report: Mapping[str, Any]) -> set[str]:
+    """URL de la bibliographie dont le numero [n] figure dans le texte final.
+
+    Avec bibliography_cited_only=False, la bibliographie garde des sources
+    jamais citees : sa seule presence ne dit pas qu'une source a servi.
+    """
+    by_id: dict[int, str] = {}
+    for entry in report.get("bibliography") or []:
+        if isinstance(entry, Mapping) and entry.get("url") and isinstance(entry.get("id"), int):
+            by_id[entry["id"]] = str(entry["url"])
+    texts: list[str] = [
+        str(section.get("content") or "")
+        for section in report.get("sections") or []
+        if isinstance(section, Mapping)
+    ]
+    texts += [str(report[key]) for key in TEXT_KEYS if isinstance(report.get(key), str)]
+    cited: set[str] = set()
+    for text in texts:
+        for match in NUMBERED_CITATION_PATTERN.finditer(text):
+            for number in re.split(r"\s*[,;]\s*", match.group(1)):
+                url = by_id.get(int(number))
+                if url is not None:
+                    cited.add(url)
+    return cited

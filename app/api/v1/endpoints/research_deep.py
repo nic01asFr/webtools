@@ -244,13 +244,15 @@ def _register_sources(
 ) -> Dict[str, int]:
     """Alimente le registre : sources requises, puis sources decouvertes.
 
-    Une source est utilisee (SUCCESS) quand elle figure dans la bibliographie
-    du rapport. Une source requise suit la meme regle : sa simple presence dans
-    le texte du rapport (data, research_traces) ne vaut pas utilisation.
+    Une source est utilisee (SUCCESS) quand son numero [n] figure dans le
+    texte final du rapport. La bibliographie seule ne suffit pas : avec
+    bibliography_cited_only=False elle garde toutes les sources des passages,
+    citees ou non. Une source requise suit la meme regle : sa simple presence
+    dans le texte du rapport (data, research_traces) ne vaut pas utilisation.
     """
-    bibliography_urls = {
-        b.get("url") for b in ((answer or {}).get("bibliography") or []) if isinstance(b, dict)
-    }
+    from app.research.citations import cited_bibliography_urls
+
+    cited_urls = cited_bibliography_urls(answer or {})
 
     failed_reasons = {
         f.get("url"): f.get("reason")
@@ -267,7 +269,7 @@ def _register_sources(
                 reason=failed_reasons[url],
             )
             continue
-        used = url in bibliography_urls and url not in uncited
+        used = url in cited_urls and url not in uncited
         registry.add_website(
             url=url,
             status=SourceStatus.SUCCESS if used else SourceStatus.DISCOVERED_NOT_USED,
@@ -279,7 +281,7 @@ def _register_sources(
     for url in discovered:
         if registry.has_source(url):
             continue
-        used = url in bibliography_urls
+        used = url in cited_urls
         used_count += 1 if used else 0
         registry.add_website(
             url=url,
