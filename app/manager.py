@@ -198,8 +198,11 @@ class ExtractorManager:
         # PALIER PDF : un PDF n'est pas une page web, le telechargement direct
         # est la seule voie correcte et passe avant tout le reste.
         try:
+            # Le budget est transmis a l'analyse : elle rend son texte partiel
+            # avant l'expiration de wait_for, qui jetterait tout.
             pdf_result = await asyncio.wait_for(
-                self.pdf_extractor.try_extract(url), timeout=max(remaining(), 0.001)
+                self.pdf_extractor.try_extract(url, budget_s=max(remaining(), 0.001)),
+                timeout=max(remaining(), 0.001),
             )
             if pdf_result is not None:
                 pdf_result.metadata["extraction_tier"] = "pdf"
@@ -207,6 +210,8 @@ class ExtractorManager:
                     logger.info(f"Extraction PDF directe reussie pour {url}")
                     self._cache_put(cache_key, pdf_result)
                 return pdf_result
+        except TimeoutError:
+            logger.warning(f"Palier PDF interrompu par le budget d'extraction pour {url}")
         except Exception as e:
             logger.debug(f"Palier PDF non concluant pour {url}: {e}")
         if remaining() <= 0:

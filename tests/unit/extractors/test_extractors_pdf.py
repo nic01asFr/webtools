@@ -111,3 +111,40 @@ async def test_redirection_vers_adresse_interne_refusee() -> None:
 async def test_url_mal_formee_donne_un_refus_sans_exception() -> None:
     res = await _run(_pdf_handler(b""), url="http://[::1/x.pdf")
     assert res is not None and not res.success
+
+
+# --- budget d'analyse ---------------------------------------------------------
+
+
+async def test_analyse_arretee_par_le_budget_rend_le_texte_partiel(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import time
+
+    import pdfplumber.page
+
+    original = pdfplumber.page.Page.extract_text
+
+    def slow_extract_text(self, *args: Any, **kwargs: Any) -> str:  # type: ignore[no-untyped-def]
+        time.sleep(0.25)
+        return original(self, *args, **kwargs)
+
+    monkeypatch.setattr(pdfplumber.page.Page, "extract_text", slow_extract_text)
+    start = time.monotonic()
+    res = await _run(_pdf_handler(make_pdf(12)), budget_s=1.5)
+    elapsed = time.monotonic() - start
+    # Marge de 0,5 s : l'analyse rend la main avant le budget de l'appelant.
+    assert elapsed < 1.5
+    assert res is not None and res.success
+    assert "Texte de test" in res.content
+    assert 0 < res.metadata["pages_extracted"] < 12
+    assert res.metadata["pages_total"] == 12
+    assert res.metadata["truncated"] is True
+    assert res.metadata["truncated_reason"] == "budget"
+
+
+async def test_sans_budget_l_analyse_lit_tout() -> None:
+    res = await _run(_pdf_handler(make_pdf(4)))
+    assert res is not None and res.success
+    assert res.metadata["pages_extracted"] == 4
+    assert "truncated_reason" not in res.metadata

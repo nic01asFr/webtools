@@ -24,7 +24,9 @@ class FakeTier:
         self.calls = 0
         self.options: dict[str, Any] | None = None
 
-    async def try_extract(self, url: str, timeout: int = 10) -> WebResult | None:
+    async def try_extract(
+        self, url: str, timeout: int = 10, **_kwargs: Any
+    ) -> WebResult | None:
         self.calls += 1
         if self.delay:
             await asyncio.sleep(self.delay)
@@ -253,7 +255,9 @@ async def test_budget_partage_entre_paliers() -> None:
     direct = FakeTier(ok(ARTICLE))
 
     class SlowTier(FakeTier):
-        async def try_extract(self, url: str, timeout: int = 10) -> WebResult | None:
+        async def try_extract(
+            self, url: str, timeout: int = 10, **_kwargs: Any
+        ) -> WebResult | None:
             self.calls += 1
             now[0] += 0.4
             return None
@@ -286,7 +290,9 @@ async def test_paliers_suivants_recoivent_le_temps_restant() -> None:
     manager._clock = lambda: now[0]
 
     class SlowRss(FakeTier):
-        async def try_extract(self, url: str, timeout: int = 10) -> WebResult | None:
+        async def try_extract(
+            self, url: str, timeout: int = 10, **_kwargs: Any
+        ) -> WebResult | None:
             now[0] += 20.0
             return None
 
@@ -353,3 +359,19 @@ def test_refus_oublies_apres_le_delai_et_rehabilites_par_un_succes() -> None:
     memory.record_refusal("https://x.org/b")
     memory.record_success("https://x.org/d")
     assert not memory.is_refusing("https://x.org/c")
+
+
+async def test_le_palier_pdf_recoit_le_budget_restant() -> None:
+    seen: dict[str, Any] = {}
+
+    class PdfSpy(FakeTier):
+        async def try_extract(
+            self, url: str, timeout: int = 10, **kwargs: Any
+        ) -> WebResult | None:
+            seen.update(kwargs)
+            return ok(url)
+
+    manager = make_manager(pdf=PdfSpy(None))
+    result = await manager.extract(ARTICLE, options=ExtractionOptions(use_agent=False, timeout=45))
+    assert result.success
+    assert 44 < seen["budget_s"] <= 45
