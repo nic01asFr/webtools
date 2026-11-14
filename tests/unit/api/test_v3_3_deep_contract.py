@@ -22,6 +22,7 @@ from tests.contract.test_pipeline_contract import (
     SectionSpec,
     build_orchestrator,
     nominal,
+    sourceless_first_section,
     synthesis_failure,
 )
 
@@ -364,6 +365,73 @@ async def test_sources_domains_whitelist(monkeypatch: pytest.MonkeyPatch) -> Non
     await h.post({"topic": QUERY, "sources": {"domains_whitelist": ["example.org"]}})
     requested = h.extractor.urls_requested()
     assert requested and all("example.org" in u for u in requested)
+
+
+# --- Cause d'une section sans source : incident de collecte ou sujet pauvre ------
+
+
+def _two_sourceless_sections() -> list[SectionSpec]:
+    # Deux sections sur trois sans source : le rapport est degrade (ratio 0,5).
+    specs = sourceless_first_section()
+    specs[1] = SectionSpec("Costs", "solar costs")
+    return specs
+
+
+async def test_section_sans_source_sur_sujet_pauvre(monkeypatch: pytest.MonkeyPatch) -> None:
+    h = Harness(monkeypatch, _two_sourceless_sections())
+    body = (await h.post({"topic": QUERY})).json()
+
+    assert body["degraded"] is True
+    assert body["unsourced_sections"] == ["Overview", "Costs"]
+    assert "la collecte n'a rien remonte sur ce sujet" in body["error"]
+    assert "incident de collecte" not in body["error"]
+
+
+async def test_section_sans_source_apres_panne_de_recherche(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from app.services.search_service import SearchUnavailableError
+
+    h = Harness(monkeypatch, nominal())
+    h.search.add("solar overview", SearchUnavailableError("SearXNG ne repond pas"))
+    h.search.add("solar costs", SearchUnavailableError("SearXNG ne repond pas"))
+    body = (await h.post({"topic": QUERY})).json()
+
+    assert body["degraded"] is True
+    assert body["unsourced_sections"] == ["Overview", "Costs"]
+    assert "incident de collecte" in body["error"] and "a reessayer" in body["error"]
+    assert "collecte.recherche_section_echec" in body["error"]
+    assert "la collecte n'a rien remonte" not in body["error"]
+
+
+def test_message_distingue_incident_et_sujet_pauvre() -> None:
+    from app.api.v1.endpoints.research_deep import _degradation_error
+
+    diagnostics = {
+        "events": {
+            "counts": {"collecte.budget_section_depasse": 1, "collecte.resultats_hors_sujet": 4},
+            "events": [
+                {"event": "collecte.budget_section_depasse", "details": {"section": "A"}},
+            ],
+            "events_dropped": 0,
+        }
+    }
+    message = _degradation_error([], ["A", "B"], [], False, 600, diagnostics=diagnostics)
+    assert message is not None
+    assert "1 section(s) sans source exploitable apres un incident de collecte" in message
+    assert "collecte.budget_section_depasse x1" in message
+    assert "1 section(s) sans source exploitable : la collecte n'a rien remonte" in message
+
+    # Exploration en panne : incident global, toutes les sections lui sont attribuees.
+    diagnostics["events"]["counts"] = {"collecte.exploration_echec": 1}
+    diagnostics["events"]["events"] = []
+    message = _degradation_error([], ["A", "B"], [], False, 600, diagnostics=diagnostics)
+    assert message is not None and "2 section(s) sans source exploitable apres un incident" in message
+    assert "rien remonte" not in message
+
+    # Sans diagnostics : constat sur le sujet, comme avant.
+    plain = _degradation_error([], ["A"], [], False, 600)
+    assert plain is not None and "la collecte n'a rien remonte sur ce sujet" in plain
 
 
 # --- Schema -----------------------------------------------------------------------

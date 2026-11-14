@@ -145,6 +145,45 @@ def build_report(answer: Dict[str, Any], include_section_data: bool) -> Dict[str
     return report
 
 
+# Evenements de diagnostic qui signalent un incident de collecte (panne de
+# recherche, echecs d'extraction, budget depasse) plutot qu'un sujet pauvre.
+COLLECTION_INCIDENT_EVENTS = (
+    "collecte.exploration_echec",
+    "collecte.recherche_terme_echec",
+    "collecte.recherche_section_echec",
+    "collecte.extraction_url_echec",
+    "collecte.extraction_section_echec",
+    "collecte.budget_section_depasse",
+    "collecte.section_echec",
+)
+# Incident qui touche toutes les sections, faute de section designee.
+_GLOBAL_INCIDENT_EVENTS = frozenset({"collecte.exploration_echec"})
+
+
+def _collection_incidents(
+    diagnostics: Optional[Dict[str, Any]], unsourced: List[str]
+) -> tuple[List[str], Dict[str, int]]:
+    """Sections sans source touchees par un incident de collecte, et compteurs.
+
+    Une section est attribuee a l'incident quand un evenement la designe ;
+    toutes le sont quand l'incident est global (exploration) ou quand la
+    liste bornee des evenements a perdu des entrees (attribution impossible).
+    """
+    events_block = (diagnostics.get("events") or {}) if isinstance(diagnostics, dict) else {}
+    counts = events_block.get("counts") or {}
+    incidents = {e: int(counts[e]) for e in COLLECTION_INCIDENT_EVENTS if counts.get(e)}
+    if not incidents:
+        return [], {}
+    if events_block.get("events_dropped") or any(e in incidents for e in _GLOBAL_INCIDENT_EVENTS):
+        return list(unsourced), incidents
+    touched = {
+        str((ev.get("details") or {}).get("section"))
+        for ev in events_block.get("events") or []
+        if isinstance(ev, dict) and ev.get("event") in incidents
+    }
+    return [s for s in unsourced if s in touched], incidents
+
+
 def _degradation_error(
     failed: List[str],
     unsourced: List[str],
@@ -155,13 +194,16 @@ def _degradation_error(
     required_failed: Optional[List[Dict[str, str]]] = None,
     sections_imposed: bool = False,
     pipeline_error: Optional[str] = None,
+    diagnostics: Optional[Dict[str, Any]] = None,
 ) -> Optional[str]:
     """Message de l'erreur d'un rapport degrade, une cause par message.
 
-    Un echec LLM est un incident technique (a reessayer), une absence de
-    source est un constat sur le sujet (inutile de reessayer a l'identique),
-    un delai depasse se regle par le parametre timeout : les confondre ferait
-    chercher une panne la ou il n'y en a pas.
+    Un echec LLM est un incident technique (a reessayer). Une section sans
+    source est soit la suite d'un incident de collecte note dans les
+    diagnostics (panne de recherche, echecs d'extraction, budget depasse :
+    a reessayer), soit un constat sur le sujet (inutile de reessayer a
+    l'identique). Un delai depasse se regle par le parametre timeout : les
+    confondre ferait chercher une panne la ou il n'y en a pas.
     """
     parts: List[str] = []
     if pipeline_error:
@@ -177,9 +219,19 @@ def _degradation_error(
     if failed:
         parts.append(f"{len(failed)} section(s) non generee(s) : echec repete de l'appel LLM de synthese")
     if unsourced:
-        parts.append(
-            f"{len(unsourced)} section(s) sans source exploitable : la collecte n'a rien remonte sur ce sujet"
-        )
+        after_incident, incidents = _collection_incidents(diagnostics, unsourced)
+        poor = [s for s in unsourced if s not in after_incident]
+        if after_incident:
+            listing = ", ".join(f"{e} x{n}" for e, n in incidents.items())
+            parts.append(
+                f"{len(after_incident)} section(s) sans source exploitable apres un incident de "
+                f"collecte ({listing}) : a reessayer"
+            )
+        if poor:
+            parts.append(
+                f"{len(poor)} section(s) sans source exploitable : la collecte n'a rien remonte "
+                f"sur ce sujet"
+            )
     if plan_fallback_reason:
         # Avec des sections imposees, le repli les conserve (V4-4) : seules
         # leurs cibles (objectifs, requetes) sont generiques.
@@ -426,6 +478,7 @@ async def research_deep(request: DeepResearchRequest):
             required_failed=required_failed,
             sections_imposed=bool(sections),
             pipeline_error=pipeline_error,
+            diagnostics=diagnostics,
         )
         logger.error(
             f"Rapport DEGRADE : {len(failed)} echec(s) LLM, {len(unsourced)} section(s) sans source, "
