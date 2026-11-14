@@ -226,8 +226,9 @@ async def test_synthese_tronquee_est_notee() -> None:
     events = _events(ctx, "selection.synthese_tronquee")
     assert len(events) == 1
     assert events[0]["details"]["section"] == SECTION
-    # une seule source : objectif ramene a 250 mots par la synthese
-    assert events[0]["details"]["max_tokens"] == int(250 * 4.5)
+    # une seule source : objectif ramene a 250 mots par la synthese, soit
+    # 1 125 jetons, releve au plancher synthesis_min_max_tokens
+    assert events[0]["details"]["max_tokens"] == 3000
 
 
 async def test_synthese_non_tronquee_ne_note_rien() -> None:

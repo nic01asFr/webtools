@@ -118,12 +118,17 @@ CORRECTED = (
 )
 
 
-def _deep(verdict: str, verify: bool = True):
+def _deep(verdict: str, verify: bool = True, after: str = "soutenue", **flags):
+    """verdict : verdict de la redaction ; after : celui de la reecriture,
+    reverifiee (deep_verify_rewrite)."""
     orch, llm, _search, _extractor = build_orchestrator(nominal())
-    orch.config = dataclasses.replace(orch.config, deep_verify_sections=verify)
+    orch.config = dataclasses.replace(orch.config, deep_verify_sections=verify, **flags)
     llm._text.insert(0, (re.compile("Verification de ta reponse", re.DOTALL), CORRECTED))
     llm._text.insert(1, (re.compile("Rédige la section", re.DOTALL), DRAFT))
-    llm.on_structured("verification", {"phrases": [{"numero": 1, "verdict": verdict, "probleme": "90 jours"}]})
+    llm.on_structured("verification", [
+        {"phrases": [{"numero": 1, "verdict": verdict, "probleme": "90 jours", "appuis": []}]},
+        {"phrases": [{"numero": 1, "verdict": after, "probleme": "", "appuis": []}]},
+    ])
     return orch, llm
 
 

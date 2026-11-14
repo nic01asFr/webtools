@@ -38,6 +38,26 @@ _PATTERNS = [
     r"it is (?:not possible|impossible) to (?:write|draft|produce)",
     r"the (?:provided|supplied|given) (?:data|sources|documents|passages) (?:do|does) not contain",
     r"none of the (?:provided|supplied) (?:sources|data|documents)",
+    # Phrase imposee par la regle 6 du prompt v3 (synthesis_prompt.py), que le
+    # modele traduit dans la langue de redaction : "The provided sources do
+    # not address this section." L'objet est exige ("this section", "the topic
+    # of this section", "this topic") : "the provided sources do not cover the
+    # costs" est une phrase de contenu et ne doit pas faire rejeter la section.
+    r"(?:the )?(?:(?:provided|supplied|given|available) )?(?:sources|data|documents|passages|excerpts)"
+    r"(?: (?:provided|supplied|given|available))? (?:do|does) not "
+    r"(?:address|cover|discuss|deal with|treat|concern|relate to|pertain to|mention|contain information (?:on|about|regarding)) "
+    r"(?:this section|th(?:e|is) (?:topic|subject|scope) of (?:this|the) section|this (?:topic|subject)\b)",
+    r"(?:the )?(?:(?:provided|supplied|given) )?sources(?: (?:provided|supplied|given))? "
+    r"(?:contain|include|provide|offer) no (?:relevant )?information (?:on|about|for|regarding) "
+    r"(?:this section|this (?:topic|subject)\b)",
+    # Meme phrase de la regle 6 sans "fournies", et dans les autres langues
+    # de redaction (es, de, it, pt), toujours avec "cette section" pour objet.
+    r"(?:les|ces) sources(?: fournies)? ne (?:traitent|couvrent|abordent) pas (?:de )?cette section",
+    r"las fuentes(?: proporcionadas| facilitadas| suministradas)? no (?:tratan|abordan|cubren) (?:de )?esta secci[oó]n",
+    r"die (?:bereitgestellten |gelieferten |vorliegenden |angegebenen )?quellen (?:behandeln|betreffen|decken) "
+    r"diesen abschnitt nicht",
+    r"le fonti(?: fornite)? non (?:trattano|riguardano|affrontano) (?:di )?questa sezione",
+    r"as fontes(?: fornecidas| disponibilizadas)? n[aã]o (?:tratam|abordam|cobrem) (?:d)?esta se[cç][cç]?[aã]o",
 ]
 _REFUSAL = re.compile("|".join(_PATTERNS), re.IGNORECASE)
 # Marqueurs de citation du texte brut ([SOURCE:url]) : une URL longue peut

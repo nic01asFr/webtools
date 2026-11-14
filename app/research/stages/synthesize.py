@@ -2,6 +2,7 @@
 
 import json
 import logging
+import re
 from typing import Dict, List
 
 from app.research.context import ExecutionContext
@@ -12,11 +13,133 @@ from app.research.stages.select import semantic_chunk_selection
 from app.research.stages.synthesis_prompt import (
     SourceLabels,
     build_prompt_v3,
+    convert_labels,
     established_facts,
-    ids_to_markers,
 )
 
 logger = logging.getLogger(__name__)
+
+# Fin de phrase complete, citation finale comprise : "... en 2018 [S2]." ou
+# "... en 2018. [S2]". Suivie d'un blanc ou de la fin du texte : "12,5" et
+# "3.2" ne sont pas des fins de phrase.
+_COMPLETE_SENTENCE = re.compile(
+    r"[.!?…][\"'»”’)\]]*(?:[ \t]*\[[^\]\n]*\])?(?=\s|$)"
+)
+_HEADING = re.compile(r"^#{1,6}\s")
+
+
+def _distinct_sources(data: List[Dict]) -> int:
+    """Pages distinctes parmi les passages ; un passage sans URL compte pour une."""
+    urls = set()
+    anonymous = 0
+    for item in data:
+        url = str((item or {}).get("source") or (item or {}).get("url") or "").strip()
+        if url:
+            urls.add(url)
+        else:
+            anonymous += 1
+    return len(urls) + anonymous
+
+
+def _write_draft(
+    context: ExecutionContext, section_name: str, text: str, enriched_data: List[Dict]
+) -> None:
+    """Ecrit le brouillon d'une section dans le rapport en cours (voir l'appelant)."""
+    entry = context.final_content["sections"].setdefault(
+        section_name,
+        {"raw_data": [], "content": "", "metadata": {"data_count": 0, "sources": []}},
+    )
+    entry["content"] = text
+    # Memes donnees que celles que write_sections ecrira : le rapport partiel
+    # en tire le nombre de sources de la section.
+    entry["raw_data"] = enriched_data
+
+
+def cut_at_last_sentence(text: str) -> str:
+    """Texte coupe apres sa derniere phrase ou rangee de tableau complete.
+
+    La derniere ligne d'une sortie coupee est incomplete : une rangee de
+    tableau y est retiree entiere (cellules manquantes), une ligne de prose
+    est coupee a sa derniere fin de phrase. Un titre reste seul en fin de
+    texte est retire. Rend une chaine vide si rien n'est complet.
+    """
+    lines = text.rstrip().split("\n")
+    last = lines.pop()
+    if not last.lstrip().startswith("|"):
+        end = 0
+        for match in _COMPLETE_SENTENCE.finditer(last):
+            end = match.end()
+        if end:
+            lines.append(last[:end])
+    while lines and (not lines[-1].strip() or _HEADING.match(lines[-1].strip())):
+        lines.pop()
+    return "\n".join(lines).rstrip()
+
+
+async def generate_complete(
+    svc: StageServices,
+    context: ExecutionContext,
+    section_name: str,
+    messages: List[Dict[str, str]],
+    max_tokens: int,
+    temperature: float,
+    step: str = "redaction",
+) -> str:
+    """Generation d'une section (redaction ou reecriture) sans texte coupe.
+
+    Une sortie coupee (max_tokens atteint, ou flux interrompu : voir
+    last_truncated) est relancee une fois avec un plafond double ; si elle
+    l'est encore, le texte est coupe a sa derniere phrase complete. Le texte
+    coupe etait auparavant garde tel quel, et publie avec un mot ampute en
+    fin de section.
+
+    Les erreurs du premier appel remontent a l'appelant (qui a ses propres
+    reessais) ; celles du nouvel essai gardent la premiere sortie, coupee.
+    """
+    text = await svc.llm_client.generate(messages, max_tokens=max_tokens, temperature=temperature)
+    if not svc.llm_client.last_truncated:
+        return text
+    context.diagnostics.note(
+        "selection.synthese_tronquee", section=section_name, max_tokens=max_tokens, etape=step
+    )
+    retry_tokens = max_tokens * 2
+    try:
+        retry = await svc.llm_client.generate(
+            messages, max_tokens=retry_tokens, temperature=temperature
+        )
+    except Exception as e:
+        logger.warning(f"       Nouvel essai de '{section_name}' impossible : {e}")
+        context.diagnostics.note(
+            "selection.synthese_nouvel_essai_impossible",
+            section=section_name,
+            etape=step,
+            erreur=type(e).__name__,
+        )
+        retry = None
+    if retry and retry.strip():
+        if not svc.llm_client.last_truncated:
+            return retry
+        text = retry
+    cut = cut_at_last_sentence(text)
+    if not cut:
+        # Aucune phrase complete : le texte coupe vaut mieux qu'une section vide.
+        context.diagnostics.note(
+            "selection.synthese_coupee_a_la_phrase",
+            section=section_name,
+            etape=step,
+            max_tokens=retry_tokens,
+            retires=0,
+            phrase_complete=False,
+        )
+        return text
+    context.diagnostics.note(
+        "selection.synthese_coupee_a_la_phrase",
+        section=section_name,
+        etape=step,
+        max_tokens=retry_tokens,
+        retires=len(text.rstrip()) - len(cut),
+    )
+    return cut
 
 
 async def synthesize_single_section(
@@ -49,7 +172,11 @@ async def synthesize_single_section(
     # point d'imposer un objectif de mots deconnecte de ce qui a ete
     # trouve. Sans ca, une section pauvre en sources produit un contenu
     # dilue/generique pour atteindre un objectif arbitraire, ou echoue.
-    n_sources = len(enriched_data)
+    # Sources distinctes et non passages : depuis le decoupage, une seule page
+    # donne plusieurs passages, et la regle "peu de sources" ne s'appliquait
+    # quasiment jamais (deux pages decoupees en six passages comptaient pour
+    # six sources).
+    n_sources = _distinct_sources(enriched_data)
     if n_sources == 0:
         words_target = min(words_target, cfg.synthesis_no_source_words_cap)
         logger.info(
@@ -159,10 +286,14 @@ async def synthesize_single_section(
             "pour cette section."
         )
 
+    # Plancher de max_tokens : le prompt v3 ne donne plus de longueur cible
+    # ("ce que les sources etablissent"), et words_target vaut parfois 100 a
+    # 150 mots (450 a 675 jetons), assez pour couper une section a mi-phrase.
+    max_tokens = max(cfg.synthesis_min_max_tokens, int(words_target * cfg.synthesis_tokens_per_word))
     logger.info(
         f"       📝 Prompt synthèse '{section_name}': {len(prompt)} chars, "
         f"{len(selected_data)} source(s), {_payload_chars} chars de données, "
-        f"objectif {words_target} mots (max_tokens={int(words_target * cfg.synthesis_tokens_per_word)})"
+        f"objectif {words_target} mots (max_tokens={max_tokens})"
     )
 
     # Reessai avec attente progressive : la synthese est le seul endroit du
@@ -175,7 +306,10 @@ async def synthesize_single_section(
     max_attempts = cfg.synthesis_max_attempts
     for attempt in range(max_attempts):
         try:
-            response = await svc.llm_client.generate(
+            response = await generate_complete(
+                svc,
+                context,
+                section_name,
                 [{"role": "user", "content": prompt}],
                 # 4.5 jetons/mot et non 2.5.
                 #
@@ -192,16 +326,10 @@ async def synthesize_single_section(
                 # donc redige plus long que words_target.
                 # words_target reste un OBJECTIF indicatif ; max_tokens
                 # doit etre un plafond de securite, pas une contrainte
-                # qui mutile la derniere phrase.
-                max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
+                # qui mutile la derniere phrase (plancher : voir max_tokens).
+                max_tokens=max_tokens,
                 temperature=cfg.synthesis_temperature,
             )
-            if svc.llm_client.last_truncated:
-                context.diagnostics.note(
-                    "selection.synthese_tronquee",
-                    section=section_name,
-                    max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
-                )
             if response and response.strip():
                 # Controle de fidelite numerique : signale les chiffres
                 # ecrits qui n'apparaissent dans aucune source de la
@@ -251,18 +379,48 @@ async def synthesize_single_section(
                         "cette section (refus du modele)."
                     )
 
+                # Brouillon ecrit dans le rapport avant la verification : si
+                # le delai global tombe pendant la verification ou la
+                # reecriture (frequent au-dela de 1 000 s), le rapport
+                # partiel (_partial_report de l'orchestrateur) lit
+                # ctx.final_content et declarait la section manquante alors
+                # qu'un texte existait. write_sections le remplace ensuite
+                # par la version finale. Etiquettes deja converties : le
+                # rapport partiel ne connait que [SOURCE:url].
+                draft = (
+                    convert_labels(response, labels).text if labels is not None else response
+                ).strip()
+                _write_draft(context, section_name, draft, enriched_data)
+
                 if cfg.deep_verify_sections:
                     response = await verify_section(
                         svc, context, section_name, prompt, response, selected_data,
-                        max_tokens=int(words_target * cfg.synthesis_tokens_per_word),
+                        max_tokens=max_tokens,
                         temperature=cfg.synthesis_temperature,
                         labels=labels,
                     )
                 if labels is not None:
-                    response, unknown = ids_to_markers(response, labels)
-                    if unknown:
+                    conversion = convert_labels(response, labels)
+                    response = conversion.text
+                    if conversion.unknown:
                         context.diagnostics.note(
-                            "citations.etiquette_inconnue", section=section_name, etiquettes=unknown
+                            "citations.etiquette_inconnue",
+                            section=section_name,
+                            etiquettes=conversion.unknown,
+                        )
+                    if conversion.bare_numbers:
+                        # Retire sans deviner : [1] renverrait a l'entree 1 de
+                        # la bibliographie, qui n'est pas la source voulue.
+                        context.diagnostics.note(
+                            "citations.numero_nu",
+                            section=section_name,
+                            appels=conversion.bare_numbers,
+                        )
+                    if conversion.malformed:
+                        context.diagnostics.note(
+                            "citations.etiquette_mal_formee",
+                            section=section_name,
+                            etiquettes=conversion.malformed,
                         )
 
                 word_count = len(response.split())
@@ -468,12 +626,18 @@ async def verify_section(
     labels (redaction v3) : sources etiquetees [S1], [S2]... ; une phrase
     soutenue sans etiquette recoit celle que le verificateur designe.
 
+    Drapeau deep_verify_rewrite : la reecriture est verifiee a son tour et
+    gardee seulement si elle a moins de phrases fautives que l'original ;
+    ses citations sont completees avec ses propres verdicts.
+
     Une verification ou une reecriture en echec, vide ou refusee garde la
     section telle quelle : la verification ne doit jamais faire perdre une
     section.
     """
     from app.research.answer_check import (
         FAULTY,
+        SentenceVerdict,
+        Verdicts,
         add_missing_citations,
         check_answer,
         correction_request,
@@ -491,11 +655,25 @@ async def verify_section(
                 by_url.setdefault(url, []).append(str(d.get("content") or ""))
         sources = [(url, "\n[...]\n".join(parts)) for url, parts in by_url.items()]
         label_style, citation_format = "url", "[SOURCE:url]"
-    try:
-        verdicts = await check_answer(
-            svc.llm_client, response, sources, label_style=label_style,
+    async def check(text: str, step: str) -> Verdicts:
+        found = await check_answer(
+            svc.llm_client, text, sources, label_style=label_style,
             model=context.config.verification_model,
         )
+        if found.partial:
+            # Le verificateur n'a juge qu'une partie des phrases : les autres
+            # ne sont pas validees, seulement non lues.
+            context.diagnostics.note(
+                "selection.verification_partielle",
+                section=section_name,
+                etape=step,
+                soumises=found.submitted,
+                jugees=found.judged,
+            )
+        return found
+
+    try:
+        verdicts = await check(response, "redaction")
     except Exception as e:
         logger.warning(f"       Vérification de '{section_name}' impossible : {e}")
         context.diagnostics.note(
@@ -507,18 +685,21 @@ async def verify_section(
         "selection.verification", section=section_name, phrases=len(verdicts), fautives=len(faulty)
     )
 
-    def with_citations(text: str) -> str:
+    def with_citations(text: str, used: List[SentenceVerdict]) -> str:
         if labels is None:
             return text
-        completed, added = add_missing_citations(text, verdicts, labels.known)
+        completed, added = add_missing_citations(text, used, labels.known)
         if added:
             context.diagnostics.note("citations.ajoutees", section=section_name, phrases=added)
         return completed
 
     if not faulty:
-        return with_citations(response)
+        return with_citations(response, verdicts)
     try:
-        corrected = await svc.llm_client.generate(
+        corrected = await generate_complete(
+            svc,
+            context,
+            section_name,
             [
                 {"role": "user", "content": prompt},
                 {"role": "assistant", "content": response},
@@ -526,20 +707,68 @@ async def verify_section(
             ],
             max_tokens=max_tokens,
             temperature=temperature,
+            step="reecriture",
         )
     except Exception as e:
         logger.warning(f"       Réécriture de '{section_name}' impossible : {e}")
         context.diagnostics.note(
             "selection.reecriture_impossible", section=section_name, erreur=type(e).__name__
         )
-        return with_citations(response)
+        return with_citations(response, verdicts)
     if not corrected or not corrected.strip() or is_refusal(corrected):
         context.diagnostics.note("selection.reecriture_rejetee", section=section_name)
-        return with_citations(response)
-    logger.info(f"       ✔ Section '{section_name}' réécrite : {len(faulty)} phrase(s) fautive(s)")
-    context.diagnostics.note("selection.section_reecrite", section=section_name, fautives=len(faulty))
-    # Les phrases gardees telles quelles recoivent l'etiquette designee.
-    return with_citations(corrected.strip())
+        return with_citations(response, verdicts)
+    corrected = corrected.strip()
+
+    if not context.config.deep_verify_rewrite:
+        logger.info(f"       ✔ Section '{section_name}' réécrite : {len(faulty)} phrase(s) fautive(s)")
+        context.diagnostics.note("selection.section_reecrite", section=section_name, fautives=len(faulty))
+        # Les phrases gardees telles quelles recoivent l'etiquette designee.
+        return with_citations(corrected, verdicts)
+
+    # Reecriture reverifiee : elle peut introduire de nouvelles phrases non
+    # soutenues, et les verdicts du texte d'origine ne disent rien d'elles.
+    try:
+        new_verdicts = await check(corrected, "reecriture")
+    except Exception as e:
+        # Reecriture gardee : elle repond a une critique precise, et les
+        # verdicts d'origine ne s'appliquent qu'aux phrases gardees mot pour
+        # mot (add_missing_citations exige la phrase exacte dans le texte).
+        logger.warning(f"       Revérification de '{section_name}' impossible : {e}")
+        context.diagnostics.note(
+            "selection.reverification_impossible", section=section_name, erreur=type(e).__name__
+        )
+        context.diagnostics.note("selection.section_reecrite", section=section_name, fautives=len(faulty))
+        return with_citations(corrected, verdicts)
+    new_faulty = [v for v in new_verdicts if v.verdict in FAULTY]
+    context.diagnostics.note(
+        "selection.reverification",
+        section=section_name,
+        phrases=len(new_verdicts),
+        fautives=len(new_faulty),
+    )
+    if len(new_faulty) >= len(faulty):
+        logger.info(
+            f"       Réécriture de '{section_name}' rejetée : {len(new_faulty)} phrase(s) "
+            f"fautive(s) contre {len(faulty)} dans l'original"
+        )
+        context.diagnostics.note(
+            "selection.reecriture_rejetee",
+            section=section_name,
+            fautives_origine=len(faulty),
+            fautives_reecriture=len(new_faulty),
+        )
+        return with_citations(response, verdicts)
+    logger.info(
+        f"       Section '{section_name}' réécrite : {len(faulty)} -> {len(new_faulty)} phrase(s) fautive(s)"
+    )
+    context.diagnostics.note(
+        "selection.section_reecrite",
+        section=section_name,
+        fautives=len(faulty),
+        fautives_apres=len(new_faulty),
+    )
+    return with_citations(corrected, new_verdicts)
 
 
 async def write_sections(

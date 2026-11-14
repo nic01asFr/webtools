@@ -24,10 +24,20 @@ logger = logging.getLogger(__name__)
 _HEADING_OR_RULE = re.compile(r"^(?:#{1,6}\s|\|?\s*:?-{3,})")
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+(?=[\"«(\[*]?[A-ZÀ-ÖØ-Þ0-9])")
 _CITATION = re.compile(r"\[(\d+(?:\s*[,;–-]\s*\d+)*)\]")
-# Etiquettes de source de la redaction v3 : [S1], [S1, S3], [S2; S4].
-_ID_CITATION = re.compile(r"\[\s*S\s?\d+(?:\s*[,;]\s*S?\s?\d+)*\s*\]", re.IGNORECASE)
-# Appui rendu par le verificateur : "S2", "[S2]", "S2 Titre de la page".
-_SUPPORT_LABEL = re.compile(r"\s*\[?\s*S\s?(\d+)\b", re.IGNORECASE)
+# Etiquettes de source de la redaction v3 : [S1], [S1, S3], [S2; S4], et les
+# variantes que le modele ecrit malgre la consigne : plage [S1-S3], [S1 et S2],
+# [S1 and S2], [Source S1], [Sources : S1, S2]. Une phrase qui porte l'une de
+# ces formes est deja citee : add_missing_citations ne doit pas lui en ajouter
+# une seconde, et ids_to_markers les convertit toutes.
+ID_CITATION = re.compile(
+    r"\[\s*(?:sources?\s*:?\s*)?S\s?\d+"
+    r"(?:\s*(?:[,;&/–—-]|\bet\b|\band\b)\s*(?:S\s?)?\d+)*\s*\]",
+    re.IGNORECASE,
+)
+_ID_CITATION = ID_CITATION
+# Appui rendu par le verificateur : "S2", "[S2]", "S2 Titre de la page",
+# "Source S2".
+_SUPPORT_LABEL = re.compile(r"\s*\[?\s*(?:sources?\s*:?\s*)?S\s?(\d+)\b", re.IGNORECASE)
 MIN_WORDS = 4
 FAULTY = ("partielle", "contredite", "non_soutenue")
 
@@ -71,6 +81,27 @@ Une phrase sans element verifiable (transition, annonce du plan) est soutenue.
 Pour chaque phrase qui n'est pas soutenue, "probleme" dit en une phrase ce qui manque ou differe, en citant la valeur de la source quand elle existe. Pour une phrase soutenue, "probleme" est une chaine vide.
 
 "appuis" donne les etiquettes des sources qui soutiennent la phrase, telles qu'elles figurent en tete de chaque source (par exemple "S2" ou "2") ; liste vide si aucune ne la soutient ou si la phrase n'a rien a verifier."""
+
+
+class Verdicts(list):
+    """Verdicts rendus, avec le nombre de phrases soumises au verificateur.
+
+    Une liste pour les appelants existants ; submitted distingue une
+    verification complete d'une verification partielle (le modele peut ne
+    juger que 20 phrases sur 45 : les 25 autres ne sont pas validees, elles
+    n'ont simplement pas ete lues).
+    """
+
+    submitted: int = 0
+
+    @property
+    def judged(self) -> int:
+        """Phrases distinctes effectivement jugees."""
+        return len({v.number for v in self})
+
+    @property
+    def partial(self) -> bool:
+        return self.judged < self.submitted
 
 
 @dataclass
@@ -122,25 +153,27 @@ async def check_answer(
     sources: list[tuple[str, str]],
     label_style: str = "numero",
     model: str = "",
-) -> list[SentenceVerdict]:
+) -> Verdicts:
     """Verdict de chaque phrase de la reponse (phrases trop courtes exclues).
 
     model : modele du verificateur, vide pour celui du client.
     Leve l'exception du client LLM si la verification echoue : l'appelant
     garde alors la reponse non verifiee et le signale.
+    Rend une liste Verdicts dont submitted compte les phrases soumises.
     """
     sentences = [
         s for s in split_sentences(answer)
         if len(_ID_CITATION.sub("", _CITATION.sub("", s)).split()) >= MIN_WORDS
     ]
     if not sentences:
-        return []
+        return Verdicts()
     extra: dict[str, Any] = {"model": model} if model else {}
     raw = await llm_client.generate_structured(
         build_messages(sentences, sources, label_style), schema=SCHEMA, schema_name="verification",
         temperature=0, **extra,
     )
-    verdicts: list[SentenceVerdict] = []
+    verdicts = Verdicts()
+    verdicts.submitted = len(sentences)
     for item in (raw or {}).get("phrases") or []:
         number = item.get("numero")
         if not isinstance(number, int) or not 1 <= number <= len(sentences):

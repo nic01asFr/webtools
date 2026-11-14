@@ -24,12 +24,27 @@ import re
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
-from app.research.answer_check import split_sentences
+from app.research.answer_check import ID_CITATION, split_sentences
 from app.research.citations import CITATION_PATTERN
 
-# [S1], [S1, S3], [S2; S4], [S 2] ; insensible a la casse.
-ID_CITATION = re.compile(r"\[\s*S\s?\d+(?:\s*[,;]\s*S?\s?\d+)*\s*\]", re.IGNORECASE)
 _ID_NUMBER = re.compile(r"\d+")
+# Prefixe "Source"/"Sources :" d'une etiquette, retire avant d'en lire les numeros.
+_ID_PREFIX = re.compile(r"^\[\s*(?:sources?\s*:?\s*)?", re.IGNORECASE)
+# Un numero ou une plage (S1-S3, S1-3, S1–S3) dans une etiquette.
+_ID_ITEM = re.compile(r"(\d+)(?:\s*[–—-]\s*(?:S\s?)?(\d+))?", re.IGNORECASE)
+# Plage developpee au plus sur cette largeur : au-dela, la plage est une
+# faute de frappe ([S1-S100]) et seules ses bornes sont lues.
+_MAX_RANGE = 20
+# Appel numerote nu ([1], [2, 3], [1-3]) : la redaction v3 n'en produit pas,
+# et le lecteur le rattacherait a l'entree de meme numero de la bibliographie,
+# qui n'est pas la source voulue. 1 a 3 chiffres : une annee entre crochets
+# n'est pas un appel ; un lien markdown [1](url) non plus.
+_BARE_NUMBER = re.compile(r"\[\s*\d{1,3}(?:\s*[,;–—-]\s*\d{1,3})*\s*\](?!\()")
+# Etiquette [S... restee apres conversion, forme non prevue ([S1, p. 4],
+# [S1 : tableau 2]) : elle serait publiee telle quelle.
+_MALFORMED_ID = re.compile(r"\[\s*(?:sources?\s*:?\s*)?S\s?\d[^\]\n]{0,80}\]", re.IGNORECASE)
+# Marque provisoire d'un appel retire, effacee avec les blancs qui la precedent.
+_REMOVED = "\x00"
 
 DEPTH_GUIDANCE = {
     "light": "Va a l'essentiel : les deux ou trois points principaux que les sources etablissent.",
@@ -104,27 +119,73 @@ class SourceLabels:
         ]
 
 
-def ids_to_markers(text: str, labels: SourceLabels) -> tuple[str, List[str]]:
-    """Remplace chaque etiquette [Sn] par [SOURCE:url]. Rend le texte et les
-    etiquettes inconnues, retirees du texte."""
-    unknown: List[str] = []
+@dataclass
+class MarkerConversion:
+    """Texte converti et appels de citation retires, par motif."""
+
+    text: str
+    unknown: List[str] = field(default_factory=list)  # etiquettes sans source
+    bare_numbers: List[str] = field(default_factory=list)  # appels [n] nus
+    malformed: List[str] = field(default_factory=list)  # etiquettes [S... illisibles
+
+
+def _label_numbers(label: str) -> List[str]:
+    """Numeros d'une etiquette, plages developpees : "[S1-S3, S5]" -> 1, 2, 3, 5."""
+    numbers: List[str] = []
+    for match in _ID_ITEM.finditer(_ID_PREFIX.sub("", label)):
+        low, high = int(match.group(1)), match.group(2)
+        if high is None:
+            numbers.append(str(low))
+        elif low <= int(high) <= low + _MAX_RANGE:
+            numbers.extend(str(n) for n in range(low, int(high) + 1))
+        else:
+            numbers.extend([str(low), high])
+    return numbers
+
+
+def convert_labels(text: str, labels: SourceLabels) -> MarkerConversion:
+    """Remplace chaque etiquette [Sn] (formes multiples et plages comprises)
+    par [SOURCE:url] ; retire les etiquettes inconnues, les appels numerotes
+    nus et les etiquettes [S... restees illisibles, sans deviner leur source."""
+    result = MarkerConversion(text="")
+
+    def bare(match: re.Match[str]) -> str:
+        result.bare_numbers.append(match.group(0))
+        return _REMOVED
 
     def replace(match: re.Match[str]) -> str:
         markers = []
-        for number in _ID_NUMBER.findall(match.group(0)):
+        for number in _label_numbers(match.group(0)):
             url = labels.url_for(number)
             if url is None:
-                unknown.append(f"S{number}")
+                result.unknown.append(f"S{number}")
                 continue
             marker = f"[SOURCE:{url}]"
             if marker not in markers:
                 markers.append(marker)
         return " ".join(markers)
 
-    converted = ID_CITATION.sub(replace, text)
+    def malformed(match: re.Match[str]) -> str:
+        result.malformed.append(match.group(0))
+        return _REMOVED
+
+    # Appels nus d'abord, sur le texte du modele : apres conversion, le texte
+    # porte des URL qui ne doivent pas etre examinees.
+    converted = _BARE_NUMBER.sub(bare, text)
+    converted = ID_CITATION.sub(replace, converted)
+    converted = _MALFORMED_ID.sub(malformed, converted)
+    converted = re.sub(r"[ \t]*" + _REMOVED, "", converted)
     # Etiquette inconnue retiree : pas d'espace orphelin avant la ponctuation.
     converted = re.sub(r"[ \t]+(?=[.,;:!?])", "", converted)
-    return converted, unknown
+    result.text = converted
+    return result
+
+
+def ids_to_markers(text: str, labels: SourceLabels) -> tuple[str, List[str]]:
+    """Remplace chaque etiquette [Sn] par [SOURCE:url]. Rend le texte et les
+    etiquettes inconnues, retirees du texte (detail complet : convert_labels)."""
+    conversion = convert_labels(text, labels)
+    return conversion.text, conversion.unknown
 
 
 def established_facts(
@@ -139,12 +200,25 @@ def established_facts(
     les precedentes ont affirme avec une source, pour ne pas le repeter ni le
     contredire. Remplace l'apercu des 180 premiers caracteres de chaque
     section, qui ne disait rien des faits.
+
+    Budget servi aux sections les plus proches d'abord (la precedente
+    immediate, puis celle d'avant...) : en suivant l'ordre du plan, au-dela
+    de cinq sections le budget etait epuise par les premieres et une section
+    ne voyait pas les faits de celle qui la precede, la plus susceptible
+    d'etre repetee. Les faits sont rendus dans l'ordre du plan.
     """
-    facts: List[str] = []
+    names = list(sections)
+    position = names.index(current) if current in names else len(names)
+    # Precedentes de la plus proche a la plus lointaine, puis les suivantes
+    # deja redigees (rejeu, nom de section repris), dans le meme ordre.
+    by_proximity = names[:position][::-1] + names[position + 1:]
+    taken_by_section: Dict[str, List[str]] = {}
     used = 0
-    for name, data in sections.items():
-        if name == current:
-            continue
+    exhausted = False
+    for name in by_proximity:
+        if exhausted:
+            break
+        data = sections[name]
         content = str((data or {}).get("content") or "")
         if not content or content.startswith("[SECTION_SANS_SOURCE]") or content.startswith("[SYNTHESE_ECHOUEE]"):
             continue
@@ -156,11 +230,12 @@ def established_facts(
             if not plain or taken + len(plain) > per_section_chars:
                 continue
             if used + len(plain) > total_chars:
-                return facts
-            facts.append(f"- ({name}) {plain}")
+                exhausted = True
+                break
+            taken_by_section.setdefault(name, []).append(f"- ({name}) {plain}")
             taken += len(plain)
             used += len(plain)
-    return facts
+    return [fact for name in names for fact in taken_by_section.get(name, [])]
 
 
 def build_prompt_v3(

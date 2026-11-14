@@ -113,6 +113,9 @@ class PipelineConfig:
     # affirmations soutenues 58,9 % -> 69,2 %, en hausse sur 7 sujets sur 8,
     # pour 25 % de temps en plus.
     deep_verify_sections: bool = True  # recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89)
+    # Une reecriture peut introduire de nouvelles phrases non soutenues : elle
+    # est reverifiee et gardee seulement si elle a moins de phrases fautives.
+    deep_verify_rewrite: bool = True  # recherche approfondie : la reecriture d'une section fautive est reverifiee, gardee si elle a moins de phrases fautives, citations completees avec ses propres verdicts
     quick_verify_answer: bool = False  # /research/quick: chaque phrase verifiee contre ses sources, reecriture unique si fautive (C89)
     # Redaction v3 (C93, 13/11/2026) : sources etiquetees [S1], [S2]... au lieu
     # d'URL a recopier, passages en texte et non en JSON, consignes sans
@@ -250,6 +253,7 @@ class PipelineConfig:
     synthesis_previous_sections_max: int = 6  # sections deja redigees citees dans le prompt
     synthesis_min_payload_chars: int = 200  # caracteres de donnees sous lesquels la section n'est pas redigee
     synthesis_tokens_per_word: float = 4.5  # jetons maximaux par mot vise
+    synthesis_min_max_tokens: int = 3000  # plancher de jetons maximaux d'une redaction ou reecriture de section (double une fois si la sortie est coupee)
     synthesis_temperature: float = 0.3  # temperature de la synthese d'une section
     synthesis_max_attempts: int = 3  # essais de la synthese d'une section
     synthesis_retry_backoff_base: int = 2  # base de l'attente entre deux essais (base ** essai, en secondes)

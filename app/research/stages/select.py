@@ -1,6 +1,7 @@
 """Selection des passages : score de pertinence, scoring semantique et budget de caracteres."""
 
 import logging
+import re
 from typing import Dict, List, Optional
 
 from app.research.context import ExecutionContext, cosine_similarity
@@ -9,6 +10,25 @@ from app.research.stages.services import StageServices
 
 
 logger = logging.getLogger(__name__)
+
+# Fin de phrase suivie d'un blanc : "12,5" ou "3.2" ne sont pas des fins.
+_SENTENCE_END = re.compile(r"[.!?…][\"'»”’)\]]*(?=\s)")
+
+
+def _cut_at_sentence(content: str, limit: int) -> str:
+    """Debut de content tenant en limit caracteres, coupe apres la derniere
+    phrase ou ligne complete ; vide si aucune ne tient."""
+    if len(content) <= limit:
+        return content
+    # Un caractere de plus : la fin de phrase doit etre suivie d'un blanc.
+    window = content[: limit + 1]
+    end = 0
+    for match in _SENTENCE_END.finditer(window):
+        if match.end() <= limit:
+            end = match.end()
+    newline = window.rfind("\n", 0, limit)
+    end = max(end, newline)
+    return content[:end].rstrip()
 
 
 def score_relevance(
@@ -301,29 +321,43 @@ async def semantic_chunk_selection(
 
         # Plafond par source (0 = aucun) : un seul document long ne doit
         # pas remplir tout le budget.
-        if max_per_source > 0:
-            source_key = str(item.get("source", ""))
-            if per_source.get(source_key, 0) >= max_per_source:
-                continue
-            per_source[source_key] = per_source.get(source_key, 0) + 1
+        source_key = str(item.get("source", ""))
+        if max_per_source > 0 and per_source.get(source_key, 0) >= max_per_source:
+            continue
 
         # Vérifier si on peut ajouter ce chunk
         if total_chars + content_len > max_chars:
             # Pour profondeur deep, essayer de prendre au moins un extrait
             if depth == "deep":
                 remaining = max_chars - total_chars
-                if remaining > cfg.selection_deep_min_remaining_chars:  # budget restant suffisant
-                    # Truncate ce chunk pour fit
+                kept = _cut_at_sentence(item["content"], remaining)
+                # Seuil applique au morceau reellement garde : un extrait
+                # coupe net finissait sur un chiffre ampute ("12" pour
+                # "12,5 millions"), que la redaction recopiait.
+                if len(kept) > cfg.selection_deep_min_remaining_chars:
                     item_copy = item.copy()
-                    item_copy["content"] = item["content"][:remaining]
+                    item_copy["content"] = kept
                     selected.append(item_copy)
-                    total_chars += remaining
+                    total_chars += len(kept)
                     chunks_selected += 1
-            break
+                    per_source[source_key] = per_source.get(source_key, 0) + 1
+                    if context is not None:
+                        context.diagnostics.note(
+                            "selection.passage_coupe",
+                            section=section,
+                            source=source_key,
+                            gardes=len(kept),
+                            longueur=content_len,
+                        )
+            # Les passages suivants, moins bien classes, peuvent etre plus
+            # courts et tenir dans le budget restant : s'arreter au premier
+            # qui deborde laissait ce budget inutilise.
+            continue
 
         selected.append(item)
         total_chars += content_len
         chunks_selected += 1
+        per_source[source_key] = per_source.get(source_key, 0) + 1
 
     # DEGRADATION GRACIEUSE : si AUCUN chunk ne franchit le seuil alors que
     # des chunks valides existent, on retient quand meme les meilleurs.

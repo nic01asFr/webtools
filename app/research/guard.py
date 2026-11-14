@@ -68,6 +68,13 @@ async def accept_rewrite(
             erreur=type(e).__name__,
         )
         return False
+    if getattr(verdicts, "partial", False):
+        # Acceptation sur une partie des phrases seulement : les autres n'ont
+        # pas ete jugees. Signale, sans changer la decision.
+        ctx.diagnostics.note(
+            "verification.verification_partielle", where=where,
+            soumises=verdicts.submitted, jugees=verdicts.judged,
+        )
     bad = [v for v in verdicts if v.verdict in REJECTING]
     if bad:
         ctx.diagnostics.note(

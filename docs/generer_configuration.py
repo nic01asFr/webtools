@@ -52,6 +52,7 @@ CAMPAGNES: dict[str, tuple[str, str]] = {
     "deep_verify_sections": ("citecheck (benchmarks/CITATIONS.md)", "false"),
     "selection_fallback_enabled": ("citecheck (benchmarks/CITATIONS.md)", "false"),
     "synthesis_v3": ("citecheck sur rejeu (benchmarks/CITATIONS.md)", "false"),
+    "deep_verify_rewrite": ("citecheck sur rejeu (benchmarks/CITATIONS.md)", "false"),
     "clean_title": ("M3", "true"),
     "summary_mode": ("M3", "none"),
     "coherence_append_enabled": ("M3", "false"),

@@ -41,7 +41,7 @@ périmé ou si un champ manque.
 
 <!-- DEBUT-GENERE : ne pas modifier a la main, voir docs/generer_configuration.py -->
 
-### Drapeaux à mesurer (type B) : 27 champs
+### Drapeaux à mesurer (type B) : 28 champs
 
 | Nom | Type | Défaut | Variable d'environnement | Effet | Campagne | Valeur essayée |
 |---|---|---|---|---|---|---|
@@ -68,6 +68,7 @@ périmé ou si un champ manque.
 | `deep_verify_sections` | bool | `true` | `WEBTOOLS_PIPELINE_DEEP_VERIFY_SECTIONS` | recherche approfondie : chaque section verifiee contre ses passages, reecriture unique si fautive (C89) | citecheck (benchmarks/CITATIONS.md) | `false` |
 | `quick_verify_answer` | bool | `false` | `WEBTOOLS_PIPELINE_QUICK_VERIFY_ANSWER` | /research/quick: chaque phrase verifiee contre ses sources, reecriture unique si fautive (C89) | citecheck (benchmarks/CITATIONS.md) | `true` |
 | `search_relevance_gate` | bool | `true` | `WEBTOOLS_PIPELINE_SEARCH_RELEVANCE_GATE` | vrai : resultat sans terme commun avec la requete ecarte (deux pour arXiv) | citecheck (benchmarks/CITATIONS.md) | `false` |
+| `deep_verify_rewrite` | bool | `true` | `WEBTOOLS_PIPELINE_DEEP_VERIFY_REWRITE` | recherche approfondie : la reecriture d'une section fautive est reverifiee, gardee si elle a moins de phrases fautives, citations completees avec ses propres verdicts | citecheck sur rejeu (benchmarks/CITATIONS.md) | `false` |
 | `synthesis_v3` | bool | `true` | `WEBTOOLS_PIPELINE_SYNTHESIS_V3` | faux : prompt de redaction precedent (URL recopiees, passages en JSON) | citecheck sur rejeu (benchmarks/CITATIONS.md) | `false` |
 | `plan_prompt_v2` | bool | `false` | `WEBTOOLS_PIPELINE_PLAN_PROMPT_V2` | prompt de plan sans ancien JSON ni exemples, contexte reduit (C33) | hors campagne | `true` |
 | `targeted_search_skip_structured` | bool | `false` | `WEBTOOLS_PIPELINE_TARGETED_SEARCH_SKIP_STRUCTURED` | recherche ciblee sans appel LLM d'extraction structuree (C36, C79) | hors campagne | `true` |
@@ -79,7 +80,7 @@ périmé ou si un champ manque.
 |---|---|---|---|---|
 | `max_sources_per_section` | int \| None | `None` | `WEBTOOLS_PIPELINE_MAX_SOURCES_PER_SECTION` | Plafond de sources par section, pour la recherche et pour l'extraction (C20). None : plafond selon la profondeur de la section (3, 5 ou 8) et 5 pages extraites au plus. |
 
-### Budgets et seuils : 115 champs
+### Budgets et seuils : 116 champs
 
 #### Étape exploration
 
@@ -200,6 +201,7 @@ périmé ou si un champ manque.
 | `synthesis_previous_sections_max` | int | `6` | `WEBTOOLS_PIPELINE_SYNTHESIS_PREVIOUS_SECTIONS_MAX` | sections deja redigees citees dans le prompt |
 | `synthesis_min_payload_chars` | int | `200` | `WEBTOOLS_PIPELINE_SYNTHESIS_MIN_PAYLOAD_CHARS` | caracteres de donnees sous lesquels la section n'est pas redigee |
 | `synthesis_tokens_per_word` | float | `4.5` | `WEBTOOLS_PIPELINE_SYNTHESIS_TOKENS_PER_WORD` | jetons maximaux par mot vise |
+| `synthesis_min_max_tokens` | int | `3000` | `WEBTOOLS_PIPELINE_SYNTHESIS_MIN_MAX_TOKENS` | plancher de jetons maximaux d'une redaction ou reecriture de section (double une fois si la sortie est coupee) |
 | `synthesis_temperature` | float | `0.3` | `WEBTOOLS_PIPELINE_SYNTHESIS_TEMPERATURE` | temperature de la synthese d'une section |
 | `synthesis_max_attempts` | int | `3` | `WEBTOOLS_PIPELINE_SYNTHESIS_MAX_ATTEMPTS` | essais de la synthese d'une section |
 | `synthesis_retry_backoff_base` | int | `2` | `WEBTOOLS_PIPELINE_SYNTHESIS_RETRY_BACKOFF_BASE` | base de l'attente entre deux essais (base ** essai, en secondes) |
@@ -241,7 +243,7 @@ périmé ou si un champ manque.
 | `enrichment_regenerate_v2_max_tokens` | int | `6000` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_V2_MAX_TOKENS` | jetons maximaux de la regeneration de section v2 |
 | `enrichment_regenerate_temperature` | float | `0.1` | `WEBTOOLS_PIPELINE_ENRICHMENT_REGENERATE_TEMPERATURE` | temperature de la regeneration de section (v1 et v2) |
 
-Total : 143 champs, soit tous ceux de `PipelineConfig`.
+Total : 145 champs, soit tous ceux de `PipelineConfig`.
 
 <!-- FIN-GENERE -->
 
