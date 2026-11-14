@@ -325,7 +325,7 @@ async def research_deep(request: DeepResearchRequest):
 
         diagnostics = {
             "config": config.to_dict(),
-            "events": {"counts": {}, "events": []},
+            "events": {"counts": {}, "events": [], "events_dropped": 0},
             "invariants": None,
         }
 
