@@ -1090,6 +1090,30 @@ Au 12 novembre 2026, version 3.0.0.
   - Harnais : le plan est rejoué avec la collecte (`ReplayPlanLLM`) ;
     `citations.py ecart` compare deux séries de répétitions, sujet par
     sujet, avec le bruit entre répétitions.
+  - C93 mesuré (run R5, `benchmarks/CITATIONS.md`) : à collecte et plan
+    identiques, la rédaction v3 porte les affirmations soutenues de 67,7 à
+    82,7 % en moyenne des rejeux, +14,2 points [IC95 +6,2 ; +21,0], hausse
+    sur 7 sujets sur 8. Le nombre d'affirmations soutenues ne baisse pas
+    (333 et 326 contre 333 et 337) ; ce sont les non soutenues qui
+    disparaissent. `synthesis_v3` reste vrai.
+  - C96, corrigé (collecte, commit `9a82d56`) : sur la collecte du 13
+    novembre, 43 résultats arXiv sur 66 et 17 résultats Bing sur 22 étaient
+    sans rapport avec la requête (magasins Lidl pour les néonicotinoïdes).
+    Résultat écarté si son titre et son extrait ne partagent aucun terme
+    significatif avec la requête (deux pour arXiv, qui répond par
+    disjonction) ; une liste vidée déclenche les replis de recherche.
+    Drapeau `search_relevance_gate`, à mesurer en mode `fill` sur la
+    collecte de R5.
+  - C97, corrigé (collecte) : le budget de temps d'une section (240 s)
+    courait dès sa mise en file, alors que trois sections au plus
+    travaillent en parallèle. Les sections 4 et suivantes d'un plan
+    l'épuisaient à attendre et sortaient vides, sans trace : `d08` de R5,
+    deux sections sans source. Le budget court à partir de l'obtention de la
+    place ; un dépassement ou un échec de section est noté
+    (`collecte.budget_section_depasse`, `collecte.section_echec`).
+  - Harnais, mode `fill` : sert la collecte enregistrée et va chercher en
+    direct, puis enregistre, ce qui manque. Mesure un changement de collecte
+    (C96, C97) sur une collecte connue, sans refaire le reste en direct.
   - Non traité, et pourquoi :
     - registre de notes extraites par un LLM avant la rédaction : un appel
       par page, sur un pipeline qui prend déjà jusqu'à 1 000 s. Les passages

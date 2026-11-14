@@ -42,21 +42,20 @@ async def collect_section_data(
     extraction_semaphore = asyncio.Semaphore(_settings.max_concurrent_extractions)
 
     async def _research_and_extract(section_name: str, section_config: Dict):
-        async with extraction_semaphore:
-            logger.info(f"  📝 Section (recherche+extraction): {section_name}")
-            section_data = await section_research_phase(
-                svc,
-                query=query,
-                section_name=section_name,
-                section_config=section_config,
-                exploration_data=exploration_data,
-                context=ctx,
-            )
-            extracted_data = await section_extraction_phase(
-                svc, section_name=section_name, section_data=section_data, context=ctx
-            )
-            logger.info(f"     ✓ {section_name}: {len(extracted_data)} contenus extraits")
-            return section_name, extracted_data
+        logger.info(f"  📝 Section (recherche+extraction): {section_name}")
+        section_data = await section_research_phase(
+            svc,
+            query=query,
+            section_name=section_name,
+            section_config=section_config,
+            exploration_data=exploration_data,
+            context=ctx,
+        )
+        extracted_data = await section_extraction_phase(
+            svc, section_name=section_name, section_data=section_data, context=ctx
+        )
+        logger.info(f"     ✓ {section_name}: {len(extracted_data)} contenus extraits")
+        return section_name, extracted_data
 
     # return_exceptions=True : sans lui, UNE section qui leve annule tout
     # le lot et fait echouer le rapport entier, alors que les autres
@@ -82,15 +81,28 @@ async def collect_section_data(
         int(svc.timeout * ctx.config.section_budget_timeout_ratio),
     )
 
+    # Le budget court a partir de l'obtention d'une place du semaphore, pas
+    # de la mise en file : avec 5 sections et 3 places, les deux dernieres
+    # consommaient leur budget a attendre et sortaient vides (rejeu d08 du
+    # 13/11/2026, deux sections sans source).
     async def _research_and_extract_bounded(name: str, cfg: Dict):
-        try:
-            return await asyncio.wait_for(_research_and_extract(name, cfg), timeout=section_budget)
-        except asyncio.TimeoutError:
-            logger.warning(
-                f"  ⏱️  Section '{name}' : budget de {section_budget}s dépassé, "
-                f"poursuite sans ses données"
-            )
-            return (name, [])
+        async with extraction_semaphore:
+            try:
+                return await asyncio.wait_for(
+                    _research_and_extract(name, cfg), timeout=section_budget
+                )
+            except asyncio.TimeoutError:
+                logger.warning(
+                    f"  ⏱️  Section '{name}' : budget de {section_budget}s dépassé, "
+                    f"poursuite sans ses données"
+                )
+                ctx.diagnostics.note(
+                    "collecte.budget_section_depasse", section=name, budget_s=section_budget
+                )
+                return (name, [])
+            except Exception as error:
+                ctx.diagnostics.note("collecte.section_echec", section=name, error=str(error))
+                raise
 
     extraction_results = await asyncio.gather(
         *[_research_and_extract_bounded(name, cfg) for name, cfg in section_targets.items()],

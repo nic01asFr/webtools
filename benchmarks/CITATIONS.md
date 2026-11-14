@@ -215,6 +215,7 @@ Réglages retenus d'après ces chiffres :
 | `quick_verify_answer` | `false` | aucun gain, une réponse juste dégradée |
 | `quick_uses_chunk_selection` | `false` | aucun gain mesurable (R2 contre R3) |
 | `selection_fallback_enabled` | `true` | R4 ci-dessous : le couper retire du contenu sans gain |
+| `synthesis_v3` | `true` (depuis `dbf399b`) | R5 ci-dessous : +14 points à collecte identique |
 
 ### Repli de sélection coupé (run R4 `repli0-d3a33da`, 13 novembre 2026)
 
@@ -241,6 +242,41 @@ grâce au correctif des balises `<time>`.
 jour-là, mais la vérification ajoute des appels : sous le délai par défaut
 de l'API (600 s), une recherche approfondie a plus de chances d'être
 partielle. Le serveur MCP demande 1 200 s.
+
+### Rédaction v3 à collecte identique (run R5, 13 et 14 novembre 2026)
+
+Service au commit `dbf399b`. Une collecte enregistrée (`v3rec`, rédaction v3),
+puis quatre rejeux alternés de cette même collecte et de son plan : v2, v3,
+v2, v3 (`synthesis_v3` faux puis vrai). Seules la rédaction et la
+vérification diffèrent d'un rejeu à l'autre. Écart apparié sujet par sujet
+(`citations.py ecart`), rejeux seulement, 2 répétitions contre 2 :
+
+| Mesure, deep | v2 | v3 | Écart moyen [IC95] | Sujets en hausse |
+|---|---|---|---|---|
+| Affirmations soutenues | 69,5 % et 65,9 % | 83,0 % et 82,4 % | +14,2 points [+6,2 ; +21,0] | 7 sur 8 |
+| Phrases citées | mesuré par sujet | mesuré par sujet | +15,8 points [+10,5 ; +21,3] | 8 sur 8 |
+| Affirmations soutenues, nombre | 333 et 326 | 333 et 337 | | |
+| Affirmations jugées, nombre | 479 et 495 | 401 et 409 | | |
+| Affirmations contredites | 0,8 % et 0,6 % | 1,0 % et 2,4 % | | |
+
+Le bruit entre deux rejeux de la même configuration est de 9 à 12 points
+par sujet ; l'écart moyen le dépasse et son intervalle exclut zéro. La v3 ne
+perd aucune affirmation soutenue : elle en produit autant, et retire environ
+80 affirmations non soutenues par rapport. Elle garde moins de sections (sur
+`d03`, 2 contre 4) : celles que les sources ne couvrent pas sont déclarées
+non traitées au lieu d'être écrites. Seul `d05` baisse, de 79,5 à 72,2 %,
+dans le bruit. Les contradictions passent de 7 à 14 affirmations sur les
+deux rejeux, sur 8 sujets : à surveiller dans les runs suivants.
+
+Limite du rejeu trouvée sur `d08` : 13 requêtes et pages manquaient dans
+chacun des quatre rejeux, à l'identique. En direct, les deux dernières
+sections de `d08` avaient épuisé leur budget de 240 s en attendant une place
+(trois sections au plus en parallèle) et étaient sorties vides, sans trace
+dans les diagnostics ; en rejeu, la collecte instantanée leur laissait le
+temps de chercher. La comparaison v2 contre v3 reste appariée (les quatre
+rejeux ont les mêmes manques), mais `d08` y est rédigé sur une collecte
+partielle. Défaut corrigé (C97) : le budget court à partir de l'obtention de
+la place, et un dépassement est noté (`collecte.budget_section_depasse`).
 
 ### Défauts de l'instrument trouvés et corrigés pendant la mesure
 

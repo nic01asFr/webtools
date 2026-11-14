@@ -9,7 +9,7 @@ appels LLM.
 
 Variables d'environnement (lues par `read_replay_env()`) :
 
-- `WEBTOOLS_REPLAY_MODE` : `record` ou `replay` (absent : desactive).
+- `WEBTOOLS_REPLAY_MODE` : `record`, `replay` ou `fill` (absent : desactive).
 - `WEBTOOLS_REPLAY_DIR` : repertoire d'enregistrement. Il est lu par le service,
   donc commun a toutes les taches d'un run : les fichiers sont nommes par empreinte
   de la requete ou de l'URL, plusieurs taches peuvent y coexister.
@@ -19,6 +19,9 @@ Variables d'environnement (lues par `read_replay_env()`) :
    `<dir>/pages/<empreinte>.json` (JSON lisible).
 2. Rejouer : `replay`, autant de runs que voulu ; seuls les appels LLM sont
    payes.
+3. Completer : `fill`, sert ce qui est enregistre et delegue au web reel,
+   puis ecrit, ce qui manque (`recorded` compte ces complements). A lancer
+   sur une copie de l'enregistrement, qu'il modifie.
 
 Le rejeu echoue explicitement (`ReplayMissError`, qui nomme la requete et le
 repertoire) sur une requete inconnue. Le pipeline avale souvent les
@@ -64,15 +67,32 @@ recherche, de l'extraction et du plan). Un run avec `missed` > 0 n'est pas un re
 fidele : le pipeline avale les erreurs de collecte, ce compteur est le seul
 signal visible dans la reponse.
 
-## Limite
+## Mesurer un changement de collecte
 
-Un changement de collecte (requetes generees, nombre de resultats, choix des
-URLs : lot V3-4) invalide l'enregistrement : les requetes ne correspondent
-plus et le rejeu echoue. Ce type de changement se mesure sur le web reel,
-avec un nouvel enregistrement.
+Un changement de collecte (filtre de resultats, replis, requetes generees,
+choix des URLs) fait demander des requetes ou des pages absentes de
+l'enregistrement : en `replay`, elles manquent. On le mesure en `fill` :
+
+1. Copier le repertoire enregistre (`cp -r collecte-X fill-X`).
+2. Un run en `fill` sur la copie, configuration B : seules les requetes
+   nouvelles partent sur le web.
+3. Les repetitions suivantes de B en `replay` sur la copie completee.
+4. Comparer aux rejeux de A sur l'enregistrement d'origine, avec `ecart`.
+
+Le web du jour du complement n'est pas celui de l'enregistrement : seule la
+part complementee en souffre, et `recorded` dit combien elle pese.
+
+## Limite : le temps n'est pas rejoue
+
+Une collecte rejouee est instantanee. En direct, une section qui depasse son
+budget de temps sort vide ; en rejeu, la meme section a le temps de chercher
+et demande des requetes jamais enregistrees (`missed` > 0, a l'identique
+d'un rejeu a l'autre). Constate sur `d08` le 13/11/2026, ou la cause etait
+un budget consomme en file d'attente (C97, corrige). Un `missed` non nul
+reste a expliquer avant de conclure sur la tache concernee.
 
 ## Branchement
 
 Le rejeu est branche dans `create_orchestrator` (`app/api/v1/endpoints/research_deep.py`) : il suffit de poser
-`WEBTOOLS_REPLAY_MODE` (`record` ou `replay`) et `WEBTOOLS_REPLAY_DIR` dans l'environnement du service.
+`WEBTOOLS_REPLAY_MODE` (`record`, `replay` ou `fill`) et `WEBTOOLS_REPLAY_DIR` dans l'environnement du service.
 Le bilan (`served`, `missed`, `recorded`) est rendu dans `diagnostics.replay` de chaque reponse.

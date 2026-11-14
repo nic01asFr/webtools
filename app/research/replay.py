@@ -9,6 +9,11 @@ Modes :
 - "replay" : l'appel est servi depuis le disque ; une requete inconnue leve
   ReplayMissError (et incremente `missed`, car le pipeline avale souvent les
   exceptions de collecte : un test verifie `missed == 0`).
+- "fill" : comme "replay", mais une requete inconnue est deleguee au client
+  reel puis ecrite (`recorded`). Sert a mesurer un changement qui modifie la
+  collecte (filtre, repli) sur une collecte deja enregistree : seules les
+  requetes nouvelles partent sur le reseau. Le repertoire est complete, a
+  utiliser sur une copie de l'enregistrement.
 
 Format sur disque : un repertoire par tache, contenant
     search/<empreinte>.json   {"key": {...}, "results": [SearchResult...]}
@@ -44,6 +49,8 @@ logger = logging.getLogger(__name__)
 
 MODE_RECORD = "record"
 MODE_REPLAY = "replay"
+MODE_FILL = "fill"
+MODES = (MODE_RECORD, MODE_REPLAY, MODE_FILL)
 ENV_MODE = "WEBTOOLS_REPLAY_MODE"
 ENV_DIR = "WEBTOOLS_REPLAY_DIR"
 
@@ -61,8 +68,8 @@ def read_replay_env() -> tuple[str | None, Path | None]:
     mode = os.environ.get(ENV_MODE, "").strip().lower()
     if not mode:
         return None, None
-    if mode not in (MODE_RECORD, MODE_REPLAY):
-        raise ValueError(f"{ENV_MODE} invalide : {mode!r} (attendu : record ou replay)")
+    if mode not in MODES:
+        raise ValueError(f"{ENV_MODE} invalide : {mode!r} (attendu : record, replay ou fill)")
     directory = os.environ.get(ENV_DIR, "").strip()
     if not directory:
         raise ValueError(f"{ENV_DIR} est requis quand {ENV_MODE} est defini")
@@ -106,18 +113,23 @@ def _write(path: Path, payload: dict[str, Any]) -> None:
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
 
 
-def _check_mode(mode: str) -> None:
-    if mode not in (MODE_RECORD, MODE_REPLAY):
+def _check_mode(mode: str, inner: Any = None, what: str = "") -> None:
+    if mode not in MODES:
         raise ValueError(f"mode de rejeu inconnu : {mode!r}")
+    if mode != MODE_REPLAY and inner is None:
+        raise ValueError(f"le mode {mode} exige {what}")
+
+
+def _delegates(mode: str, path: Path) -> bool:
+    """Vrai si l'appel part vers le client reel (puis est ecrit)."""
+    return mode == MODE_RECORD or (mode == MODE_FILL and not path.exists())
 
 
 class ReplaySearch:
     """Enveloppe de SearXNGClient.search."""
 
     def __init__(self, mode: str, directory: Path, inner: Any = None) -> None:
-        _check_mode(mode)
-        if mode == MODE_RECORD and inner is None:
-            raise ValueError("le mode record exige un client de recherche")
+        _check_mode(mode, inner, "un client de recherche")
         self.mode = mode
         self.directory = Path(directory)
         self.inner = inner
@@ -137,7 +149,7 @@ class ReplaySearch:
     ) -> list[SearchResult]:
         key = search_key(query, max_results, language, categories, time_range, max_pages)
         path = self.directory / "search" / f"{_fingerprint(key)}.json"
-        if self.mode == MODE_RECORD:
+        if _delegates(self.mode, path):
             results = await self.inner.search(
                 query,
                 max_results=max_results,
@@ -168,9 +180,7 @@ class ReplayExtractor:
     """Enveloppe de ExtractorManager.extract."""
 
     def __init__(self, mode: str, directory: Path, inner: Any = None) -> None:
-        _check_mode(mode)
-        if mode == MODE_RECORD and inner is None:
-            raise ValueError("le mode record exige un gestionnaire d'extraction")
+        _check_mode(mode, inner, "un gestionnaire d'extraction")
         self.mode = mode
         self.directory = Path(directory)
         self.inner = inner
@@ -188,7 +198,7 @@ class ReplayExtractor:
     ) -> WebResult:
         key = {"url": normalize_url(url)}
         path = self.directory / "pages" / f"{_fingerprint(key)}.json"
-        if self.mode == MODE_RECORD:
+        if _delegates(self.mode, path):
             result = await self.inner.extract(
                 url,
                 prompt=prompt,
@@ -222,7 +232,7 @@ class ReplayPlanLLM:
     """
 
     def __init__(self, mode: str, directory: Path, inner: Any) -> None:
-        _check_mode(mode)
+        _check_mode(mode, inner, "un client LLM")
         self.mode = mode
         self.directory = Path(directory)
         self.inner = inner
@@ -240,7 +250,7 @@ class ReplayPlanLLM:
             return await self.inner.generate_structured(messages, schema, schema_name, **kwargs)
         key = {"schema": schema_name, "messages": messages}
         path = self.directory / "llm" / f"{_fingerprint(key)}.json"
-        if self.mode == MODE_RECORD:
+        if _delegates(self.mode, path):
             result = await self.inner.generate_structured(messages, schema, schema_name, **kwargs)
             _write(path, {"key": key, "result": result})
             self.recorded += 1

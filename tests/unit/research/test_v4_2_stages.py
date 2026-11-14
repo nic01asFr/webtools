@@ -310,6 +310,66 @@ async def test_collect_une_entree_par_section_meme_sans_donnee() -> None:
     assert by_section["Costs"] and not by_section["Vide"]
 
 
+async def test_budget_de_section_court_apres_l_attente_de_place(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    # Une seule place, deux sections de 0,6 s chacune, budget de 1 s : la
+    # seconde attend 0,6 s sa place. Si l'attente comptait dans le budget,
+    # elle sortirait vide (cas d08 du 13/11/2026).
+    import asyncio
+
+    from app.core.config import settings
+
+    monkeypatch.setattr(settings, "max_concurrent_extractions", 1)
+    url_a, url_b = "https://ex.org/a", "https://ex.org/b"
+    search = FakeSearch().add("terme a", [make_result(url_a, "T", "s")])
+    search.add("terme b", [make_result(url_b, "T", "s")])
+    inner_search = search.search
+
+    async def slow_search(*args: Any, **kwargs: Any) -> Any:
+        await asyncio.sleep(0.6)
+        return await inner_search(*args, **kwargs)
+
+    monkeypatch.setattr(search, "search", slow_search)
+    config = PipelineConfig(section_budget_min_seconds=1, section_budget_timeout_ratio=0.0)
+    svc, ctx = make(search=search, pages=FakeExtractorManager({url_a: PAGE, url_b: PAGE}), config=config)
+    ctx.initialize_sections(["A", "B"])
+    plan = {
+        "search_strategy": {"sources_per_section": 1},
+        "section_targets": {
+            "A": {**SECTION_CONFIG, "search_terms": ["terme a"]},
+            "B": {**SECTION_CONFIG, "search_terms": ["terme b"]},
+        },
+    }
+    by_section = await collect_section_data(svc, ctx, QUERY, plan, {"sources": []})
+    assert by_section["A"] and by_section["B"]
+    assert ctx.diagnostics.count("collecte.budget_section_depasse") == 0
+
+
+async def test_budget_de_section_depasse_est_note(monkeypatch: pytest.MonkeyPatch) -> None:
+    import asyncio
+
+    search = FakeSearch()
+    calls: list[str] = []
+
+    async def stalled_search(*_args: Any, **_kwargs: Any) -> Any:
+        # Seul le premier appel (celui de la section) reste bloque ; le
+        # complement pre-redaction qui suit repond tout de suite.
+        calls.append("x")
+        if len(calls) == 1:
+            await asyncio.sleep(5)
+        return []
+
+    monkeypatch.setattr(search, "search", stalled_search)
+    config = PipelineConfig(section_budget_min_seconds=1, section_budget_timeout_ratio=0.0)
+    svc, ctx = make(search=search, config=config)
+    ctx.initialize_sections(["Lente"])
+    plan = {"search_strategy": {"sources_per_section": 1}, "section_targets": {"Lente": dict(SECTION_CONFIG)}}
+    by_section = await collect_section_data(svc, ctx, QUERY, plan, {"sources": []})
+    assert by_section["Lente"] == []
+    assert ctx.diagnostics.count("collecte.budget_section_depasse") == 1
+
+
 # --- Etat propre a une requete -----------------------------------------------
 
 
