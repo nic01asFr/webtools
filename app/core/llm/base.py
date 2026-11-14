@@ -40,8 +40,13 @@ _last_finish_reason: ContextVar[str | None] = ContextVar(
     "llm_last_finish_reason", default=None
 )
 
+# Raison d'arret posee par le client quand un flux se termine avec du contenu
+# mais sans finish_reason (connexion fermee en cours de generation) : le texte
+# est partiel, a traiter comme une sortie coupee.
+STREAM_INTERRUPTED = "interrupted"
+
 # Valeurs normalisees de finish_reason qui signalent une sortie coupee.
-TRUNCATION_REASONS = frozenset({"length"})
+TRUNCATION_REASONS = frozenset({"length", STREAM_INTERRUPTED})
 
 
 @dataclass(frozen=True)
@@ -108,7 +113,7 @@ class BaseLLMClient(ABC):
         _last_finish_reason.set(reason)
         if reason in TRUNCATION_REASONS:
             logger.warning(
-                "Sortie LLM coupee par max_tokens (modele %s, finish_reason=%s)",
+                "Sortie LLM coupee (modele %s, finish_reason=%s)",
                 self.model, reason,
             )
 

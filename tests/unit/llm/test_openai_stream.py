@@ -7,12 +7,13 @@ depasse le delai par tentative de 90 s et n'aboutissait jamais sans flux.
 
 from __future__ import annotations
 
+import asyncio
 import json
 
 import httpx
 import pytest
 
-from app.core.llm.base import LLMEmptyContentError, LLMTruncatedError
+from app.core.llm.base import LLMClientError, LLMEmptyContentError, LLMTruncatedError
 from app.core.llm.openai import OpenAILLMClient
 
 MESSAGES = [{"role": "user", "content": "bonjour"}]
@@ -170,4 +171,85 @@ async def test_balises_de_raisonnement_retirees(brut: str, attendu: str) -> None
     # Observe en production : un </think> isole publie au milieu d'un rapport.
     client = _client(_sse([brut]))
     assert await client.generate(MESSAGES) == attendu
+    await client.force_close()
+
+
+# --- Flux interrompu, fermeture du flux, embeddings (audit du 14/11/2026) ---
+
+
+def _sse_without_finish(pieces: list[str]) -> bytes:
+    """Flux termine sans finish_reason : connexion fermee en cours de generation."""
+    body = _sse(pieces, finish_reason="stop").decode()
+    return body.replace('"finish_reason": "stop"', '"finish_reason": null').encode()
+
+
+async def test_flux_sans_finish_reason_signale_comme_coupe() -> None:
+    client = _client(_sse_without_finish(["texte ", "partiel en pl"]))
+    result = await client.generate_result(MESSAGES)
+    assert result.text == "texte partiel en pl"
+    assert result.truncated is True
+    assert client.last_truncated is True
+    await client.force_close()
+
+
+async def test_structure_en_flux_sans_finish_reason_json_incomplet_leve() -> None:
+    client = _client(_sse_without_finish(['{"a": ', "4"]))
+    with pytest.raises(LLMTruncatedError):
+        await client.generate_structured(MESSAGES, schema=SCHEMA, schema_name="t")
+    await client.force_close()
+
+
+class _RecordingStream:
+    """Flux SDK simule : morceaux puis erreur, fermeture enregistree."""
+
+    def __init__(self, error: BaseException) -> None:
+        self.error = error
+        self.closed = False
+
+    def __aiter__(self):
+        return self._chunks()
+
+    async def _chunks(self):
+        from types import SimpleNamespace
+
+        delta = SimpleNamespace(content="debut")
+        yield SimpleNamespace(choices=[SimpleNamespace(delta=delta, finish_reason=None)])
+        raise self.error
+
+    async def close(self) -> None:
+        self.closed = True
+
+
+@pytest.mark.parametrize("error", [RuntimeError("connexion perdue"), asyncio.CancelledError()])
+async def test_flux_ferme_apres_erreur_ou_annulation(error: BaseException) -> None:
+    from types import SimpleNamespace
+
+    stream = _RecordingStream(error)
+
+    async def create(**_kwargs):
+        return stream
+
+    fake = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
+    client = _client(_sse(["x"]))
+    with pytest.raises(type(error)):
+        await client._complete(fake, model="m", messages=MESSAGES)
+    assert stream.closed is True
+    await client.force_close()
+
+
+async def test_embeddings_delai_court_et_une_reprise_au_plus() -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(500, json={"error": "boom"}, headers={"retry-after-ms": "1"})
+
+    client = OpenAILLMClient(
+        api_key="cle-test", base_url="https://llm.test/api", model="gpt-test",
+        max_retries=5, transport=httpx.MockTransport(handler),
+    )
+    with pytest.raises(LLMClientError):
+        await client.embed(["un texte"])
+    assert len(seen) == 2  # appel initial et une reprise, malgre max_retries=5
+    assert seen[0].extensions["timeout"]["read"] == 30.0
     await client.force_close()

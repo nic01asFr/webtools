@@ -15,6 +15,7 @@ from langchain_openai import ChatOpenAI
 from openai import AsyncOpenAI, BadRequestError
 
 from .base import (
+    STREAM_INTERRUPTED,
     TRUNCATION_REASONS,
     BaseLLMClient,
     LLMClientError,
@@ -28,6 +29,25 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_MAX_RETRIES = 5
 DEFAULT_ATTEMPT_TIMEOUT = 90.0
+# Embeddings : appel court et non bloquant (la selection se replie sur les
+# mots-cles en cas d'echec). Avec les valeurs de generation (90 s, 5 reprises),
+# un point d'acces d'embeddings qui ne repond pas pouvait retenir une section
+# jusqu'a six tentatives de 90 s avant ce repli.
+EMBED_ATTEMPT_TIMEOUT = 30.0
+EMBED_MAX_RETRIES = 1
+
+
+async def _close_stream(stream: Any) -> None:
+    """Ferme un flux SDK (AsyncStream.close) sans masquer l'erreur en cours."""
+    close = getattr(stream, "close", None)
+    if close is None:
+        return
+    try:
+        result = close()
+        if asyncio.iscoroutine(result):
+            await result
+    except Exception as e:  # noqa: BLE001 - la fermeture ne doit pas remplacer l'erreur d'origine
+        logger.debug(f"Fermeture du flux LLM impossible : {e}")
 
 
 def _cause_chain(error: BaseException) -> str:
@@ -233,19 +253,40 @@ class OpenAILLMClient(BaseLLMClient):
         parts: list[str] = []
         finish_reason = None
         seen_choice = False
-        async for chunk in stream:
-            if not chunk.choices:
-                continue
-            seen_choice = True
-            choice = chunk.choices[0]
-            delta = getattr(choice, "delta", None)
-            text = getattr(delta, "content", None) if delta is not None else None
-            if text:
-                parts.append(text)
-            if getattr(choice, "finish_reason", None):
-                finish_reason = choice.finish_reason
+        try:
+            async for chunk in stream:
+                if not chunk.choices:
+                    continue
+                seen_choice = True
+                choice = chunk.choices[0]
+                delta = getattr(choice, "delta", None)
+                text = getattr(delta, "content", None) if delta is not None else None
+                if text:
+                    parts.append(text)
+                if getattr(choice, "finish_reason", None):
+                    finish_reason = choice.finish_reason
+        finally:
+            # Flux ferme dans tous les cas : sur une annulation (echeance
+            # totale, delai global du pipeline) ou une erreur en cours de
+            # lecture, la connexion restait ouverte et occupait le pool.
+            await _close_stream(stream)
         if not seen_choice:
             return SimpleNamespace(choices=[])
+        if parts and finish_reason is None:
+            # Flux termine sans raison d'arret alors que du texte est arrive :
+            # la connexion a ete fermee en cours de generation, le texte est
+            # partiel. Signale comme une coupure (last_truncated vrai) plutot
+            # qu'en erreur : c'est le contrat de generate pour une sortie
+            # coupee, la redaction relance alors avec un plafond plus haut
+            # puis coupe a la derniere phrase complete, une sortie structuree
+            # au JSON incomplet leve LLMTruncatedError, et un serveur qui
+            # n'enverrait jamais de finish_reason ne fait pas echouer tous
+            # les appels.
+            logger.warning(
+                "Flux LLM termine sans finish_reason (modele %s) : sortie partielle",
+                create_kwargs.get("model"),
+            )
+            finish_reason = STREAM_INTERRUPTED
         message = SimpleNamespace(content="".join(parts) if parts else None)
         return SimpleNamespace(
             choices=[SimpleNamespace(message=message, finish_reason=finish_reason)]
@@ -379,7 +420,7 @@ class OpenAILLMClient(BaseLLMClient):
         """
         try:
             response = await self._call(
-                {},
+                {"timeout": EMBED_ATTEMPT_TIMEOUT, "max_retries": EMBED_MAX_RETRIES},
                 lambda client, kw: client.embeddings.create(model=model, input=texts),
             )
         except LLMClientError:
