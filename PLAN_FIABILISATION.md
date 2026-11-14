@@ -1114,6 +1114,42 @@ Au 12 novembre 2026, version 3.0.0.
   - Harnais, mode `fill` : sert la collecte enregistrée et va chercher en
     direct, puis enregistre, ce qui manque. Mesure un changement de collecte
     (C96, C97) sur une collecte connue, sans refaire le reste en direct.
+- **Audit du code, 14 novembre 2026 (C98)** : trois relectures
+  indépendantes du pipeline (attentes et délais, données perdues entre
+  étapes, troncatures), chaque constat vérifié dans le code puis corrigé
+  avec un test qui échoue sans lui. Commits `7d5e3a4` à `044cff6`.
+  - Attentes : pages déjà extraites gardées quand une section dépasse son
+    budget ; collecte et complément bornés par le temps global restant (la
+    moitié reste à la rédaction, `collection_writing_reserve_ratio`) ;
+    brouillon d'une section écrit avant sa vérification, pour qu'une
+    échéance ne le perde pas ; nettoyage après échéance borné à 15 s ;
+    rapport partiel aussi sur exception ; pas d'agent navigateur sur un refus
+    de site (45 s économisées par page, mémoire des refus enfin alimentée) ;
+    verrou d'espacement des moteurs libéré pendant l'attente ; analyse PDF
+    arrêtée avant le budget avec texte partiel ; embeddings par lots, échec
+    mémorisé ; extraction structurée de la recherche ciblée coupée.
+  - Données perdues : panne de SearXNG remontée comme erreur, plus comme
+    zéro résultat ; échecs d'extraction notés et non mis en cache ; plafond
+    de pages extraites compté sur les réussites ; sources comptées par page
+    et non par passage (complément, règle « peu de sources », métadonnées) ;
+    recherche ciblée sur les questions de la section, sans doublon ;
+    citations `[1]` nues et étiquettes mal formées retirées ou converties ;
+    refus en anglais reconnu ; vérification partielle notée ; bibliographie
+    construite après le retrait des sections vides, source « utilisée »
+    seulement si citée ; cause d'une section vide distinguée (incident de
+    collecte ou sujet pauvre) ; plan non structuré réconcilié.
+  - Troncatures : plancher de 3 000 jetons pour la rédaction, nouvel essai
+    puis coupe à la dernière phrase complète ; réécriture revérifiée et
+    gardée seulement si elle a moins de phrases fautives
+    (`deep_verify_rewrite`) ; flux interrompu traité comme coupé ; passage
+    coupé à la phrase dans la sélection ; fragments courts et tableaux
+    conservés au découpage (en-tête répété) ; 500 événements de diagnostic
+    et compteur des événements perdus ; faits établis pris dans les
+    sections les plus proches.
+  - Mesure en cours sur la collecte de R5 complétée (`enchainer-audit.sh`).
+  - Gardé tel quel, mesuré : la recherche rapide lit les 2 000 premiers
+    caractères de chaque source (R3 : la sélection de passages n'apporte
+    rien, 16 réponses exactes sur 16 dans R4 et R5).
   - Non traité, et pourquoi :
     - registre de notes extraites par un LLM avant la rédaction : un appel
       par page, sur un pipeline qui prend déjà jusqu'à 1 000 s. Les passages
