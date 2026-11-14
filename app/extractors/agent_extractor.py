@@ -16,6 +16,7 @@ from .direct_extractor import DirectExtractor
 from app.api.models import WebResult
 from app.core.llm.base import BaseLLMClient
 from app.core.browser.playwright_manager import ensure_playwright_installed
+from app.utils.block_page import is_refusal_error
 
 logger = logging.getLogger(__name__)
 
@@ -87,6 +88,17 @@ class AgentExtractor(BaseExtractor):
                 logger.info(f"Extraction directe réussie: {len(direct_result.content)} caractères")
                 direct_result.metadata["extraction_method"] = "direct_playwright_fast_path"
                 direct_result.metadata["extraction_tier"] = "direct"
+                return direct_result
+
+            # Refus du site (HTTP 401/403/429, page anti-robot) : l'agent
+            # navigateur (~40 s) se ferait refuser de meme, et son erreur
+            # finale masquerait le refus, que le gestionnaire ne pourrait
+            # alors plus memoriser (DomainRefusals). On rend le resultat
+            # direct, erreur d'origine conservee.
+            if not direct_result.success and is_refusal_error(direct_result.error):
+                logger.warning(
+                    f"Refus du site pour {url}, agent non lance : {direct_result.error}"
+                )
                 return direct_result
 
             # ÉTAPE 1.5 : si l'extraction directe a produit un contenu partiel (pas vide,
