@@ -13,6 +13,14 @@ from pydantic import BaseModel
 logger = logging.getLogger(__name__)
 
 
+class SearchUnavailableError(Exception):
+    """SearXNG n'a pas repondu et aucun resultat n'a ete collecte.
+
+    Distincte d'une liste vide : une panne du moteur ne doit pas passer pour
+    un sujet sans resultat (les appelants notent l'echec ou rendent 502).
+    """
+
+
 class SearchResult(BaseModel):
     """Résultat de recherche SearXNG"""
     url: str
@@ -334,12 +342,14 @@ class SearXNGClient:
                     self._cache[cache_key] = (results, _time.time())
                 return results
 
-        except httpx.HTTPError as e:
-            logger.error(f"HTTP error during SearXNG search: {e}")
-            return results  # retourne ce qui a deja ete collecte, pas vide systematiquement
         except Exception as e:
-            logger.error(f"Error during SearXNG search: {e}")
-            return results
+            # Pages deja collectees : rendues (panne en cours de pagination).
+            # Rien de collecte : l'erreur remonte, pour que l'appelant la
+            # distingue d'un vrai zero resultat.
+            logger.error(f"Error during SearXNG search ({type(e).__name__}): {e}")
+            if results:
+                return results
+            raise SearchUnavailableError(f"SearXNG indisponible ({type(e).__name__}: {e})") from e
 
     async def health_check(self) -> bool:
         """
